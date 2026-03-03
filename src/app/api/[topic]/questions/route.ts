@@ -12,7 +12,7 @@ export async function GET(
     return NextResponse.json({ error: "Topic not found" }, { status: 404 });
   }
 
-  // TODO: replace with DB / Python engine call
+  // TODO: replace with DB / Python engine calls
   const questions: Question[] = [
     { id: "q1", prompt: `Sample question for ${topic} #1` },
     { id: "q2", prompt: `Sample question for ${topic} #2` },
