@@ -70,6 +70,19 @@ prisma/
 3. Add question logic to `src/app/api/[topic]/questions/route.ts`.
 4. No changes needed to `page.tsx` or the route handlers' slug validation (uses the shared `topicSlugs` set).
 
+### Environment variables
+- `.env.example` — committed template, safe to push. Source of truth for all required variable names.
+- `.env.local` — local dev secrets, gitignored. Copy from `.env.example` and fill in real values.
+- Never commit `.env.local` or any file containing real secrets.
+- For Vercel deployments, set each variable in the Vercel dashboard scoped to the correct environment:
+  - **Production** → production Supabase project `DATABASE_URL`
+  - **Preview** (staging) → staging Supabase project `DATABASE_URL`
+
+| Variable | Description | Public |
+|----------|-------------|--------|
+| `DATABASE_URL` | Supabase PostgreSQL connection string | No |
+| `NEXT_PUBLIC_APP_URL` | Public base URL of the app | Yes |
+
 ---
 
 ## Tech stack
@@ -81,4 +94,4 @@ prisma/
 | Styling | Tailwind CSS v4 |
 | DB ORM | Prisma (PostgreSQL via Supabase) |
 | Python BE | FastAPI + Uvicorn |
-| MCP | Supabase MCP (`.mcp.json`) |
+| MCP | Supabase + Vercel MCP (`.mcp.json`) |
