@@ -3,7 +3,10 @@ export interface Topic {
   icon: string;
   title: string;
   description: string;
+  category: TopicCategory;
 }
+
+export type TopicCategory = "scanning" | "logical" | "spatial" | "approximation" | "short-term-memory";
 
 export interface Question {
   id: string;

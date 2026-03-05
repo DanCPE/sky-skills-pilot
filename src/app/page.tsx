@@ -3,47 +3,50 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      {/* Hero Section with Background Image */}
-      <div className="relative min-h-[600px] flex items-center justify-center overflow-hidden">
+    <div className="min-h-screen bg-[#0a0f18] text-white">
+      {/* Hero Section */}
+      <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden">
         {/* Background Image Layer */}
-        <div className="absolute inset-0 z-0">
+        <div className="absolute inset-0 z-0 bg-[#0a0f18]">
           <Image
-            src="/images/backgrounds/hero-banner.webp"
-            alt=""
+            src="/images/backgrounds/home.png"
+            alt="Cockpit background"
             fill
             priority
-            quality={85}
-            className="object-cover"
+            quality={90}
+            className="object-cover opacity-80"
             sizes="100vw"
           />
           {/* Overlay for text readability */}
-          <div className="absolute inset-0 bg-white/80 dark:bg-black/70" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#0a0f18]" />
         </div>
 
         {/* Content Layer */}
-        <div className="relative z-10 mx-auto max-w-4xl px-6 text-center">
-          <h1 className="text-5xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
+        <div className="relative z-10 mx-auto max-w-4xl px-6 text-center mt-[-10vh]">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white mb-2 shadow-sm drop-shadow-md">
             Clear for Takeoff
           </h1>
-          <h2 className="mt-4 text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-50">
-            Ace Your SkySkills
+          <h2 className="text-5xl md:text-7xl font-bold tracking-tight text-white drop-shadow-md">
+            Ace Your <span className="text-amber-400">SkySkills</span>
           </h2>
 
-          <p className="mx-auto mt-6 max-w-3xl text-lg text-zinc-600 dark:text-zinc-400">
+          <p className="mx-auto mt-8 max-w-2xl text-lg md:text-xl text-zinc-300 font-light leading-relaxed">
             Develop the logical, spatial, scanning and short-term memory skills
             essential for your exams. The most comprehensive,
             distraction-free preparation platform designed for your
             success.
           </p>
 
-          <div className="mt-10">
+          <div className="mt-10 flex flex-col items-center">
             <Link
               href="/sky-quest"
-              className="inline-flex items-center justify-center rounded-full bg-zinc-900 px-8 py-3 text-base font-medium text-white transition-colors hover:bg-zinc-800 dark:bg-zinc-50 dark:text-zinc-900 dark:hover:bg-zinc-200"
+              className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-violet-600 shadow-lg"
             >
-              Start Practicing →
+              Start Free Trial
             </Link>
+            <p className="mt-3 text-sm text-zinc-400 font-medium">
+              No credit card required for trial
+            </p>
           </div>
         </div>
       </div>

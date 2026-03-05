@@ -6,30 +6,35 @@ export const topics: Topic[] = [
     icon: "📦",
     title: "Box Folding",
     description: "Visualize how 2D nets fold into 3D shapes.",
+    category: "spatial",
   },
   {
     slug: "number-series",
     icon: "🔢",
     title: "Number Series",
     description: "Find the pattern in numerical sequences.",
+    category: "logical",
   },
   {
     slug: "calculate",
     icon: "🧮",
     title: "Calculate",
     description: "Practice arithmetic and mental math.",
+    category: "approximation",
   },
   {
     slug: "pattern-recognition",
     icon: "🔍",
     title: "Pattern Recognition",
     description: "Identify rules and predict what comes next.",
+    category: "logical",
   },
   {
     slug: "spatial-reasoning",
     icon: "🧩",
     title: "Spatial Reasoning",
     description: "Solve puzzles involving shapes and space.",
+    category: "spatial",
   },
 ];
 
