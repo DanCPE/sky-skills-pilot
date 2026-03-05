@@ -11,7 +11,7 @@ export default function TopicLayout({ title, description, children }: TopicLayou
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
       <main className="mx-auto max-w-4xl px-6 py-12">
         <Link
-          href="/"
+          href="/sky-quest"
           className="mb-8 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-50"
         >
           ← Back
