@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import Image from "next/image";
 import { usePathname } from "next/navigation";
 
 const navItems = [
@@ -18,11 +19,15 @@ export default function Navbar() {
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center gap-2 text-xl font-bold tracking-tight text-zinc-900 dark:text-white">
-            <div className="bg-gradient-to-br from-yellow-400 to-violet-600 w-8 h-8 rounded-full flex items-center justify-center text-white text-[10px] font-black">
-              SS
-            </div>
-            SkySkills
+          <Link href="/" className="flex items-center gap-2">
+            <Image 
+              src="/images/icons/Logo from Google Drive.png" 
+              alt="Sky Skills Logo" 
+              width={140} 
+              height={40} 
+              className="object-contain"
+              priority
+            />
           </Link>
 
           {/* Navigation Links */}

@@ -7,6 +7,7 @@ export const topics: Topic[] = [
     title: "Box Folding",
     description: "Visualize how 2D nets fold into 3D shapes.",
     category: "spatial",
+    isLocked: false,
   },
   {
     slug: "number-series",
@@ -14,6 +15,7 @@ export const topics: Topic[] = [
     title: "Number Series",
     description: "Find the pattern in numerical sequences.",
     category: "logical",
+    isLocked: false,
   },
   {
     slug: "calculate",
@@ -21,6 +23,7 @@ export const topics: Topic[] = [
     title: "Calculate",
     description: "Practice arithmetic and mental math.",
     category: "approximation",
+    isLocked: true,
   },
   {
     slug: "pattern-recognition",
@@ -28,6 +31,7 @@ export const topics: Topic[] = [
     title: "Pattern Recognition",
     description: "Identify rules and predict what comes next.",
     category: "logical",
+    isLocked: true,
   },
   {
     slug: "spatial-reasoning",
@@ -35,6 +39,7 @@ export const topics: Topic[] = [
     title: "Spatial Reasoning",
     description: "Solve puzzles involving shapes and space.",
     category: "spatial",
+    isLocked: true,
   },
 ];
 

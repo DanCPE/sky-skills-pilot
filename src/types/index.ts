@@ -4,6 +4,7 @@ export interface Topic {
   title: string;
   description: string;
   category: TopicCategory;
+  isLocked?: boolean;
 }
 
 export type TopicCategory = "scanning" | "logical" | "spatial" | "approximation" | "short-term-memory";
