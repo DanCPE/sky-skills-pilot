@@ -23,10 +23,10 @@ export default function Home() {
 
         {/* Content Layer */}
         <div className="relative z-10 mx-auto max-w-4xl px-6 text-center mt-[-10vh]">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight text-white mb-2 shadow-sm drop-shadow-md">
+          <h1 className="text-5xl md:text-7xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-white mb-2 shadow-sm drop-shadow-md">
             Clear for Takeoff
           </h1>
-          <h2 className="text-5xl md:text-7xl font-bold tracking-tight text-white drop-shadow-md">
+          <h2 className="text-5xl md:text-7xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-white drop-shadow-md">
             Ace Your <span className="text-amber-400">SkySkills</span>
           </h2>
 

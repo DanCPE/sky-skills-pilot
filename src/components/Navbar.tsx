@@ -20,20 +20,25 @@ export default function Navbar() {
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
           <Link href="/" className="flex items-center gap-2">
-            <Image 
-              src="/images/icons/Logo from Google Drive.png" 
-              alt="Sky Skills Logo" 
-              width={240} 
-              height={140} 
-              className="object-contain h-12 w-auto"
+            <Image
+              src="/images/icons/Logo from Google Drive.png"
+              alt="Sky Skills Logo"
+              width={240}
+              height={140}
+              className="object-contain h-10 w-auto"
               priority
             />
+            <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-50">
+              SkySkills
+            </span>
           </Link>
 
           {/* Navigation Links */}
           <div className="hidden md:flex flex-1 justify-center gap-8 font-semibold text-sm">
             {navItems.map((item) => {
-              const isActive = pathname === item.href || (item.href !== "/" && pathname?.startsWith(item.href));
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname?.startsWith(item.href));
               return (
                 <Link
                   key={item.href}

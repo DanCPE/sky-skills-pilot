@@ -18,7 +18,7 @@ export default function TopicLayout({ title, description, children }: TopicLayou
         </Link>
 
         <div className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-3xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)]">{title}</h1>
           <p className="mt-2 text-base text-zinc-500 dark:text-zinc-400">{description}</p>
         </div>
 
