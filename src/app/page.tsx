@@ -18,7 +18,7 @@ export default function Home() {
             sizes="100vw"
           />
           {/* Overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/40 via-transparent to-[#0a0f18]" />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-[#0a0f18]" />
         </div>
 
         {/* Content Layer */}
@@ -30,11 +30,10 @@ export default function Home() {
             Ace Your <span className="text-amber-400">SkySkills</span>
           </h2>
 
-          <p className="mx-auto mt-8 max-w-2xl text-lg md:text-xl text-zinc-300 font-light leading-relaxed">
+          <p className="mx-auto mt-8 max-w-2xl text-lg md:text-xl text-slate-300 font-medium leading-relaxed ">
             Develop the logical, spatial, scanning and short-term memory skills
-            essential for your exams. The most comprehensive,
-            distraction-free preparation platform designed for your
-            success.
+            essential for your exams. The most comprehensive, distraction-free
+            preparation platform designed for your success.
           </p>
 
           <div className="mt-10 flex flex-col items-center">
