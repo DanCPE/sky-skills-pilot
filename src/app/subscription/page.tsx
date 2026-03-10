@@ -103,7 +103,7 @@ export default function SubscriptionPage() {
             Master the Skills That <br className="hidden md:block"/>
             Matter with <span className="text-yellow-400">SkySkills</span>
           </h1>
-          <p className="mt-5 text-sm md:text-base text-violet-200 font-medium">
+          <p className="mt-0.5 text-sm md:text-base text-violet-200 font-medium">
             designed to <span className="text-white">support</span> every step of your aviation aptitude preparation.
           </p>
         </div>
