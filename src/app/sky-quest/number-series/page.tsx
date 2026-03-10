@@ -1,14 +1,26 @@
+"use client";
+
+import { useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
+import ModeSelection from "@/components/number-series/ModeSelection";
+import QuizInterface from "@/components/number-series/QuizInterface";
+import type { NumberSeriesQuizResponse } from "@/types";
 
 export default function NumberSeriesPage() {
+  const [quizData, setQuizData] = useState<NumberSeriesQuizResponse | null>(
+    null
+  );
+
   return (
     <TopicLayout
       title="Number Series"
       description="Find the pattern in numerical sequences."
     >
-      <div className="flex min-h-[300px] items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
-        <p className="text-sm text-zinc-400 dark:text-zinc-600">Exercises coming soon</p>
-      </div>
+      {!quizData ? (
+        <ModeSelection onStart={setQuizData} />
+      ) : (
+        <QuizInterface quizData={quizData} onRestart={() => setQuizData(null)} />
+      )}
     </TopicLayout>
   );
 }
