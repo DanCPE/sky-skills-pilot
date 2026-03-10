@@ -23,9 +23,9 @@ export default function Navbar() {
             <Image 
               src="/images/icons/Logo from Google Drive.png" 
               alt="Sky Skills Logo" 
-              width={140} 
-              height={40} 
-              className="object-contain"
+              width={240} 
+              height={140} 
+              className="object-contain h-12 w-auto"
               priority
             />
           </Link>
