@@ -3,6 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
+import { useState } from "react";
 
 const navItems = [
   { href: "/", label: "Home" },
@@ -13,9 +14,10 @@ const navItems = [
 
 export default function Navbar() {
   const pathname = usePathname();
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   return (
-    <nav className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 sticky top-0 z-50">
+    <nav className="border-b border-zinc-200 bg-white sticky top-0 z-50">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -28,12 +30,12 @@ export default function Navbar() {
               className="object-contain h-10 w-auto"
               priority
             />
-            <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-50">
+            <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900">
               SkySkills
             </span>
           </Link>
 
-          {/* Navigation Links */}
+          {/* Desktop Navigation Links */}
           <div className="hidden md:flex flex-1 justify-center gap-8 font-semibold text-sm">
             {navItems.map((item) => {
               const isActive =
@@ -46,7 +48,7 @@ export default function Navbar() {
                   className={`transition-colors ${
                     isActive
                       ? "text-yellow-500 hover:text-yellow-400"
-                      : "text-violet-800 hover:text-violet-600 dark:text-violet-400"
+                      : "text-violet-800 hover:text-violet-600"
                   }`}
                 >
                   {item.label}
@@ -55,11 +57,11 @@ export default function Navbar() {
             })}
           </div>
 
-          {/* Actions */}
+          {/* Desktop Actions */}
           <div className="hidden sm:flex items-center gap-6">
             <Link
               href="/login"
-              className="text-sm font-semibold text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
+              className="text-sm font-semibold text-zinc-600 hover:text-zinc-900"
             >
               Log In
             </Link>
@@ -70,7 +72,63 @@ export default function Navbar() {
               Sign Up
             </Link>
           </div>
+
+          {/* Mobile Menu Button */}
+          <button
+            type="button"
+            className="md:hidden p-2 rounded-lg text-zinc-600 hover:bg-zinc-100"
+            onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+          >
+            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor">
+              {mobileMenuOpen ? (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+              ) : (
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5m-16.5 5.25h16.5" />
+              )}
+            </svg>
+          </button>
         </div>
+
+        {/* Mobile Menu */}
+        {mobileMenuOpen && (
+          <div className="md:hidden py-4 space-y-4">
+            {navItems.map((item) => {
+              const isActive =
+                pathname === item.href ||
+                (item.href !== "/" && pathname?.startsWith(item.href));
+              return (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  className={`block px-4 py-2 rounded-lg transition-colors ${
+                    isActive
+                      ? "bg-yellow-50 text-yellow-600 font-semibold"
+                      : "text-zinc-700 hover:bg-zinc-100"
+                  }`}
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  {item.label}
+                </Link>
+              );
+            })}
+            <div className="px-4 pt-4 space-y-3">
+              <Link
+                href="/login"
+                className="block text-center text-sm font-semibold text-zinc-600 hover:text-zinc-900 py-2"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Log In
+              </Link>
+              <Link
+                href="/signup"
+                className="block text-center rounded-lg bg-violet-700 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-600 shadow-sm"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Sign Up
+              </Link>
+            </div>
+          </div>
+        )}
       </div>
     </nav>
   );
