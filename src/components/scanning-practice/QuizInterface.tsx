@@ -174,8 +174,12 @@ export default function QuizInterface({
 
   // Handle submit quiz (practice mode)
   const handleSubmitQuiz = async () => {
-    if (mode !== "practice") return;
+    if (mode !== "practice") {
+      return;
+    }
 
+    // Hide confirmation immediately
+    setShowConfirmation(false);
     setIsSubmitting(true);
     const submitStartTime = Date.now();
 
@@ -369,7 +373,11 @@ export default function QuizInterface({
       {/* All Questions */}
       <div className="space-y-6">
         {questions.map((question, index) => (
-          <div key={question.id} id={`question-${index}`} className="rounded-3xl bg-zinc-50 p-4 dark:bg-zinc-800/50">
+          <div
+            key={question.id}
+            id={`question-${index}`}
+            className="rounded-3xl bg-zinc-50 p-4 dark:bg-zinc-800/50"
+          >
             <div className="mb-3 flex items-center justify-between">
               <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
                 Question {index + 1}
