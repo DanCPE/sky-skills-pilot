@@ -41,6 +41,14 @@ export const topics: Topic[] = [
     category: "spatial",
     isLocked: true,
   },
+  {
+    slug: "scanning-practice",
+    icon: "👁️",
+    title: "Scanning Practice",
+    description: "Quickly compare alphanumeric strings and identify differences.",
+    category: "scanning",
+    isLocked: false,
+  },
 ];
 
 export const topicSlugs = new Set(topics.map((t) => t.slug));

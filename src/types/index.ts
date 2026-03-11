@@ -73,3 +73,37 @@ export interface NumberSeriesSubmitResult extends SubmitResult {
   patternExplanation?: string;
   currentScore?: number; // Running score (0-100)
 }
+
+// Scanning Practice specific types
+export interface ScanningPracticeQuestion extends Question {
+  id: string;
+  prompt: string;
+  stringA: string; // e.g., "8K2L9S1V"
+  stringB: string; // e.g., "8K2L9S2V" (1 difference)
+  differenceCount: number; // 0-5, the correct answer
+  stringLength: number; // 12-18, for reference
+}
+
+export interface ScanningPracticeQuizRequest {
+  mode: "learning" | "practice";
+  stringLength?: number; // Default: random 12-18
+  questionCount?: number; // Default: 40
+}
+
+export interface ScanningPracticeQuizResponse {
+  questions: ScanningPracticeQuestion[];
+  mode: "learning" | "practice";
+  timeLimit?: number; // Seconds (practice mode only)
+}
+
+export interface ScanningPracticeSubmitPayload extends SubmitPayload {
+  mode: "learning" | "practice";
+  questionIndex: number;
+  timeRemaining?: number;
+  differenceCount: number; // The correct answer (for validation)
+}
+
+export interface ScanningPracticeSubmitResult extends SubmitResult {
+  correctAnswer?: number;
+  currentScore?: number; // Running score (0-100)
+}
