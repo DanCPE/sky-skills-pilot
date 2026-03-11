@@ -44,7 +44,7 @@ export const topics: Topic[] = [
   {
     slug: "scanning-practice",
     icon: "👁️",
-    title: "Scanning Practice",
+    title: "String Comparison",
     description: "Quickly compare alphanumeric strings and identify differences.",
     category: "scanning",
     isLocked: false,

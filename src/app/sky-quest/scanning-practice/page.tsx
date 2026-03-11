@@ -13,7 +13,7 @@ export default function ScanningPracticePage() {
 
   return (
     <TopicLayout
-      title="Scanning Practice"
+      title="String Comparison"
       description="Quickly compare alphanumeric strings and identify differences."
     >
       {!quizData ? (
