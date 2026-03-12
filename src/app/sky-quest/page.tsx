@@ -62,7 +62,7 @@ export default function SkyQuestPage() {
 
         {/* Topic Cards Grid */}
         {filteredTopics.length > 0 ? (
-          <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:gap-10 lg:grid-cols-3">
             {filteredTopics.map((topic) => (
               <div
                 key={topic.slug}

@@ -78,7 +78,7 @@ const faqs = [
 
 export default function SubscriptionPage() {
   return (
-    <div className="min-h-screen bg-[#fafafa] text-zinc-900 pb-32">
+    <div className="min-h-screen bg-[#fafafa] text-zinc-900 pb-32" style={{ "--font-scale": 1 } as React.CSSProperties}>
       {/* Hero Banner Section */}
       <section className="relative w-full h-[380px] md:h-[450px] flex items-center justify-center overflow-hidden">
         {/* Background Image with Gradient Overlay */}
@@ -115,6 +115,7 @@ export default function SubscriptionPage() {
           {plans.map((plan) => (
             <div
               key={plan.name}
+              style={{ "--font-scale": 1.2 } as React.CSSProperties}
               className={`relative flex flex-col rounded-2xl p-6 transition-transform hover:-translate-y-2 shadow-xl ${
                 plan.isPopular
                   ? "bg-[#2b253b] text-white border-2 border-yellow-400 shadow-yellow-900/20"
@@ -122,7 +123,7 @@ export default function SubscriptionPage() {
               }`}
             >
               {plan.isPopular && (
-                <div className="absolute top-0 right-6 -translate-y-1/2 bg-yellow-400 text-zinc-900 px-3 py-1 rounded-sm text-[10px] font-bold uppercase tracking-widest shadow-sm">
+                <div className="absolute top-0 right-6 -translate-y-1/2 bg-yellow-400 text-zinc-900 px-3 py-1 rounded-sm text-[12px] font-bold uppercase tracking-widest shadow-sm">
                   Recommended
                 </div>
               )}
@@ -149,7 +150,7 @@ export default function SubscriptionPage() {
                   </span>
                 )}
               </div>
-              <p className={`text-[11px] leading-relaxed min-h-[40px] ${plan.isPopular ? "text-violet-200" : "text-zinc-500"}`}>
+              <p className={`text-[13px] leading-relaxed min-h-[40px] ${plan.isPopular ? "text-violet-200" : "text-zinc-500"}`}>
                 {plan.description}
               </p>
 
@@ -183,7 +184,7 @@ export default function SubscriptionPage() {
                       </span>
                     </div>
                     {feature === "Skills Dashboard" && (
-                      <span className={`text-[9px] ml-6 leading-relaxed ${plan.isPopular ? "text-violet-300" : "text-zinc-400"}`}>
+                      <span className={`text-[11px] ml-6 leading-relaxed ${plan.isPopular ? "text-violet-300" : "text-zinc-400"}`}>
                         compare, and analyze your scores to identify strengths and areas for improvement
                       </span>
                     )}

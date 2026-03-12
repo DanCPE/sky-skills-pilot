@@ -3,7 +3,7 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0a0f18] text-white">
+    <div className="min-h-screen bg-[#0a0f18] text-white" style={{ "--font-scale": 1 } as React.CSSProperties}>
       {/* Hero Section */}
       <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden">
         {/* Background Image Layer */}
