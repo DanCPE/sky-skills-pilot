@@ -24,20 +24,6 @@ export default function QuestionCard({
 
   const getOptionStyle = (option: string) => {
     const isSelected = selectedAnswer === option;
-    const isCorrectAnswer = option === String(question.correctAnswer);
-
-    if (showResult) {
-      if (isSelected && isCorrect) {
-        return "border-green-500 bg-green-50 dark:bg-green-950";
-      }
-      if (isSelected && !isCorrect) {
-        return "border-red-500 bg-red-50 dark:bg-red-950";
-      }
-      if (isCorrectAnswer) {
-        return "border-green-500 bg-green-50 dark:bg-green-950";
-      }
-      return "border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 opacity-50";
-    }
 
     if (isSelected) {
       return "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950";
@@ -97,22 +83,6 @@ export default function QuestionCard({
           </button>
         ))}
       </div>
-
-      {/* Feedback Text */}
-      {showResult && selectedAnswer && (
-        <div className="mt-6 text-center">
-          {isCorrect ? (
-            <p className="text-lg font-semibold text-green-600 dark:text-green-400">
-              ✓ Correct! Great job!
-            </p>
-          ) : (
-            <p className="text-lg font-semibold text-red-600 dark:text-red-400">
-              ✗ Incorrect. The correct answer is{" "}
-              <span className="font-bold">{question.correctAnswer}</span>
-            </p>
-          )}
-        </div>
-      )}
     </div>
   );
 }
