@@ -27,7 +27,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
         count: String(questionCount),
       });
 
-      const response = await fetch(`/api/scanning-practice/questions?${params}`);
+      const response = await fetch(`/api/string-comparison/questions?${params}`);
 
       if (!response.ok) {
         const errorData = await response.json();

@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Timer from "./Timer";
-import ProgressBar from "./ProgressBar";
+import Timer from "@/components/shared/Timer";
+import ProgressBar from "@/components/shared/ProgressBar";
 import QuestionCard from "./QuestionCard";
 import ExplanationCard from "./ExplanationCard";
 import ResultsScreen from "./ResultsScreen";

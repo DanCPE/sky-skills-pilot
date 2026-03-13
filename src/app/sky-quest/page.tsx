@@ -22,7 +22,7 @@ export default function SkyQuestPage() {
 
   const filteredTopics =
     selectedCategory === "all"
-      ? topics
+      ? [...topics].sort((a, b) => (a.isLocked === b.isLocked ? 0 : a.isLocked ? 1 : -1))
       : topics.filter((topic) => topic.category === selectedCategory);
 
   return (
@@ -135,25 +135,26 @@ export default function SkyQuestPage() {
         {/* Bottom Banner */}
         <div className="mt-20">
           <div className="mx-auto max-w-lg overflow-hidden rounded-3xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center shadow-2xl shadow-zinc-200/50 dark:shadow-zinc-950">
-            <div className="mb-4 relative w-6 h-6 mx-auto">
+            <div className="mb-4 relative w-16 h-16 mx-auto">
               <Image
                 src="/images/icons/SkyQuests/sun.png"
                 alt="Unlock Skills"
-                fill
+                width={64}
+                height={64}
                 className="object-contain"
               />
             </div>
-            <h3 className="mb-1 text-xl font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
+            <h3 className="mb-8 text-xl font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
               Unlock Your Full Skills
             </h3>
-            <div className="mx-auto mb-6 h-px w-20 bg-zinc-200 dark:bg-zinc-700 border-b border-dashed border-zinc-300 dark:border-zinc-600"></div>
             <button className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-8 py-3 text-sm font-bold text-zinc-900 shadow-md transition-transform hover:scale-105 hover:bg-yellow-300 dark:hover:bg-yellow-500 font-[family-name:var(--font-space-grotesk)]">
               Unlock All Quests
-              <span className="relative w-4 h-4 translate-y-[-1px]">
+              <span className="relative w-5 h-5 translate-y-[-1px]">
                 <Image
                   src="/images/icons/SkyQuests/Takeoff.png"
                   alt="Takeoff"
-                  fill
+                  width={20}
+                  height={20}
                   className="object-contain"
                 />
               </span>

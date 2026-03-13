@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { generateQuiz } from "@/lib/scanning-practice-generator";
+import { generateQuiz } from "@/lib/string-comparison-generator";
 import type { ScanningPracticeQuizResponse } from "@/types";
 
 export async function GET(req: NextRequest) {

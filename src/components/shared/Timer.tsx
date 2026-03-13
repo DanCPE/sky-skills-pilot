@@ -53,7 +53,7 @@ export default function Timer({
   };
 
   return (
-    <div className="mb-6 flex items-center justify-between rounded-lg bg-zinc-100 px-4 py-3 dark:bg-zinc-800">
+    <div className="mb-6 flex flex-col items-center gap-2 rounded-lg bg-zinc-100 px-4 dark:bg-zinc-800">
       <div className="flex items-center gap-2">
         <svg
           className="h-5 w-5"
@@ -69,7 +69,7 @@ export default function Timer({
           />
         </svg>
         <span className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
-          Time Remaining:
+          Time Remaining
         </span>
       </div>
       <span

@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
-import Timer from "../number-series/Timer";
-import ProgressBar from "../number-series/ProgressBar";
+import Timer from "@/components/shared/Timer";
+import ProgressBar from "@/components/shared/ProgressBar";
 import QuestionCard from "./QuestionCard";
 import ExplanationCard from "./ExplanationCard";
 import ResultsScreen from "./ResultsScreen";
-import QuizCompleteConfirmation from "../number-series/QuizCompleteConfirmation";
+import QuizCompleteConfirmation from "@/components/number-series/QuizCompleteConfirmation";
 import type {
   ScanningPracticeQuizResponse,
   ScanningPracticeSubmitResult,
@@ -102,7 +102,7 @@ export default function QuizInterface({
     const questionStartTime = Date.now();
 
     try {
-      const response = await fetch("/api/scanning-practice/submit", {
+      const response = await fetch("/api/string-comparison/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -196,7 +196,7 @@ export default function QuizInterface({
           };
         }
 
-        const response = await fetch("/api/scanning-practice/submit", {
+        const response = await fetch("/api/string-comparison/submit", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -340,7 +340,7 @@ export default function QuizInterface({
   return (
     <div className="mx-auto max-w-4xl">
       {/* Sticky Header with Timer and Submit Button */}
-      <div className="sticky top-0 z-10 mb-8 rounded-3xl border-2 border-zinc-200 bg-white/95 p-4 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/95">
+      <div className="sticky top-16 z-40 mb-8 rounded-3xl border-2 border-zinc-200 bg-white/95 p-4 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/95">
         <div className="mb-4 flex items-center justify-between">
           <ProgressBar
             current={answeredCount}

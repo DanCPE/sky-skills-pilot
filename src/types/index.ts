@@ -107,3 +107,34 @@ export interface ScanningPracticeSubmitResult extends SubmitResult {
   correctAnswer?: number;
   currentScore?: number; // Running score (0-100)
 }
+
+// --- Spatial Orientation Practice Types ---
+
+export type Direction = "L" | "R";
+
+export interface Instruction {
+  angle: number;
+  dir: Direction;
+}
+
+export interface SpatialOrientationQuestion {
+  id: string;
+  initialHeading: number;
+  sequence: Instruction[];
+  targetHeading: number;
+  correctAngle: number;
+  correctDir: Direction;
+  options: { angle: number; dir: Direction | null }[]; // null dir means "NO ANSWER"
+}
+
+export interface SpatialOrientationQuizResponse {
+  questions: SpatialOrientationQuestion[];
+  mode: "learning" | "practice";
+  timeLimit?: number;
+}
+
+export interface SpatialOrientationSubmitResult {
+  correct: boolean;
+  correctAngle: number;
+  correctDir: Direction;
+}

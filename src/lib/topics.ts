@@ -7,7 +7,7 @@ export const topics: Topic[] = [
     title: "Box Folding",
     description: "Visualize how 2D nets fold into 3D shapes.",
     category: "spatial",
-    isLocked: false,
+    isLocked: true,
   },
   {
     slug: "number-series",
@@ -42,7 +42,15 @@ export const topics: Topic[] = [
     isLocked: true,
   },
   {
-    slug: "scanning-practice",
+    slug: "spatial-orientation",
+    icon: "✈️",
+    title: "Spatial Orientation",
+    description: "Calculate aircraft heading changes and visualize rotations.",
+    category: "spatial",
+    isLocked: false,
+  },
+  {
+    slug: "string-comparison",
     icon: "👁️",
     title: "String Comparison",
     description: "Quickly compare alphanumeric strings and identify differences.",
