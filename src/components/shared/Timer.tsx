@@ -6,12 +6,14 @@ interface TimerProps {
   timeLimit: number; // Total time in seconds
   onTimeUp: () => void;
   isPaused?: boolean;
+  compact?: boolean; // Use compact style for sidebar
 }
 
 export default function Timer({
   timeLimit,
   onTimeUp,
   isPaused = false,
+  compact = false,
 }: TimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(timeLimit);
   const intervalRef = useRef<NodeJS.Timeout | null>(null);
@@ -81,8 +83,18 @@ export default function Timer({
     }
   };
 
+  if (compact) {
+    return (
+      <span
+        className={`text-xl font-bold font-[family-name:var(--font-space-grotesk)] ${getTimeColor()}`}
+      >
+        {formattedTime}
+      </span>
+    );
+  }
+
   return (
-    <div className="mb-6 flex flex-col items-center gap-2 rounded-lg bg-zinc-100 px-4 dark:bg-zinc-800">
+    <div className="mb-6 flex flex-col items-center gap-2 rounded-lg bg-zinc-100 px-4 py-3 dark:bg-zinc-800">
       <div className="flex items-center gap-2">
         <svg
           className="h-5 w-5"

@@ -15,6 +15,7 @@ export default function ScanningPracticePage() {
     <TopicLayout
       title="String Comparison"
       description="Quickly compare alphanumeric strings and identify differences."
+      fullWidth={true}
     >
       {!quizData ? (
         <ModeSelection onStart={setQuizData} />

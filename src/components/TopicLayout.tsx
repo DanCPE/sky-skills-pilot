@@ -4,12 +4,13 @@ interface TopicLayoutProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  fullWidth?: boolean;
 }
 
-export default function TopicLayout({ title, description, children }: TopicLayoutProps) {
+export default function TopicLayout({ title, description, children, fullWidth }: TopicLayoutProps) {
   return (
     <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <main className="mx-auto max-w-4xl px-6 py-12">
+      <main className={`${fullWidth ? "w-full py-12 pl-4 pr-6" : "mx-auto max-w-4xl px-6 py-12"}`}>
         <Link
           href="/sky-quest"
           className="mb-8 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-50"

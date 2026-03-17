@@ -337,97 +337,182 @@ export default function QuizInterface({
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
   return (
-    <div className="mx-auto max-w-4xl">
-      {/* Header with Progress and Timer */}
-      <div className="mb-8">
-        <div className="mb-4 flex items-center justify-between">
-          <ProgressBar
-            current={currentQuestionIndex + 1}
-            total={questions.length}
-            score={mode === "real" ? calculateScore() : undefined}
+    <div className="mx-auto max-w-6xl">
+      <div className="flex flex-col gap-8 md:flex-row">
+        {/* Left Column (Question Area) */}
+        <div className="flex-1 flex flex-col gap-6">
+          {/* Header for Practice Mode / Modes */}
+          <div className="flex justify-between items-center bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="text-2xl font-black text-amber-500">
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-white">
+                  Series Pictures
+                </h1>
+                {mode !== "real" && (
+                  <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-sm">
+                    PRACTICE MODE
+                  </span>
+                )}
+              </div>
+            </div>
+            <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-zinc-200">
+              Question {currentQuestionIndex + 1}
+            </div>
+          </div>
+
+          {/* Question Card */}
+          <QuestionCard
+            question={currentQuestion}
+            onAnswer={handleAnswer}
+            disabled={isSubmitting || showExplanation}
+            selectedAnswer={selectedAnswer ?? undefined}
+            showResult={mode === "real" && currentResult !== null}
+            isCorrect={currentResult?.correct}
           />
+
+          {/* Action Buttons row (Previous, Skip, Next) */}
+          {mode === "real" &&
+            !showExplanation &&
+            !currentResult &&
+            !isSubmitting && (
+              <div className="mt-2 flex justify-center w-full">
+                <button
+                  onClick={handleSkip}
+                  className="rounded-2xl border-2 border-zinc-200 px-10 py-3.5 text-sm font-bold text-zinc-600 transition-all hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800"
+                >
+                  SKIP
+                </button>
+              </div>
+            )}
+
+          {/* Explanation Card (Learn Mode Only) */}
+          {mode === "learn" && showExplanation && currentResult && (
+            <ExplanationCard
+              question={currentQuestion}
+              result={currentResult}
+              onNext={moveToNextQuestion}
+              isLastQuestion={isLastQuestion}
+            />
+          )}
+
+          {/* Real Mode: Auto-advance indicator */}
+          {mode === "real" && isSubmitting && (
+            <div className="mt-4 text-center text-sm font-medium text-zinc-500 dark:text-zinc-400">
+              Moving to next question...
+            </div>
+          )}
+          
+          <div className="mt-6">
+            <button
+              onClick={onRestart}
+              className="group flex items-center gap-2 rounded-xl bg-zinc-200/60 px-5 py-2.5 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 w-max"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="transition-transform group-hover:-translate-x-1"
+              >
+                <path d="M9 14 4 9l5-5" />
+                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+              </svg>
+              Exit
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column (Sidebar) */}
+        <div className="flex w-full flex-col gap-6 md:w-80 shrink-0">
+          {/* Top Panel: Timer and Progress Bar */}
+          <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 flex flex-col gap-5">
+            {/* Timer header */}
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                Time Remaining
+              </span>
+              {mode === "real" && timeLimit ? (
+                <div className="[&>div]:mb-0 [&>div]:bg-transparent [&>div]:px-0">
+                  <Timer
+                    timeLimit={timeLimit}
+                    onTimeUp={handleTimeUp}
+                    isPaused={quizComplete || showConfirmation}
+                    compact
+                  />
+                </div>
+              ) : (
+                <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-400">
+                  --:--
+                </span>
+              )}
+            </div>
+
+            {/* Progress Bar */}
+            <ProgressBar
+              current={currentQuestionIndex + 1}
+              total={questions.length}
+              score={mode === "real" ? calculateScore() : undefined}
+              compact
+            />
+          </div>
+
+          {/* Question Navigator Panel (Real Mode Only) */}
+          {mode === "real" && (
+            <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+              <h3 className="mb-5 font-bold text-zinc-800 dark:text-zinc-200">
+                Question Navigator
+              </h3>
+              <QuestionNavigator
+                totalQuestions={questions.length}
+                currentIndex={currentQuestionIndex}
+                answeredIndices={answeredQuestionIndices}
+                skippedIndices={skippedIndicesSet}
+                onSelectQuestion={(index) => {
+                  if (
+                    isSubmitting ||
+                    (mode === "real" && currentResult !== null)
+                  ) {
+                    return;
+                  }
+                  setShowExplanation(false);
+                  setSelectedAnswer(null);
+                  setCurrentResult(null);
+                  setCurrentQuestionIndex(index);
+                }}
+              />
+            </div>
+          )}
+
+          {/* Submit/Next Button Container */}
           {mode === "real" && (
             <button
               onClick={handleSubmitClick}
-              className="rounded-lg border-2 border-green-600 bg-green-600 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-green-700 active:scale-95 dark:border-green-500 dark:bg-green-500 dark:hover:bg-green-600"
+              className="w-full rounded-[1.25rem] bg-amber-400 py-3.5 text-base font-bold text-zinc-900 transition-all hover:bg-amber-500 active:scale-[0.98] shadow-sm shadow-amber-400/20"
             >
-              Submit Quiz
+              Submit
             </button>
           )}
         </div>
-        {mode === "real" && timeLimit && (
-          <Timer
-            timeLimit={timeLimit}
-            onTimeUp={handleTimeUp}
-            isPaused={quizComplete || showConfirmation}
-          />
-        )}
       </div>
-
-      {/* Question Navigator (Real Mode Only) */}
-      {mode === "real" && (
-        <QuestionNavigator
-          totalQuestions={questions.length}
-          currentIndex={currentQuestionIndex}
-          answeredIndices={answeredQuestionIndices}
-          skippedIndices={skippedIndicesSet}
-          onSelectQuestion={(index) => {
-            // Prevent changing questions while submitting or showing results
-            if (
-              isSubmitting ||
-              (mode === "real" && currentResult !== null)
-            ) {
-              return;
-            }
-            setShowExplanation(false);
-            setSelectedAnswer(null);
-            setCurrentResult(null);
-            setCurrentQuestionIndex(index);
-          }}
-        />
-      )}
-
-      {/* Question Card */}
-      <QuestionCard
-        question={currentQuestion}
-        onAnswer={handleAnswer}
-        disabled={isSubmitting || showExplanation}
-        selectedAnswer={selectedAnswer ?? undefined}
-        showResult={mode === "real" && currentResult !== null}
-        isCorrect={currentResult?.correct}
-      />
-
-      {/* Skip Button (Real Mode Only) */}
-      {mode === "real" &&
-        !showExplanation &&
-        !currentResult &&
-        !isSubmitting && (
-          <div className="mt-4 text-center">
-            <button
-              onClick={handleSkip}
-              className="rounded-lg border-2 border-zinc-300 px-6 py-2.5 text-sm font-medium text-zinc-600 transition-all hover:border-zinc-400 hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-400 dark:hover:border-zinc-600 dark:hover:bg-zinc-800"
-            >
-              Skip Question →
-            </button>
-          </div>
-        )}
-
-      {/* Explanation Card (Learn Mode Only) */}
-      {mode === "learn" && showExplanation && currentResult && (
-        <ExplanationCard
-          question={currentQuestion}
-          result={currentResult}
-          onNext={moveToNextQuestion}
-          isLastQuestion={isLastQuestion}
-        />
-      )}
-
-      {/* Real Mode: Auto-advance indicator */}
-      {mode === "real" && isSubmitting && (
-        <div className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
-          Moving to next question...
-        </div>
-      )}
     </div>
   );
 }

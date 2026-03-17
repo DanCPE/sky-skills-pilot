@@ -53,42 +53,42 @@ export default function QuestionCard({
   };
 
   return (
-    <div className={`rounded-3xl border-2 border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 ${compact ? "p-4" : "p-6"}`}>
+    <div className={`rounded-2xl border-2 border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 ${compact ? "p-3" : "p-4"}`}>
       {/* Question Prompt - hide in compact mode */}
       {!compact && (
-        <h3 className={`font-semibold text-zinc-900 dark:text-zinc-100 ${compact ? "mb-3 text-lg" : "mb-6 text-xl"}`}>
+        <h3 className="text-zinc-900 dark:text-zinc-100 mb-2 text-base font-medium">
           {question.prompt}
         </h3>
       )}
 
-      {/* Strings Display - Side by Side */}
-      <div className={`grid gap-3 md:grid-cols-2 ${compact ? "mb-4" : "mb-8"}`}>
+      {/* Strings Display - Horizontal Layout */}
+      <div className="flex flex-row gap-2 w-full overflow-hidden mb-4">
         {/* String A */}
-        <div className={`rounded-2xl bg-zinc-100 dark:bg-zinc-800 ${compact ? "p-3" : "p-6"}`}>
-          <div className={`font-medium text-zinc-500 dark:text-zinc-400 ${compact ? "mb-1 text-xs" : "mb-2 text-sm"}`}>
+        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-zinc-800 p-2 sm:p-3">
+          <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String A
           </div>
-          <div className={`text-center font-medium tracking-widest text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)] ${compact ? "text-base" : "text-xl"}`}>
+          <div className="text-center tracking-[0.05em] sm:tracking-[0.1em] text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)] whitespace-nowrap overflow-hidden text-ellipsis text-base sm:text-lg">
             {question.stringA}
           </div>
         </div>
 
         {/* String B */}
-        <div className={`rounded-2xl bg-zinc-100 dark:bg-zinc-800 ${compact ? "p-3" : "p-6"}`}>
-          <div className={`font-medium text-zinc-500 dark:text-zinc-400 ${compact ? "mb-1 text-xs" : "mb-2 text-sm"}`}>
+        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-zinc-800 p-2 sm:p-3">
+          <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String B
           </div>
-          <div className={`text-center font-medium tracking-widest text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)] ${compact ? "text-base" : "text-xl"}`}>
+          <div className="text-center tracking-[0.05em] sm:tracking-[0.1em] text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)] whitespace-nowrap overflow-hidden text-ellipsis text-base sm:text-lg">
             {question.stringB}
           </div>
         </div>
       </div>
 
       {/* Answer Buttons */}
-      <div className={`text-center text-zinc-600 dark:text-zinc-400 ${compact ? "mb-2 text-xs" : "mb-4 text-sm"}`}>
+      <div className="text-center text-zinc-500 dark:text-zinc-400 mb-2 text-[11px]">
         How many characters are different?
       </div>
-      <div className={`grid gap-2 ${compact ? "grid-cols-6 gap-2" : "grid-cols-3 gap-3 sm:grid-cols-6"}`}>
+      <div className="flex flex-row justify-center gap-1.5 sm:gap-2">
         {[0, 1, 2, 3, 4, 5].map((option) => (
           <button
             key={option}
@@ -96,16 +96,16 @@ export default function QuestionCard({
             onMouseEnter={() => setHoveredOption(String(option))}
             onMouseLeave={() => setHoveredOption(null)}
             disabled={disabled}
-            className={`rounded-2xl border-2 font-bold transition-all ${
+            className={`flex-1 max-w-[60px] rounded-xl border-2 font-bold transition-all ${
               disabled
                 ? "cursor-not-allowed"
                 : "cursor-pointer active:scale-95"
             } ${getOptionStyle(String(option))} ${
-              compact ? "px-3 py-2 text-lg" : "px-6 py-4 text-2xl"
+              compact ? "px-2 py-1.5 text-base" : "px-3 py-2 text-lg"
             } ${
               disabled
                 ? ""
-                : "hover:shadow-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 dark:focus:ring-offset-zinc-900"
+                : "hover:shadow-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
             }`}
           >
             <span className="text-zinc-900 dark:text-zinc-100">{option}</span>

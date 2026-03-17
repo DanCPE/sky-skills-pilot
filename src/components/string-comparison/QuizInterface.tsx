@@ -6,6 +6,7 @@ import ProgressBar from "@/components/shared/ProgressBar";
 import QuestionCard from "./QuestionCard";
 import ExplanationCard from "./ExplanationCard";
 import ResultsScreen from "./ResultsScreen";
+import QuestionNavigator from "@/components/number-series/QuestionNavigator";
 import QuizCompleteConfirmation from "@/components/number-series/QuizCompleteConfirmation";
 import type {
   ScanningPracticeQuizResponse,
@@ -310,153 +311,257 @@ export default function QuizInterface({
     const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
     return (
-      <div className="mx-auto max-w-4xl">
-        <div className="mb-8">
-          <ProgressBar
-            current={currentQuestionIndex + 1}
-            total={questions.length}
-          />
+      <div className="w-full max-w-[1600px] pr-4 sm:pr-6 lg:pr-8">
+        <div className="flex flex-col gap-6 lg:flex-row">
+          {/* Left Column */}
+          <div className="flex-1 flex flex-col gap-6">
+            <div className="flex justify-between items-center bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+              <div className="flex items-center gap-3">
+                <div className="text-2xl font-black text-amber-500">
+                  <svg
+                    className="w-8 h-8"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                    />
+                  </svg>
+                </div>
+                <div>
+                  <h1 className="text-2xl font-black text-zinc-900 dark:text-white">
+                    String Comparison
+                  </h1>
+                  <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-sm">
+                    PRACTICE MODE
+                  </span>
+                </div>
+              </div>
+              <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-zinc-200">
+                Question {currentQuestionIndex + 1}
+              </div>
+            </div>
+
+            <QuestionCard
+              question={currentQuestion}
+              onAnswer={handleLearnAnswer}
+              disabled={isSubmitting || showExplanation}
+              selectedAnswer={undefined}
+              showResult={false}
+            />
+
+            {showExplanation && currentResult && (
+              <ExplanationCard
+                question={currentQuestion}
+                result={currentResult}
+                onNext={moveToNextQuestion}
+                isLastQuestion={isLastQuestion}
+              />
+            )}
+            
+            <div className="mt-6">
+              <button
+                onClick={onRestart}
+                className="group flex items-center gap-2 rounded-xl bg-zinc-200/60 px-5 py-2.5 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 w-max"
+              >
+                <svg
+                  width="16"
+                  height="16"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="transition-transform group-hover:-translate-x-1"
+                >
+                  <path d="M9 14 4 9l5-5" />
+                  <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+                </svg>
+                Exit
+              </button>
+            </div>
+          </div>
+
+          {/* Right Column (Sidebar) */}
+          <div className="flex w-full flex-col gap-6 md:w-80 shrink-0">
+            <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 flex flex-col gap-5">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                  Time Remaining
+                </span>
+                <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-400">
+                  --:--
+                </span>
+              </div>
+              <ProgressBar
+                current={currentQuestionIndex + 1}
+                total={questions.length}
+                compact
+              />
+            </div>
+          </div>
         </div>
-
-        <QuestionCard
-          question={currentQuestion}
-          onAnswer={handleLearnAnswer}
-          disabled={isSubmitting || showExplanation}
-          selectedAnswer={undefined}
-          showResult={false}
-        />
-
-        {showExplanation && currentResult && (
-          <ExplanationCard
-            question={currentQuestion}
-            result={currentResult}
-            onNext={moveToNextQuestion}
-            isLastQuestion={isLastQuestion}
-          />
-        )}
       </div>
     );
   }
 
   // REAL MODE: All questions visible, scrollable
   const answeredCount = Object.keys(selectedAnswers).length;
+  const answeredSet = new Set(Object.keys(selectedAnswers).map(Number));
 
   return (
-    <div className="mx-auto max-w-4xl">
-      {/* Sticky Header with Timer and Submit Button */}
-      <div className="sticky top-16 z-40 mb-8 rounded-3xl border-2 border-zinc-200 bg-white/95 p-4 shadow-sm backdrop-blur-sm dark:border-zinc-800 dark:bg-zinc-900/95">
-        <div className="mb-4 flex items-center justify-between">
-          <ProgressBar
-            current={answeredCount}
-            total={questions.length}
-            score={calculateScore()}
-          />
-          <button
-            onClick={handleSubmitClick}
-            disabled={isSubmitting || answeredCount === 0}
-            className={`rounded-2xl border-2 px-6 py-2.5 text-sm font-semibold text-white transition-all ${
-              isSubmitting || answeredCount === 0
-                ? "cursor-not-allowed bg-zinc-400"
-                : "cursor-pointer border-green-600 bg-green-600 hover:bg-green-700 active:scale-95 dark:border-green-500 dark:bg-green-500 dark:hover:bg-green-600"
-            }`}
-          >
-            {isSubmitting ? "Submitting..." : "Submit Quiz"}
-          </button>
-        </div>
-        {timeLimit && (
-          <div className="rounded-2xl bg-zinc-100 px-4 py-3 dark:bg-zinc-800">
-            <Timer
-              timeLimit={timeLimit}
-              onTimeUp={handleTimeUp}
-              isPaused={quizComplete || showConfirmation}
-            />
+    <div className="w-full max-w-[1600px] pr-4 sm:pr-6 lg:pr-8 pb-20">
+      <div className="flex flex-col gap-6 lg:flex-row">
+        {/* Left Column (Questions) */}
+        <div className="flex-1 flex flex-col gap-6">
+          <div className="flex justify-between items-center bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="text-2xl font-black text-amber-500">
+                <svg
+                  className="w-8 h-8"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                >
+                  <path
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                  />
+                </svg>
+              </div>
+              <div>
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-white">
+                  String Comparison
+                </h1>
+              </div>
+            </div>
           </div>
-        )}
-      </div>
 
-      {/* All Questions */}
-      <div className="space-y-6">
-        {questions.map((question, index) => (
-          <div
-            key={question.id}
-            id={`question-${index}`}
-            className="rounded-3xl bg-zinc-50 p-4 dark:bg-zinc-800/50"
-          >
-            <div className="mb-3 flex items-center justify-between">
-              <h3 className="text-base font-semibold text-zinc-900 dark:text-zinc-100">
-                Question {index + 1}
-              </h3>
-              {selectedAnswers[index] && (
-                <span className="rounded-full bg-green-100 px-3 py-1 text-sm font-medium text-green-700 dark:bg-green-900 dark:text-green-300">
-                  ✓ Answered
+          <div className="space-y-6">
+            {questions.map((question, index) => (
+              <div
+                key={question.id}
+                id={`question-${index}`}
+                className="scroll-mt-24 rounded-3xl bg-zinc-50 p-6 dark:bg-zinc-800/50"
+              >
+                <div className="mb-4 flex items-center justify-between">
+                  <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                    Question {index + 1}
+                  </h3>
+                  {selectedAnswers[index] && (
+                    <span className="uppercase tracking-widest rounded-full bg-green-100 px-3 py-1 text-xs font-bold text-green-700 dark:bg-green-900 dark:text-green-300">
+                      Answered
+                    </span>
+                  )}
+                </div>
+                <QuestionCard
+                  question={question}
+                  onAnswer={(answer) => {
+                    handleRealAnswer(index, answer);
+                    setCurrentQuestionIndex(index);
+                  }}
+                  disabled={answeredQuestionIndices.has(index)}
+                  selectedAnswer={selectedAnswers[index]}
+                  showResult={false}
+                  compact={true}
+                />
+              </div>
+            ))}
+          </div>
+
+          <div className="mt-8">
+            <button
+              onClick={onRestart}
+              className="group flex items-center gap-2 rounded-xl bg-zinc-200/60 px-5 py-2.5 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 w-max"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="transition-transform group-hover:-translate-x-1"
+              >
+                <path d="M9 14 4 9l5-5" />
+                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+              </svg>
+              Exit
+            </button>
+          </div>
+        </div>
+
+        {/* Right Column (Sidebar) */}
+        <div className="flex w-full flex-col gap-6 md:w-80 shrink-0 sticky top-24 self-start">
+          <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 flex flex-col gap-5">
+            <div className="flex items-center justify-between">
+              <span className="font-bold text-zinc-800 dark:text-zinc-200">
+                Time Remaining
+              </span>
+              {timeLimit ? (
+                <div className="[&>div]:mb-0 [&>div]:bg-transparent [&>div]:px-0">
+                  <Timer
+                    timeLimit={timeLimit || 0}
+                    onTimeUp={handleTimeUp}
+                    isPaused={quizComplete || showConfirmation}
+                    compact
+                  />
+                </div>
+              ) : (
+                <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-400">
+                  --:--
                 </span>
               )}
             </div>
-            <QuestionCard
-              question={question}
-              onAnswer={(answer) => handleRealAnswer(index, answer)}
-              disabled={answeredQuestionIndices.has(index)}
-              selectedAnswer={selectedAnswers[index]}
-              showResult={false}
-              compact={true}
+
+            <ProgressBar
+              current={answeredCount}
+              total={questions.length}
+              score={calculateScore()}
+              compact
             />
           </div>
-        ))}
-      </div>
 
-      {/* Submit Button at Bottom */}
-      <div className="mt-12 text-center">
-        <button
-          onClick={handleSubmitClick}
-          disabled={isSubmitting || answeredCount === 0}
-          className={`inline-flex items-center gap-2 rounded-xl px-8 py-4 text-lg font-bold text-white transition-all ${
-            isSubmitting || answeredCount === 0
-              ? "cursor-not-allowed bg-zinc-400"
-              : "cursor-pointer bg-violet-600 hover:bg-violet-500 active:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500"
-          }`}
-        >
-          {isSubmitting ? (
-            <>
-              <svg
-                className="h-5 w-5 animate-spin"
-                fill="none"
-                viewBox="0 0 24 24"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-                />
-              </svg>
-              Submitting...
-            </>
-          ) : (
-            <>
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-              Submit Quiz ({answeredCount}/{questions.length} answered)
-            </>
-          )}
-        </button>
+          <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <h3 className="mb-5 font-bold text-zinc-800 dark:text-zinc-200">
+              Question Navigator
+            </h3>
+            <QuestionNavigator
+              totalQuestions={questions.length}
+              currentIndex={currentQuestionIndex}
+              answeredIndices={answeredSet}
+              skippedIndices={new Set()}
+              onSelectQuestion={(index) => {
+                const element = document.getElementById(`question-${index}`);
+                if (element) {
+                  element.scrollIntoView({ behavior: "smooth", block: "center" });
+                }
+                setCurrentQuestionIndex(index);
+              }}
+            />
+          </div>
+
+          <button
+            onClick={handleSubmitClick}
+            disabled={isSubmitting || answeredCount === 0}
+            className={`w-full rounded-[1.25rem] py-3.5 text-base font-bold transition-all shadow-sm ${
+              isSubmitting || answeredCount === 0
+                ? "bg-zinc-300 text-zinc-500 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-400"
+                : "bg-amber-400 text-zinc-900 hover:bg-amber-500 active:scale-[0.98] shadow-amber-400/20"
+            }`}
+          >
+            {isSubmitting ? "Submitting..." : "Submit"}
+          </button>
+        </div>
       </div>
     </div>
   );
