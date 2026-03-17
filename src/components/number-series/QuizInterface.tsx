@@ -54,11 +54,15 @@ export default function QuizInterface({
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Timer state (real mode only)
-  const [timeRemaining, setTimeRemaining] = useState(
-    timeLimit ?? questions.length * 30,
-  );
   const [totalTimeTaken, setTotalTimeTaken] = useState(0);
   const [quizStartTime] = useState(Date.now());
+
+  // Calculate time remaining dynamically for API calls
+  const getTimeRemaining = () => {
+    if (!timeLimit) return 0;
+    const elapsed = Math.floor((Date.now() - quizStartTime) / 1000);
+    return Math.max(0, timeLimit - elapsed);
+  };
 
   // Ref to track if submission is in progress (prevents double-clicks)
   const isSubmittingRef = useRef(false);
@@ -106,7 +110,7 @@ export default function QuizInterface({
           answer,
           mode,
           questionIndex: currentQuestionIndex,
-          timeRemaining,
+          timeRemaining: getTimeRemaining(),
           correctAnswer: currentQuestion.correctAnswer,
           patternType: currentQuestion.patternType,
         }),
@@ -357,7 +361,7 @@ export default function QuizInterface({
           <Timer
             timeLimit={timeLimit}
             onTimeUp={handleTimeUp}
-            isPaused={showExplanation}
+            isPaused={quizComplete || showConfirmation}
           />
         )}
       </div>

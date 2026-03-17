@@ -62,13 +62,17 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
     const checkInterval = setInterval(() => {
       const timeBasedTheme = getThemeByTime();
-      if (timeBasedTheme !== theme) {
-        setTheme(timeBasedTheme);
-      }
+      setTheme((currentTheme) => {
+        // Only update if different
+        if (timeBasedTheme !== currentTheme) {
+          return timeBasedTheme;
+        }
+        return currentTheme;
+      });
     }, 60000); // Check every minute
 
     return () => clearInterval(checkInterval);
-  }, [theme, isInitialized, autoMode]);
+  }, [isInitialized, autoMode]);
 
   useEffect(() => {
     if (!isInitialized) return;

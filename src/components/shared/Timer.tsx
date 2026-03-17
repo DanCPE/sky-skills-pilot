@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 
 interface TimerProps {
   timeLimit: number; // Total time in seconds
@@ -14,26 +14,55 @@ export default function Timer({
   isPaused = false,
 }: TimerProps) {
   const [timeRemaining, setTimeRemaining] = useState(timeLimit);
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
+  const onTimeUpRef = useRef(onTimeUp);
+  const timeLimitRef = useRef(timeLimit);
 
+  // Keep refs in sync
+  useEffect(() => {
+    onTimeUpRef.current = onTimeUp;
+  }, [onTimeUp]);
+
+  useEffect(() => {
+    timeLimitRef.current = timeLimit;
+  }, [timeLimit]);
+
+  // Reset timer when timeLimit changes
   useEffect(() => {
     setTimeRemaining(timeLimit);
   }, [timeLimit]);
 
-  useEffect(() => {
-    if (isPaused || timeRemaining <= 0) return;
+  // Memoized cleanup function
+  const clearTimer = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
+  }, []);
 
-    const timer = setInterval(() => {
+  // Timer interval - only depends on isPaused
+  useEffect(() => {
+    // Clear any existing interval
+    clearTimer();
+
+    // Don't start if paused
+    if (isPaused) {
+      return;
+    }
+
+    intervalRef.current = setInterval(() => {
       setTimeRemaining((prev) => {
         if (prev <= 1) {
-          onTimeUp();
+          clearTimer();
+          onTimeUpRef.current();
           return 0;
         }
         return prev - 1;
       });
     }, 1000);
 
-    return () => clearInterval(timer);
-  }, [isPaused, timeRemaining, onTimeUp]);
+    return clearTimer;
+  }, [isPaused, clearTimer]);
 
   // Format time as MM:SS
   const minutes = Math.floor(timeRemaining / 60);
