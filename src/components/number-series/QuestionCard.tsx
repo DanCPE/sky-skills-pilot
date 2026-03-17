@@ -37,31 +37,31 @@ export default function QuestionCard({
   };
 
   return (
-    <div className="rounded-2xl border-2 border-zinc-200 bg-white p-6 dark:border-zinc-800 dark:bg-zinc-900">
+    <div className="rounded-xl border-2 border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 border-b-4 border-b-zinc-200/50">
       {/* Question Prompt */}
-      <h3 className="mb-6 text-xl font-semibold text-zinc-900 dark:text-zinc-100">
+      <h3 className="mb-3 text-base font-medium text-zinc-900 dark:text-zinc-100">
         {question.prompt}
       </h3>
 
       {/* Sequence Display */}
-      <div className="mb-8 flex flex-wrap items-center justify-center gap-3 rounded-xl bg-zinc-100 p-6 dark:bg-zinc-800">
+      <div className="mb-4 flex flex-wrap items-center justify-center gap-2 rounded-lg bg-zinc-100 p-3 dark:bg-zinc-800">
         {question.sequence.map((num, index) => (
           <React.Fragment key={index}>
-            <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
+            <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
               {num}
             </span>
             {index < question.sequence.length - 1 && (
-              <span className="text-2xl text-zinc-400">,</span>
+              <span className="text-base sm:text-lg text-zinc-400">,</span>
             )}
           </React.Fragment>
         ))}
-        <span className="text-2xl font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
+        <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
           ?
         </span>
       </div>
 
       {/* Options Grid */}
-      <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3">
         {question.options.map((option) => (
           <button
             key={option}
@@ -69,14 +69,14 @@ export default function QuestionCard({
             onMouseEnter={() => setHoveredOption(option)}
             onMouseLeave={() => setHoveredOption(null)}
             disabled={disabled}
-            className={`rounded-xl border-2 px-6 py-4 text-lg font-semibold transition-all ${
+            className={`rounded-lg border-2 px-4 py-2 text-base font-medium transition-all ${
               disabled
                 ? "cursor-not-allowed"
                 : "cursor-pointer active:scale-95"
             } ${getOptionStyle(option)} ${
               disabled
                 ? ""
-                : "hover:shadow-md focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2"
+                : "hover:shadow-sm focus:outline-none focus:ring-1 focus:ring-violet-500"
             }`}
           >
             <span className="text-zinc-900 dark:text-zinc-100">{option}</span>

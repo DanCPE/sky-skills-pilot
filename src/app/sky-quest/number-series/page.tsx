@@ -15,6 +15,7 @@ export default function NumberSeriesPage() {
     <TopicLayout
       title="Number Series"
       description="Find the pattern in numerical sequences."
+      fullWidth={true}
     >
       {!quizData ? (
         <ModeSelection onStart={setQuizData} />

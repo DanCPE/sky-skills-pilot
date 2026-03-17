@@ -337,8 +337,8 @@ export default function QuizInterface({
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <div className="flex flex-col gap-8 md:flex-row">
+    <div className="w-full max-w-[1600px] pr-4 sm:pr-6 lg:pr-8 pb-20">
+      <div className="flex flex-col gap-6 lg:flex-row">
         {/* Left Column (Question Area) */}
         <div className="flex-1 flex flex-col gap-6">
           {/* Header for Practice Mode / Modes */}
