@@ -147,12 +147,10 @@ export default function QuizInterface({
         setIsSubmitting(false);
         isSubmittingRef.current = false;
       } else {
-        // Real mode: move to next question after a brief delay
-        setTimeout(() => {
-          moveToNextQuestion();
-          setIsSubmitting(false);
-          isSubmittingRef.current = false;
-        }, 500);
+        // Real mode: move to next question immediately
+        moveToNextQuestion();
+        setIsSubmitting(false);
+        isSubmittingRef.current = false;
       }
     } catch (error) {
       console.error("Error submitting answer:", error);
