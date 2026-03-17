@@ -7,7 +7,7 @@ interface ModeSelectionProps {
   onStart: (quizData: SpatialOrientationQuizResponse) => void;
 }
 
-type Mode = "learning" | "practice" | null;
+type Mode = "learn" | "real" | null;
 
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   const [selectedMode, setSelectedMode] = useState<Mode>(null);
@@ -23,7 +23,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
       // or we can mock the API response. We'll use the imported generator directly for speed.
       const { generateSpatialOrientationQuiz } = await import("@/lib/spatial-orientation-generator");
       const quizData = generateSpatialOrientationQuiz(
-         selectedMode === "learning" ? 10 : questionCount, 
+         selectedMode === "learn" ? 10 : questionCount,
          selectedMode
       );
       
@@ -58,12 +58,12 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
       </div>
 
       <div className="mb-8 grid gap-6 md:grid-cols-2">
-        {/* Learning Mode */}
+        {/* Learn Mode */}
         <button
-          onClick={() => setSelectedMode("learning")}
+          onClick={() => setSelectedMode("learn")}
           disabled={isLoading}
           className={`rounded-2xl border-2 p-6 text-left transition-all ${
-            selectedMode === "learning"
+            selectedMode === "learn"
               ? "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950"
               : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           }`}
@@ -74,7 +74,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
              </div>
              <div>
                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                 Learning Mode
+                 Learn Mode
                </h3>
                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                  No time limit
@@ -86,12 +86,12 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           </p>
         </button>
 
-        {/* Practice Mode */}
+        {/* Real Mode */}
         <button
-          onClick={() => setSelectedMode("practice")}
+          onClick={() => setSelectedMode("real")}
           disabled={isLoading}
           className={`rounded-2xl border-2 p-6 text-left transition-all ${
-            selectedMode === "practice"
+            selectedMode === "real"
               ? "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950"
               : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           }`}
@@ -102,7 +102,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
              </div>
              <div>
                <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                 Practice Mode
+                 Real Mode
                </h3>
                <p className="text-sm text-zinc-500 dark:text-zinc-400">
                   {formatTime(timeLimit)}
@@ -115,8 +115,8 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
         </button>
       </div>
 
-       {/* Slider for Practice Mode Only */}
-       {selectedMode === "practice" && (
+       {/* Slider for Real Mode Only */}
+       {selectedMode === "real" && (
         <div className="mb-8 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
           <label className="mb-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
             Number of Questions: <span className="font-bold text-violet-600 dark:text-violet-400">{questionCount}</span>

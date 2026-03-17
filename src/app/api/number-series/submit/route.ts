@@ -14,9 +14,9 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    if (!mode || (mode !== "learning" && mode !== "practice")) {
+    if (!mode || (mode !== "learn" && mode !== "real")) {
       return NextResponse.json(
-        { error: "Invalid mode. Must be 'learning' or 'practice'." },
+        { error: "Invalid mode. Must be 'learn' or 'real'." },
         { status: 400 }
       );
     }

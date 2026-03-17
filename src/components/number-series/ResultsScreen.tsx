@@ -14,9 +14,9 @@ interface QuizAnswer {
 interface ResultsScreenProps {
   questions: NumberSeriesQuestion[];
   answers: QuizAnswer[];
-  mode: "learning" | "practice";
+  mode: "learn" | "real";
   score?: number;
-  timeTaken?: number; // Total time in seconds (practice mode)
+  timeTaken?: number; // Total time in seconds (real mode)
   onRestart: () => void;
 }
 
@@ -77,8 +77,8 @@ export default function ResultsScreen({
           You got {correctCount} out of {totalCount} correct
         </p>
 
-        {/* Score Display (Practice Mode Only) */}
-        {mode === "practice" && score !== undefined && (
+        {/* Score Display (Real Mode Only) */}
+        {mode === "real" && score !== undefined && (
           <div className="mt-6">
             <div className="mb-2 text-sm font-medium text-zinc-500 dark:text-zinc-400">
               Final Score
@@ -89,8 +89,8 @@ export default function ResultsScreen({
           </div>
         )}
 
-        {/* Time Display (Practice Mode Only) */}
-        {mode === "practice" && timeTaken !== undefined && (
+        {/* Time Display (Real Mode Only) */}
+        {mode === "real" && timeTaken !== undefined && (
           <div className="mt-4">
             <div className="text-sm text-zinc-500 dark:text-zinc-400">
               Time Taken: {formatTime(timeTaken)}

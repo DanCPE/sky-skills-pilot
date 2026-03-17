@@ -69,7 +69,7 @@ function createStringWithDifferences(stringA: string, differenceCount: number): 
   return stringB.join("");
 }
 
-// Generate a single scanning practice question
+// Generate a single scanning question
 function generateQuestion(
   fixedStringLength?: number
 ): ScanningPracticeQuestion {

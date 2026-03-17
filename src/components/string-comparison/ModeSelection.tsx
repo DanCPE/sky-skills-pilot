@@ -7,7 +7,7 @@ interface ModeSelectionProps {
   onStart: (quizData: ScanningPracticeQuizResponse) => void;
 }
 
-type Mode = "learning" | "practice" | null;
+type Mode = "learn" | "real" | null;
 
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   const [selectedMode, setSelectedMode] = useState<Mode>(null);
@@ -67,12 +67,12 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
 
       {/* Mode Selection */}
       <div className="mb-8 grid gap-6 md:grid-cols-2">
-        {/* Learning Mode Card */}
+        {/* Learn Mode Card */}
         <button
-          onClick={() => setSelectedMode("learning")}
+          onClick={() => setSelectedMode("learn")}
           disabled={isLoading}
           className={`rounded-2xl border-2 p-6 text-left transition-all ${
-            selectedMode === "learning"
+            selectedMode === "learn"
               ? "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950"
               : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
@@ -95,7 +95,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
             </div>
             <div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                Learning Mode
+                Learn Mode
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 No time limit
@@ -108,12 +108,12 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           </p>
         </button>
 
-        {/* Practice Mode Card */}
+        {/* Real Mode Card */}
         <button
-          onClick={() => setSelectedMode("practice")}
+          onClick={() => setSelectedMode("real")}
           disabled={isLoading}
           className={`rounded-2xl border-2 p-6 text-left transition-all ${
-            selectedMode === "practice"
+            selectedMode === "real"
               ? "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950"
               : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
@@ -136,7 +136,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
             </div>
             <div>
               <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                Practice Mode
+                Real Mode
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
                 {formatTime(timeLimit)} for {questionCount} questions

@@ -9,9 +9,9 @@ export async function GET(req: NextRequest) {
     const questionCountParam = searchParams.get("count");
 
     // Validate mode
-    if (!mode || (mode !== "learning" && mode !== "practice")) {
+    if (!mode || (mode !== "learn" && mode !== "real")) {
       return NextResponse.json(
-        { error: "Invalid mode. Must be 'learning' or 'practice'." },
+        { error: "Invalid mode. Must be 'learn' or 'real'." },
         { status: 400 }
       );
     }
@@ -31,13 +31,13 @@ export async function GET(req: NextRequest) {
     // Generate questions
     const questions = generateQuiz(questionCount);
 
-    // Calculate time limit for practice mode
+    // Calculate time limit for real mode
     // 3 seconds per question for pilot scanning tests
-    const timeLimit = mode === "practice" ? questionCount * 3 : undefined;
+    const timeLimit = mode === "real" ? questionCount * 3 : undefined;
 
     const response: ScanningPracticeQuizResponse = {
       questions,
-      mode: mode as "learning" | "practice",
+      mode: mode as "learn" | "real",
       timeLimit,
     };
 

@@ -41,7 +41,7 @@ const AirplaneIcon = ({
   </div>
 );
 
-export default function LearningMode({ onRestart }: { onRestart: () => void }) {
+export default function LearnMode({ onRestart }: { onRestart: () => void }) {
   const [status, setStatus] = useState<"playing" | "feedback" | "gameover">(
     "playing"
   );
@@ -158,7 +158,7 @@ export default function LearningMode({ onRestart }: { onRestart: () => void }) {
 
       <div className="text-center mb-8">
          <h1 className="text-3xl font-extrabold tracking-tight mb-2 font-[family-name:var(--font-space-grotesk)]">
-          Learning Mode
+          Learn Mode
         </h1>
         <p className="text-zinc-500 dark:text-zinc-400">
           Round {round} of {maxRounds}

@@ -53,7 +53,7 @@ export default function QuizInterface({
   const [selectedAnswer, setSelectedAnswer] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Timer state (practice mode only)
+  // Timer state (real mode only)
   const [timeRemaining, setTimeRemaining] = useState(
     timeLimit ?? questions.length * 30,
   );
@@ -70,7 +70,7 @@ export default function QuizInterface({
     }
   }, [quizComplete, quizStartTime]);
 
-  // Handle time up (practice mode)
+  // Handle time up (real mode)
   const handleTimeUp = () => {
     // Submit remaining questions as incorrect
     const remainingAnswers = questions.slice(currentQuestionIndex).map((q) => ({
@@ -137,13 +137,13 @@ export default function QuizInterface({
         prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
       );
 
-      // Show explanation in learning mode, or move to next question in practice mode
-      if (mode === "learning") {
+      // Show explanation in learn mode, or move to next question in real mode
+      if (mode === "learn") {
         setShowExplanation(true);
         setIsSubmitting(false);
         isSubmittingRef.current = false;
       } else {
-        // Practice mode: move to next question after a brief delay
+        // Real mode: move to next question after a brief delay
         setTimeout(() => {
           moveToNextQuestion();
           setIsSubmitting(false);
@@ -210,9 +210,9 @@ export default function QuizInterface({
     }
   };
 
-  // Skip current question (practice mode only)
+  // Skip current question (real mode only)
   const handleSkip = () => {
-    if (mode !== "practice") return;
+    if (mode !== "real") return;
 
     const currentQuestion = questions[currentQuestionIndex];
     const alreadySkipped = skippedQuestions.some(
@@ -232,9 +232,9 @@ export default function QuizInterface({
     moveToNextQuestion();
   };
 
-  // Calculate final score (practice mode only)
+  // Calculate final score (real mode only)
   const calculateScore = () => {
-    if (mode !== "practice" || answers.length === 0) return undefined;
+    if (mode !== "real" || answers.length === 0) return undefined;
     const correct = answers.filter((a) => a.isCorrect).length;
     return Math.round((correct / questions.length) * 100);
   };
@@ -251,9 +251,9 @@ export default function QuizInterface({
     }
   };
 
-  // Handle manual submit (practice mode only)
+  // Handle manual submit (real mode only)
   const handleSubmitQuiz = () => {
-    if (mode !== "practice") return;
+    if (mode !== "real") return;
 
     // Mark all unanswered/skipped questions as incorrect
     const unansweredCount = questions.length - answeredQuestionIndices.size;
@@ -325,7 +325,7 @@ export default function QuizInterface({
         answers={answers}
         mode={mode}
         score={calculateScore()}
-        timeTaken={mode === "practice" ? totalTimeTaken : undefined}
+        timeTaken={mode === "real" ? totalTimeTaken : undefined}
         onRestart={onRestart}
       />
     );
@@ -342,9 +342,9 @@ export default function QuizInterface({
           <ProgressBar
             current={currentQuestionIndex + 1}
             total={questions.length}
-            score={mode === "practice" ? calculateScore() : undefined}
+            score={mode === "real" ? calculateScore() : undefined}
           />
-          {mode === "practice" && (
+          {mode === "real" && (
             <button
               onClick={handleSubmitClick}
               className="rounded-lg border-2 border-green-600 bg-green-600 px-6 py-2.5 text-sm font-semibold text-white transition-all hover:bg-green-700 active:scale-95 dark:border-green-500 dark:bg-green-500 dark:hover:bg-green-600"
@@ -353,7 +353,7 @@ export default function QuizInterface({
             </button>
           )}
         </div>
-        {mode === "practice" && timeLimit && (
+        {mode === "real" && timeLimit && (
           <Timer
             timeLimit={timeLimit}
             onTimeUp={handleTimeUp}
@@ -362,8 +362,8 @@ export default function QuizInterface({
         )}
       </div>
 
-      {/* Question Navigator (Practice Mode Only) */}
-      {mode === "practice" && (
+      {/* Question Navigator (Real Mode Only) */}
+      {mode === "real" && (
         <QuestionNavigator
           totalQuestions={questions.length}
           currentIndex={currentQuestionIndex}
@@ -373,7 +373,7 @@ export default function QuizInterface({
             // Prevent changing questions while submitting or showing results
             if (
               isSubmitting ||
-              (mode === "practice" && currentResult !== null)
+              (mode === "real" && currentResult !== null)
             ) {
               return;
             }
@@ -391,12 +391,12 @@ export default function QuizInterface({
         onAnswer={handleAnswer}
         disabled={isSubmitting || showExplanation}
         selectedAnswer={selectedAnswer ?? undefined}
-        showResult={mode === "practice" && currentResult !== null}
+        showResult={mode === "real" && currentResult !== null}
         isCorrect={currentResult?.correct}
       />
 
-      {/* Skip Button (Practice Mode Only) */}
-      {mode === "practice" &&
+      {/* Skip Button (Real Mode Only) */}
+      {mode === "real" &&
         !showExplanation &&
         !currentResult &&
         !isSubmitting && (
@@ -410,8 +410,8 @@ export default function QuizInterface({
           </div>
         )}
 
-      {/* Explanation Card (Learning Mode Only) */}
-      {mode === "learning" && showExplanation && currentResult && (
+      {/* Explanation Card (Learn Mode Only) */}
+      {mode === "learn" && showExplanation && currentResult && (
         <ExplanationCard
           question={currentQuestion}
           result={currentResult}
@@ -420,8 +420,8 @@ export default function QuizInterface({
         />
       )}
 
-      {/* Practice Mode: Auto-advance indicator */}
-      {mode === "practice" && isSubmitting && (
+      {/* Real Mode: Auto-advance indicator */}
+      {mode === "real" && isSubmitting && (
         <div className="mt-4 text-center text-sm text-zinc-500 dark:text-zinc-400">
           Moving to next question...
         </div>

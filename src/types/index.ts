@@ -49,21 +49,21 @@ export interface NumberSeriesQuestion extends Question {
 }
 
 export interface NumberSeriesQuizRequest {
-  mode: "learning" | "practice";
+  mode: "learn" | "real";
   difficulty: "easy" | "medium" | "hard" | "mixed";
   questionCount?: number; // Default: 10
 }
 
 export interface NumberSeriesQuizResponse {
   questions: NumberSeriesQuestion[];
-  mode: "learning" | "practice";
-  timeLimit?: number; // Seconds (practice mode only)
+  mode: "learn" | "real";
+  timeLimit?: number; // Seconds (real mode only)
 }
 
 export interface NumberSeriesSubmitPayload extends SubmitPayload {
-  mode: "learning" | "practice";
+  mode: "learn" | "real";
   questionIndex: number; // Current question in quiz
-  timeRemaining?: number; // Seconds remaining (practice mode)
+  timeRemaining?: number; // Seconds remaining (real mode)
   correctAnswer: number; // The correct answer (for validation)
   patternType?: NumberSeriesPatternType; // Pattern type (for explanation)
 }
@@ -85,19 +85,19 @@ export interface ScanningPracticeQuestion extends Question {
 }
 
 export interface ScanningPracticeQuizRequest {
-  mode: "learning" | "practice";
+  mode: "learn" | "real";
   stringLength?: number; // Default: random 12-18
   questionCount?: number; // Default: 40
 }
 
 export interface ScanningPracticeQuizResponse {
   questions: ScanningPracticeQuestion[];
-  mode: "learning" | "practice";
-  timeLimit?: number; // Seconds (practice mode only)
+  mode: "learn" | "real";
+  timeLimit?: number; // Seconds (real mode only)
 }
 
 export interface ScanningPracticeSubmitPayload extends SubmitPayload {
-  mode: "learning" | "practice";
+  mode: "learn" | "real";
   questionIndex: number;
   timeRemaining?: number;
   differenceCount: number; // The correct answer (for validation)
@@ -129,7 +129,7 @@ export interface SpatialOrientationQuestion {
 
 export interface SpatialOrientationQuizResponse {
   questions: SpatialOrientationQuestion[];
-  mode: "learning" | "practice";
+  mode: "learn" | "real";
   timeLimit?: number;
 }
 

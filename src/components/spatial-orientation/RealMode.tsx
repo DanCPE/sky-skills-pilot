@@ -10,7 +10,7 @@ import {
   Direction,
 } from "@/types";
 
-interface PracticeModeProps {
+interface RealModeProps {
   quizData: SpatialOrientationQuizResponse;
   onRestart: () => void;
 }
@@ -172,10 +172,10 @@ const QuestionRow = ({
   );
 };
 
-export default function PracticeMode({
+export default function RealMode({
   quizData,
   onRestart,
-}: PracticeModeProps) {
+}: RealModeProps) {
   const { questions, timeLimit } = quizData;
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);

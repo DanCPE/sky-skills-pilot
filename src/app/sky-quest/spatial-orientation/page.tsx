@@ -3,8 +3,8 @@
 import { useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
 import ModeSelection from "@/components/spatial-orientation/ModeSelection";
-import LearningMode from "@/components/spatial-orientation/LearningMode";
-import PracticeMode from "@/components/spatial-orientation/PracticeMode";
+import LearnMode from "@/components/spatial-orientation/LearnMode";
+import RealMode from "@/components/spatial-orientation/RealMode";
 import type { SpatialOrientationQuizResponse } from "@/types";
 
 export default function SpatialOrientationPage() {
@@ -17,10 +17,10 @@ export default function SpatialOrientationPage() {
     >
       {!quizData ? (
         <ModeSelection onStart={setQuizData} />
-      ) : quizData.mode === "learning" ? (
-        <LearningMode onRestart={() => setQuizData(null)} />
+      ) : quizData.mode === "learn" ? (
+        <LearnMode onRestart={() => setQuizData(null)} />
       ) : (
-        <PracticeMode quizData={quizData} onRestart={() => setQuizData(null)} />
+        <RealMode quizData={quizData} onRestart={() => setQuizData(null)} />
       )}
     </TopicLayout>
   );

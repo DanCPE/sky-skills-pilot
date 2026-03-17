@@ -1,7 +1,7 @@
 interface ProgressBarProps {
   current: number;
   total: number;
-  score?: number; // Optional score for practice mode
+  score?: number; // Optional score for real mode
 }
 
 export default function ProgressBar({ current, total, score }: ProgressBarProps) {

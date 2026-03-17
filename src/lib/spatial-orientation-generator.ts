@@ -82,12 +82,12 @@ export function generateSpatialOrientationRound(): SpatialOrientationQuestion {
   };
 }
 
-export function generateSpatialOrientationQuiz(count: number, mode: "learning" | "practice") {
+export function generateSpatialOrientationQuiz(count: number, mode: "learn" | "real") {
   const questions = Array.from({ length: count }, () => generateSpatialOrientationRound());
-  
+
   return {
     questions,
     mode,
-    timeLimit: mode === "practice" ? count * 15 : undefined, // Give 15s per question
+    timeLimit: mode === "real" ? count * 15 : undefined, // Give 15s per question
   };
 }

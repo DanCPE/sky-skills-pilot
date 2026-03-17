@@ -42,13 +42,13 @@ export default function QuizInterface({
   const [currentResult, setCurrentResult] =
     useState<ScanningPracticeSubmitResult | null>(null);
 
-  // Practice mode: Store selected answer for each question
+  // Real mode: Store selected answer for each question
   const [selectedAnswers, setSelectedAnswers] = useState<
     Record<number, string>
   >({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Timer state (practice mode only)
+  // Timer state (real mode only)
   const [timeRemaining, setTimeRemaining] = useState(
     timeLimit ?? questions.length * 3,
   );
@@ -65,7 +65,7 @@ export default function QuizInterface({
     }
   }, [quizComplete, quizStartTime]);
 
-  // Handle time up (practice mode)
+  // Handle time up (real mode)
   const handleTimeUp = () => {
     // Submit all unanswered questions as incorrect
     const unansweredAnswers = questions
@@ -80,8 +80,8 @@ export default function QuizInterface({
     setQuizComplete(true);
   };
 
-  // Handle answer selection for practice mode (all questions visible)
-  const handlePracticeAnswer = (questionIndex: number, answer: string) => {
+  // Handle answer selection for real mode (all questions visible)
+  const handleRealAnswer = (questionIndex: number, answer: string) => {
     if (answeredQuestionIndices.has(questionIndex)) {
       return; // Already answered, don't allow changes
     }
@@ -89,8 +89,8 @@ export default function QuizInterface({
     setSelectedAnswers((prev) => ({ ...prev, [questionIndex]: answer }));
   };
 
-  // Handle answer selection for learning mode (single question at a time)
-  const handleLearningAnswer = async (answer: string) => {
+  // Handle answer selection for learn mode (single question at a time)
+  const handleLearnAnswer = async (answer: string) => {
     if (isSubmitting || isSubmittingRef.current) {
       return;
     }
@@ -153,7 +153,7 @@ export default function QuizInterface({
     }
   };
 
-  // Move to next question (learning mode only)
+  // Move to next question (learn mode only)
   const moveToNextQuestion = () => {
     setShowExplanation(false);
     setCurrentResult(null);
@@ -165,16 +165,16 @@ export default function QuizInterface({
     }
   };
 
-  // Calculate final score (practice mode only)
+  // Calculate final score (real mode only)
   const calculateScore = () => {
-    if (mode !== "practice" || answers.length === 0) return undefined;
+    if (mode !== "real" || answers.length === 0) return undefined;
     const correct = answers.filter((a) => a.isCorrect).length;
     return Math.round((correct / questions.length) * 100);
   };
 
-  // Handle submit quiz (practice mode)
+  // Handle submit quiz (real mode)
   const handleSubmitQuiz = async () => {
-    if (mode !== "practice") {
+    if (mode !== "real") {
       return;
     }
 
@@ -244,7 +244,7 @@ export default function QuizInterface({
     }
   };
 
-  // Show submit confirmation (practice mode)
+  // Show submit confirmation (real mode)
   const handleSubmitClick = () => {
     const answeredCount = Object.keys(selectedAnswers).length;
     if (answeredCount < questions.length) {
@@ -268,7 +268,7 @@ export default function QuizInterface({
     );
   }
 
-  // Show confirmation when there are unanswered questions (practice mode)
+  // Show confirmation when there are unanswered questions (real mode)
   if (showConfirmation) {
     const answeredCount = Object.keys(selectedAnswers).length;
     return (
@@ -294,14 +294,14 @@ export default function QuizInterface({
         answers={answers}
         mode={mode}
         score={calculateScore()}
-        timeTaken={mode === "practice" ? totalTimeTaken : undefined}
+        timeTaken={mode === "real" ? totalTimeTaken : undefined}
         onRestart={onRestart}
       />
     );
   }
 
-  // LEARNING MODE: Single question with explanation
-  if (mode === "learning") {
+  // LEARN MODE: Single question with explanation
+  if (mode === "learn") {
     const currentQuestion = questions[currentQuestionIndex];
     const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
@@ -316,7 +316,7 @@ export default function QuizInterface({
 
         <QuestionCard
           question={currentQuestion}
-          onAnswer={handleLearningAnswer}
+          onAnswer={handleLearnAnswer}
           disabled={isSubmitting || showExplanation}
           selectedAnswer={undefined}
           showResult={false}
@@ -334,7 +334,7 @@ export default function QuizInterface({
     );
   }
 
-  // PRACTICE MODE: All questions visible, scrollable
+  // REAL MODE: All questions visible, scrollable
   const answeredCount = Object.keys(selectedAnswers).length;
 
   return (
@@ -390,7 +390,7 @@ export default function QuizInterface({
             </div>
             <QuestionCard
               question={question}
-              onAnswer={(answer) => handlePracticeAnswer(index, answer)}
+              onAnswer={(answer) => handleRealAnswer(index, answer)}
               disabled={answeredQuestionIndices.has(index)}
               selectedAnswer={selectedAnswers[index]}
               showResult={false}

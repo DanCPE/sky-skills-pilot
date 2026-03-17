@@ -10,9 +10,9 @@ export async function GET(req: NextRequest) {
     const questionCountParam = searchParams.get("count");
 
     // Validate mode
-    if (!mode || (mode !== "learning" && mode !== "practice")) {
+    if (!mode || (mode !== "learn" && mode !== "real")) {
       return NextResponse.json(
-        { error: "Invalid mode. Must be 'learning' or 'practice'." },
+        { error: "Invalid mode. Must be 'learn' or 'real'." },
         { status: 400 }
       );
     }
@@ -49,13 +49,13 @@ export async function GET(req: NextRequest) {
       difficulty as "easy" | "medium" | "hard" | "mixed"
     );
 
-    // Calculate time limit for practice mode (5 minutes for 10 questions, scaled proportionally)
+    // Calculate time limit for real mode (5 minutes for 10 questions, scaled proportionally)
     const timeLimit =
-      mode === "practice" ? Math.floor((questionCount / 10) * 300) : undefined;
+      mode === "real" ? Math.floor((questionCount / 10) * 300) : undefined;
 
     const response: NumberSeriesQuizResponse = {
       questions,
-      mode: mode as "learning" | "practice",
+      mode: mode as "learn" | "real",
       timeLimit,
     };
 
