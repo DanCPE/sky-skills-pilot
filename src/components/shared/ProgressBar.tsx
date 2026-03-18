@@ -16,16 +16,16 @@ export default function ProgressBar({ current, total, score, compact = false }: 
             Question {current} of {total}
           </span>
           {score !== undefined && (
-            <span className="text-sm font-bold text-violet-600 dark:text-violet-400">
+            <span className="text-sm font-bold text-violet-600 dark:text-brand-gold">
               Score: {score}%
             </span>
           )}
         </div>
       )}
       
-      <div className={`w-full overflow-hidden rounded-full ${compact ? "h-2.5 bg-violet-100 dark:bg-zinc-800 mb-2.5" : "h-2 bg-zinc-200 dark:bg-zinc-800"}`}>
+      <div className={`w-full overflow-hidden rounded-full ${compact ? "h-2.5 bg-violet-100 dark:bg-white/5 mb-2.5 border dark:border-white/5" : "h-2 bg-zinc-200 dark:bg-zinc-800"}`}>
         <div
-          className={`h-full rounded-full transition-all duration-300 ease-in-out ${compact ? "bg-violet-700 dark:bg-violet-500" : "bg-violet-600 dark:bg-violet-500"}`}
+          className={`h-full rounded-full transition-all duration-300 ease-in-out ${compact ? "bg-brand-purple hover:bg-violet-500" : "bg-violet-600 dark:bg-brand-purple"}`}
           style={{ width: `${progress}%` }}
         />
       </div>
@@ -35,7 +35,7 @@ export default function ProgressBar({ current, total, score, compact = false }: 
           <span className="text-[10px] sm:text-xs font-bold tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
             PROGRESS: {Math.round(progress)}% COMPLETE
           </span>
-          <span className="text-xs sm:text-sm font-bold text-violet-700 dark:text-violet-400">
+          <span className="text-xs sm:text-sm font-bold text-violet-700 dark:text-brand-gold">
             {current} of {total}
           </span>
         </div>

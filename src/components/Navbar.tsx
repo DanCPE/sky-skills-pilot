@@ -20,7 +20,7 @@ export default function Navbar() {
 
   return (
     <>
-      <nav className="border-b border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 sticky top-0 z-50">
+      <nav className="border-b border-zinc-200 bg-white dark:border-white/10 dark:bg-black sticky top-0 z-50 transition-colors">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
@@ -50,8 +50,8 @@ export default function Navbar() {
                   href={item.href}
                   className={`transition-colors ${
                     isActive
-                      ? "text-yellow-500 hover:text-yellow-400"
-                      : "text-violet-800 hover:text-violet-600 dark:text-violet-400 dark:hover:text-violet-300"
+                      ? "text-brand-gold hover:text-amber-300"
+                      : "text-violet-800 hover:text-violet-600 dark:text-zinc-400 dark:hover:text-zinc-200"
                   }`}
                 >
                   {item.label}
@@ -107,7 +107,7 @@ export default function Navbar() {
             </Link>
             <Link
               href="/signup"
-              className="rounded-lg bg-violet-700 px-5 py-2 text-sm font-semibold text-white transition-colors hover:bg-violet-600 shadow-sm"
+              className="rounded-lg bg-brand-purple px-5 py-2 text-sm font-semibold text-white transition-all hover:bg-violet-500 hover:shadow-lg hover:shadow-brand-purple/25 active:scale-95"
             >
               Sign Up
             </Link>

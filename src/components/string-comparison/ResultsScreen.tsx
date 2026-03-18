@@ -59,9 +59,9 @@ export default function ResultsScreen({
   return (
     <div className="mx-auto max-w-4xl">
       {/* Score Card */}
-      <div className="mb-8 rounded-2xl border-2 bg-zinc-50 p-8 text-center dark:border-zinc-800 dark:bg-zinc-900">
+      <div className="mb-8 rounded-2xl border-2 bg-zinc-50 p-8 text-center dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
         <div className="mb-4 text-4xl">{performance.stars}</div>
-        <h2 className="mb-2 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
+        <h2 className="mb-2 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-brand-gold">
           {performance.text}
         </h2>
         <p className="text-lg text-zinc-600 dark:text-zinc-400">
@@ -74,7 +74,7 @@ export default function ResultsScreen({
             <div className="mb-2 text-sm font-medium text-zinc-500 dark:text-zinc-400">
               Final Score
             </div>
-            <div className="text-5xl font-bold text-violet-600 dark:text-violet-400 font-[family-name:var(--font-space-grotesk)]">
+            <div className="text-5xl font-bold text-brand-gold font-[family-name:var(--font-space-grotesk)]">
               {score}%
             </div>
           </div>
@@ -101,7 +101,7 @@ export default function ResultsScreen({
 
       {/* Questions Review */}
       <div className="mb-8">
-        <h3 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
+        <h3 className="mb-4 text-xl font-bold text-zinc-900 dark:text-brand-gold">
           Review Your Answers
         </h3>
         <div className="space-y-4">
@@ -216,7 +216,7 @@ export default function ResultsScreen({
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
         <button
           onClick={onRestart}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-violet-600 px-8 py-4 font-semibold text-white transition-colors hover:bg-violet-500 active:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-purple px-10 py-4 text-lg font-bold text-white transition-all hover:bg-violet-500 active:scale-95 shadow-lg shadow-brand-purple/20"
         >
           <svg
             className="h-5 w-5"

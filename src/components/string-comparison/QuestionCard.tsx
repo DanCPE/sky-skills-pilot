@@ -42,7 +42,7 @@ export default function QuestionCard({
     }
 
     if (isSelected) {
-      return "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950";
+      return "border-brand-purple bg-violet-50 dark:bg-brand-purple text-white shadow-md shadow-brand-purple/20";
     }
 
     if (hoveredOption === option && !disabled) {
@@ -53,10 +53,10 @@ export default function QuestionCard({
   };
 
   return (
-    <div className={`rounded-2xl border-2 border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-900 ${compact ? "p-3" : "p-4"}`}>
+    <div className={`rounded-2xl border-2 border-zinc-200 bg-white dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md transition-all ${compact ? "p-3" : "p-4"}`}>
       {/* Question Prompt - hide in compact mode */}
       {!compact && (
-        <h3 className="text-zinc-900 dark:text-zinc-100 mb-2 text-base font-medium">
+        <h3 className="text-zinc-900 dark:text-brand-gold/90 mb-2 text-base font-medium">
           {question.prompt}
         </h3>
       )}
@@ -64,7 +64,7 @@ export default function QuestionCard({
       {/* Strings Display - Horizontal Layout */}
       <div className="flex flex-row gap-2 w-full overflow-hidden mb-4">
         {/* String A */}
-        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-zinc-800 p-2 sm:p-3">
+        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-white/5 p-2 sm:p-3 border-2 border-transparent dark:border-white/5">
           <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String A
           </div>
@@ -74,7 +74,7 @@ export default function QuestionCard({
         </div>
 
         {/* String B */}
-        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-zinc-800 p-2 sm:p-3">
+        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-white/5 p-2 sm:p-3 border-2 border-transparent dark:border-white/5">
           <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String B
           </div>

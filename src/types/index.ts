@@ -86,7 +86,8 @@ export interface ScanningPracticeQuestion extends Question {
 
 export interface ScanningPracticeQuizRequest {
   mode: "learn" | "real";
-  stringLength?: number; // Default: random 12-18
+  difficulty: "easy" | "medium" | "hard" | "mixed";
+  stringLength?: number; // Default: random based on difficulty
   questionCount?: number; // Default: 40
 }
 

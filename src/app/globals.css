@@ -1,3 +1,32 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    --background: #ffffff;
+    --foreground: #09090b;
+    --brand-gold: #FACC15;
+    --brand-purple: #4F12A6;
+  }
+
+  .dark {
+    --background: #000000;
+    --foreground: #fafafa;
+  }
+
+  body {
+    background-color: var(--background);
+    color: var(--foreground);
+    transition: background-color 0.3s ease, color 0.3s ease;
+  }
+
+  .dark body {
+    background: 
+      radial-gradient(circle at 20% 50%, rgba(79, 18, 166, 0.4) 0%, transparent 65%),
+      radial-gradient(circle at 80% 40%, rgba(250, 204, 21, 0.12) 0%, transparent 60%),
+      #000000;
+    background-attachment: fixed;
+    background-size: cover;
+  }
+}

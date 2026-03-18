@@ -47,6 +47,10 @@ export default {
         "8xl": ["calc(6rem * var(--font-scale, 1.3))", { lineHeight: "1" }],
         "9xl": ["calc(8rem * var(--font-scale, 1.3))", { lineHeight: "1" }],
       },
+      colors: {
+        "brand-gold": "#fbbf24", // amber-400
+        "brand-purple": "#7c3aed", // violet-600
+      },
     },
   },
 };

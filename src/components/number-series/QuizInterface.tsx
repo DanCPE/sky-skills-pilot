@@ -342,9 +342,9 @@ export default function QuizInterface({
         {/* Left Column (Question Area) */}
         <div className="flex-1 flex flex-col gap-6">
           {/* Header for Practice Mode / Modes */}
-          <div className="flex justify-between items-center bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+          <div className="flex justify-between items-center bg-white dark:bg-black/40 dark:backdrop-blur-md border-2 border-zinc-100 dark:border-white/10 rounded-3xl p-6 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="text-2xl font-black text-amber-500">
+              <div className="text-2xl font-black text-brand-gold">
                 <svg
                   className="w-8 h-8"
                   fill="none"
@@ -360,17 +360,17 @@ export default function QuizInterface({
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl font-black text-zinc-900 dark:text-white">
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-brand-gold">
                   Series Pictures
                 </h1>
                 {mode !== "real" && (
-                  <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-sm">
+                  <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-brand-gold text-zinc-900 px-2.5 py-1 rounded-sm">
                     PRACTICE MODE
                   </span>
                 )}
               </div>
             </div>
-            <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-zinc-200">
+            <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-brand-gold/90">
               Question {currentQuestionIndex + 1}
             </div>
           </div>
@@ -444,7 +444,7 @@ export default function QuizInterface({
         {/* Right Column (Sidebar) */}
         <div className="flex w-full flex-col gap-6 md:w-80 shrink-0">
           {/* Top Panel: Timer and Progress Bar */}
-          <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 flex flex-col gap-5">
+          <div className="rounded-[1.5rem] border-2 border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-6 shadow-sm flex flex-col gap-5">
             {/* Timer header */}
             <div className="flex items-center justify-between">
               <span className="font-bold text-zinc-800 dark:text-zinc-200">
@@ -477,7 +477,7 @@ export default function QuizInterface({
 
           {/* Question Navigator Panel (Real Mode Only) */}
           {mode === "real" && (
-            <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+            <div className="rounded-[1.5rem] border-2 border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-6 shadow-sm">
               <h3 className="mb-5 font-bold text-zinc-800 dark:text-zinc-200">
                 Question Navigator
               </h3>

@@ -75,11 +75,11 @@ export default function Timer({
   const getTimeColor = () => {
     const ratio = timeRemaining / timeLimit;
     if (ratio > 0.4) {
-      return "text-green-600 dark:text-green-400";
+      return "text-green-500 dark:text-green-400";
     } else if (ratio > 0.2) {
-      return "text-yellow-600 dark:text-yellow-400";
+      return "text-amber-500 dark:text-brand-gold";
     } else {
-      return "text-red-600 dark:text-red-400";
+      return "text-rose-500 dark:text-rose-400";
     }
   };
 
@@ -94,7 +94,7 @@ export default function Timer({
   }
 
   return (
-    <div className="mb-6 flex flex-col items-center gap-2 rounded-lg bg-zinc-100 px-4 py-3 dark:bg-zinc-800">
+    <div className="mb-6 flex flex-col items-center gap-2 rounded-lg bg-zinc-100 px-4 py-3 dark:bg-white/5 dark:border dark:border-white/5">
       <div className="flex items-center gap-2">
         <svg
           className="h-5 w-5"

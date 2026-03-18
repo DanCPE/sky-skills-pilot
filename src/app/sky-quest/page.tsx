@@ -26,7 +26,7 @@ export default function SkyQuestPage() {
       : topics.filter((topic) => topic.category === selectedCategory);
 
   return (
-    <div className="min-h-screen bg-[#fafafa] dark:bg-zinc-950 text-zinc-900 dark:text-zinc-100 pb-20">
+    <div className="min-h-screen bg-[#fafafa] dark:bg-transparent text-zinc-900 dark:text-zinc-100 pb-20">
       <main className="mx-auto max-w-7xl px-6 pt-12">
         {/* Page Header */}
         <div className="mb-10 text-center flex flex-col items-center">
@@ -45,7 +45,7 @@ export default function SkyQuestPage() {
 
         {/* Category Filter Navbar */}
         <div className="mb-12 flex justify-center">
-          <div className="w-full max-w-8xl flex flex-wrap md:flex-nowrap rounded-xl md:rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-1.5 shadow-sm dark:shadow-zinc-950">
+          <div className="w-full max-w-8xl flex flex-wrap md:flex-nowrap rounded-xl md:rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-1.5 shadow-sm">
             {categories.map((category) => {
               const isSelected = selectedCategory === category.value;
               return (
@@ -71,10 +71,10 @@ export default function SkyQuestPage() {
             {filteredTopics.map((topic) => (
               <div
                 key={topic.slug}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 transition-all hover:shadow-xl dark:hover:shadow-zinc-950 hover:-translate-y-1"
+                className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md transition-all hover:shadow-xl hover:-translate-y-1"
               >
                 {/* Top Image/Icon Placeholder area */}
-                <div className="relative flex h-40 w-full items-center justify-center bg-zinc-100/80 dark:bg-zinc-800/50">
+                <div className="relative flex h-40 w-full items-center justify-center bg-zinc-100/80 dark:bg-white/5">
                   {topic.isLocked && (
                     <div className="absolute top-4 left-4 w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white/40 dark:bg-zinc-800/80 flex items-center justify-center shadow-sm">
                       <Image
@@ -115,7 +115,7 @@ export default function SkyQuestPage() {
                   ) : (
                     <Link
                       href={`/sky-quest/${topic.slug}`}
-                      className="flex w-full items-center justify-center gap-1 rounded-lg bg-violet-700 px-4 py-2.5 text-xs font-bold text-white transition-colors hover:bg-violet-600 dark:hover:bg-violet-600"
+                      className="flex w-full items-center justify-center gap-1 rounded-lg bg-brand-purple px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-violet-600 shadow-lg shadow-brand-purple/20 active:scale-[0.98]"
                     >
                       Start Trial <span>→</span>
                     </Link>
@@ -134,7 +134,7 @@ export default function SkyQuestPage() {
 
         {/* Bottom Banner */}
         <div className="mt-20">
-          <div className="mx-auto max-w-lg overflow-hidden rounded-3xl border border-zinc-100 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-8 text-center shadow-2xl shadow-zinc-200/50 dark:shadow-zinc-950">
+          <div className="mx-auto max-w-lg overflow-hidden rounded-3xl border border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-8 text-center shadow-2xl shadow-zinc-200/50">
             <div className="mb-4 relative w-16 h-16 mx-auto">
               <Image
                 src="/images/icons/SkyQuests/sun.png"

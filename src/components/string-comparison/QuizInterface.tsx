@@ -315,9 +315,9 @@ export default function QuizInterface({
         <div className="flex flex-col gap-6 lg:flex-row">
           {/* Left Column */}
           <div className="flex-1 flex flex-col gap-6">
-            <div className="flex justify-between items-center bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+            <div className="flex justify-between items-center bg-white dark:bg-black/40 dark:backdrop-blur-md border-2 border-zinc-100 dark:border-white/10 rounded-3xl p-6 shadow-sm">
               <div className="flex items-center gap-3">
-                <div className="text-2xl font-black text-amber-500">
+                <div className="text-2xl font-black text-brand-gold">
                   <svg
                     className="w-8 h-8"
                     fill="none"
@@ -333,15 +333,15 @@ export default function QuizInterface({
                   </svg>
                 </div>
                 <div>
-                  <h1 className="text-2xl font-black text-zinc-900 dark:text-white">
+                  <h1 className="text-2xl font-black text-zinc-900 dark:text-brand-gold">
                     String Comparison
                   </h1>
-                  <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-sm">
+                  <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-brand-gold text-zinc-900 px-2.5 py-1 rounded-sm">
                     PRACTICE MODE
                   </span>
                 </div>
               </div>
-              <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-zinc-200">
+              <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-brand-gold/90">
                 Question {currentQuestionIndex + 1}
               </div>
             </div>
@@ -389,12 +389,12 @@ export default function QuizInterface({
 
           {/* Right Column (Sidebar) */}
           <div className="flex w-full flex-col gap-6 md:w-80 shrink-0">
-            <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900 flex flex-col gap-5">
+            <div className="rounded-[1.5rem] border-2 border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-6 shadow-sm flex flex-col gap-5">
               <div className="flex items-center justify-between">
                 <span className="font-bold text-zinc-800 dark:text-zinc-200">
                   Time Remaining
                 </span>
-                <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-400">
+                <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-400 dark:text-brand-gold/60">
                   --:--
                 </span>
               </div>
@@ -419,9 +419,9 @@ export default function QuizInterface({
       <div className="flex flex-col gap-6 lg:flex-row">
         {/* Left Column (Questions) */}
         <div className="flex-1 flex flex-col gap-6">
-          <div className="flex justify-between items-center bg-white dark:bg-zinc-900 border-2 border-zinc-100 dark:border-zinc-800 rounded-3xl p-6 shadow-sm">
+          <div className="flex justify-between items-center bg-white dark:bg-black/40 dark:backdrop-blur-md border-2 border-zinc-100 dark:border-white/10 rounded-3xl p-6 shadow-sm">
             <div className="flex items-center gap-3">
-              <div className="text-2xl font-black text-amber-500">
+              <div className="text-2xl font-black text-brand-gold">
                 <svg
                   className="w-8 h-8"
                   fill="none"
@@ -437,7 +437,7 @@ export default function QuizInterface({
                 </svg>
               </div>
               <div>
-                <h1 className="text-2xl font-black text-zinc-900 dark:text-white">
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-brand-gold">
                   String Comparison
                 </h1>
               </div>
@@ -449,7 +449,7 @@ export default function QuizInterface({
               <div
                 key={question.id}
                 id={`question-${index}`}
-                className="scroll-mt-24 rounded-3xl bg-zinc-50 p-6 dark:bg-zinc-800/50"
+                className="scroll-mt-24 rounded-3xl bg-zinc-50 p-6 dark:bg-black/20 dark:backdrop-blur-sm border-2 border-transparent dark:border-white/5"
               >
                 <div className="mb-4 flex items-center justify-between">
                   <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
@@ -517,7 +517,7 @@ export default function QuizInterface({
                   />
                 </div>
               ) : (
-                <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-400">
+                <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-400 dark:text-brand-gold/60">
                   --:--
                 </span>
               )}
@@ -531,7 +531,7 @@ export default function QuizInterface({
             />
           </div>
 
-          <div className="rounded-[1.5rem] border-2 border-zinc-100 bg-white p-6 shadow-sm dark:border-zinc-800 dark:bg-zinc-900">
+          <div className="rounded-[1.5rem] border-2 border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-6 shadow-sm">
             <h3 className="mb-5 font-bold text-zinc-800 dark:text-zinc-200">
               Question Navigator
             </h3>
@@ -556,7 +556,7 @@ export default function QuizInterface({
             className={`w-full rounded-[1.25rem] py-3.5 text-base font-bold transition-all shadow-sm ${
               isSubmitting || answeredCount === 0
                 ? "bg-zinc-300 text-zinc-500 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-400"
-                : "bg-amber-400 text-zinc-900 hover:bg-amber-500 active:scale-[0.98] shadow-amber-400/20"
+                : "bg-brand-gold text-zinc-900 hover:bg-amber-300 active:scale-[0.98] shadow-brand-gold/20"
             }`}
           >
             {isSubmitting ? "Submitting..." : "Submit"}

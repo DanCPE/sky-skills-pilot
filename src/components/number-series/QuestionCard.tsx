@@ -26,7 +26,7 @@ export default function QuestionCard({
     const isSelected = selectedAnswer === option;
 
     if (isSelected) {
-      return "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950";
+      return "border-brand-purple bg-violet-50 dark:bg-brand-purple text-white shadow-md shadow-brand-purple/20";
     }
 
     if (hoveredOption === option && !disabled) {
@@ -37,14 +37,14 @@ export default function QuestionCard({
   };
 
   return (
-    <div className="rounded-xl border-2 border-zinc-200 bg-white p-4 dark:border-zinc-800 dark:bg-zinc-900 border-b-4 border-b-zinc-200/50">
+    <div className="rounded-xl border-2 border-zinc-200 bg-white dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md p-4 transition-all border-b-4 border-b-zinc-200/50 dark:border-b-white/5">
       {/* Question Prompt */}
-      <h3 className="mb-3 text-base font-medium text-zinc-900 dark:text-zinc-100">
+      <h3 className="mb-3 text-base font-medium text-zinc-900 dark:text-brand-gold/90">
         {question.prompt}
       </h3>
 
       {/* Sequence Display */}
-      <div className="mb-4 flex flex-wrap items-center justify-center gap-2 rounded-lg bg-zinc-100 p-3 dark:bg-zinc-800">
+      <div className="mb-4 flex flex-wrap items-center justify-center gap-2 rounded-lg bg-zinc-100 dark:bg-white/5 p-3 dark:border dark:border-white/5">
         {question.sequence.map((num, index) => (
           <React.Fragment key={index}>
             <span className="text-base sm:text-lg font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">

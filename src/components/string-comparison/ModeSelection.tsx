@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import { useState } from "react";
 import type { ScanningPracticeQuizResponse } from "@/types";
 
@@ -8,9 +9,12 @@ interface ModeSelectionProps {
 }
 
 type Mode = "learn" | "real" | null;
+type Difficulty = "easy" | "medium" | "hard" | "mixed";
 
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   const [selectedMode, setSelectedMode] = useState<Mode>(null);
+  const [selectedDifficulty, setSelectedDifficulty] =
+    useState<Difficulty>("mixed");
   const [questionCount, setQuestionCount] = useState(40);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -24,6 +28,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
     try {
       const params = new URLSearchParams({
         mode: selectedMode,
+        difficulty: selectedDifficulty,
         count: String(questionCount),
       });
 
@@ -57,7 +62,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 text-center">
-        <h2 className="mb-3 text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
+        <h2 className="mb-3 text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-brand-gold">
           Choose Your Mode
         </h2>
         <p className="text-zinc-600 dark:text-zinc-400">
@@ -73,12 +78,12 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           disabled={isLoading}
           className={`rounded-2xl border-2 p-6 text-left transition-all ${
             selectedMode === "learn"
-              ? "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950"
-              : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+              ? "border-brand-purple bg-violet-50 dark:border-brand-purple dark:bg-brand-purple/20"
+              : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md dark:hover:border-white/20"
           } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
         >
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-brand-purple">
               <svg
                 className="h-6 w-6 text-violet-600 dark:text-violet-400"
                 fill="none"
@@ -114,23 +119,30 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           disabled={isLoading}
           className={`rounded-2xl border-2 p-6 text-left transition-all ${
             selectedMode === "real"
-              ? "border-violet-600 bg-violet-50 dark:border-violet-500 dark:bg-violet-950"
-              : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+              ? "border-brand-purple bg-violet-50 dark:border-brand-purple dark:bg-brand-purple/20"
+              : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md dark:hover:border-white/20"
           } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
         >
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-brand-purple">
               <svg
                 className="h-6 w-6 text-violet-600 dark:text-violet-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg"
               >
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
                   strokeWidth={2}
-                  d="M13 10V3L4 14h7v7l9-11h-7z"
+                  d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+                />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M12 2v2M20 20l-1.5-1.5"
                 />
               </svg>
             </div>
@@ -149,25 +161,70 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           </p>
         </button>
       </div>
+      
+      {/* Difficulty Selection */}
+      <div className="mb-8">
+        <label className="mb-3 block text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          Difficulty Level
+        </label>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {(["easy", "medium", "hard", "mixed"] as Difficulty[]).map(
+            (difficulty) => (
+              <button
+                key={difficulty}
+                onClick={() => setSelectedDifficulty(difficulty)}
+                disabled={isLoading}
+                className={`rounded-lg border-2 px-4 py-3 text-sm font-medium capitalize transition-all ${
+                  selectedDifficulty === difficulty
+                    ? "border-brand-purple bg-brand-purple text-white shadow-md shadow-brand-purple/20"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
+                } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+              >
+                {difficulty}
+              </button>
+            )
+          )}
+        </div>
+      </div>
 
       {/* Question Count Slider */}
-      <div className="mb-8">
-        <label className="mb-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Number of Questions: {questionCount}
+      <div className="mb-8 rounded-2xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/40 dark:backdrop-blur-md p-6">
+        <label className="mb-6 block text-[16px] font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-inter)] text-left">
+          Number of Questions
         </label>
-        <input
-          type="range"
-          min="10"
-          max="100"
-          step="10"
-          value={questionCount}
-          onChange={(e) => setQuestionCount(parseInt(e.target.value))}
-          disabled={isLoading}
-          className="w-full cursor-pointer accent-violet-600"
-        />
-        <div className="mt-2 flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
-          <span>10</span>
-          <span>100</span>
+        <div className="relative h-10 flex items-center px-2">
+          {/* Custom Track Background */}
+          <div className="absolute left-2 right-2 h-1.5 rounded-lg bg-[#F2F1F9] dark:bg-[#FFFFFF]" />
+          
+          {/* Custom Progress Line */}
+          <div 
+            className="absolute left-2 h-1.5 rounded-l-lg bg-[#4F12A6] dark:bg-brand-gold transition-all duration-200"
+            style={{ width: `calc(${(questionCount - 10) / 90 * 100}% - 8px)` }}
+          />
+
+          <input
+            type="range"
+            min="10"
+            max="100"
+            step="10"
+            value={questionCount}
+            onChange={(e) => setQuestionCount(parseInt(e.target.value))}
+            disabled={isLoading}
+            className="relative w-full h-1.5 appearance-none bg-transparent cursor-pointer z-10
+              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 
+              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#4F12A6] dark:[&::-webkit-slider-thumb]:bg-brand-gold
+              [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white dark:[&::-webkit-slider-thumb]:border-zinc-900
+              [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full 
+              [&::-moz-range-thumb]:bg-[#4F12A6] dark:[&::-moz-range-thumb]:bg-brand-gold
+              [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white dark:[&::-moz-range-thumb]:border-zinc-900"
+          />
+        </div>
+        <div className="mt-2 flex justify-between text-[16px] font-bold text-zinc-500 dark:text-zinc-400 font-[family-name:var(--font-inter)] px-1">
+          <span className={questionCount === 10 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>10</span>
+          <span className={questionCount === 25 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>25</span>
+          <span className={questionCount === 50 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>50</span>
+          <span className={questionCount === 75 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>75</span>
+          <span className={questionCount === 100 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>100</span>
         </div>
       </div>
 
@@ -183,10 +240,10 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
         <button
           onClick={handleStart}
           disabled={!selectedMode || isLoading}
-          className={`inline-flex items-center gap-2 rounded-xl px-8 py-4 text-lg font-bold text-white transition-all ${
+          className={`inline-flex items-center gap-2 rounded-xl px-12 py-4 text-lg font-bold text-white transition-all active:scale-95 shadow-lg ${
             !selectedMode || isLoading
               ? "cursor-not-allowed bg-zinc-400"
-              : "cursor-pointer bg-violet-600 hover:bg-violet-500 active:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500"
+              : "cursor-pointer bg-brand-purple hover:bg-violet-500 shadow-brand-purple/20 dark:hover:shadow-brand-purple/40"
           }`}
         >
           {isLoading ? (
@@ -233,7 +290,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
                   d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              Start Quiz
+              Start Quest
             </>
           )}
         </button>

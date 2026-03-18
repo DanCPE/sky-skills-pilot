@@ -6,6 +6,7 @@ export async function GET(req: NextRequest) {
   try {
     const searchParams = req.nextUrl.searchParams;
     const mode = searchParams.get("mode");
+    const difficulty = searchParams.get("difficulty") || "medium";
     const questionCountParam = searchParams.get("count");
 
     // Validate mode
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Generate questions
-    const questions = generateQuiz(questionCount);
+    const questions = generateQuiz(questionCount, difficulty as any);
 
     // Calculate time limit for real mode
     // 3 seconds per question for pilot scanning tests
