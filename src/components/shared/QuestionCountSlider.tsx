@@ -46,13 +46,7 @@ export default function QuestionCountSlider({
           value={value}
           onChange={(e) => onChange(parseInt(e.target.value))}
           disabled={isLoading}
-          className="relative z-10 h-1.5 w-full cursor-pointer appearance-none bg-transparent 
-            [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none 
-            [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#4F12A6] dark:[&::-webkit-slider-thumb]:bg-[#FACC15]
-            [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white dark:[&::-webkit-slider-thumb]:border-zinc-900
-            [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full 
-            [&::-moz-range-thumb]:bg-[#4F12A6] dark:[&::-moz-range-thumb]:bg-[#FACC15]
-            [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white dark:[&::-moz-range-thumb]:border-zinc-900"
+          className="relative z-10 h-1.5 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#4F12A6] dark:[&::-webkit-slider-thumb]:bg-[#FACC15] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white dark:[&::-webkit-slider-thumb]:border-zinc-900 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#4F12A6] dark:[&::-moz-range-thumb]:bg-[#FACC15] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white dark:[&::-moz-range-thumb]:border-zinc-900"
         />
       </div>
       <div className="relative mt-2 h-6 w-full font-[family-name:var(--font-inter)]">

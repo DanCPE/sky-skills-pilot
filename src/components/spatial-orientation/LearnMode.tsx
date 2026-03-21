@@ -190,11 +190,11 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
             </div>
           </div>
 
-          {/* Unified Visualizer & Answer Frame */}
-          <div className="bg-zinc-950/80 backdrop-blur-xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden flex flex-col lg:flex-row items-stretch">
+          {/* Main Content Area (Two Columns) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_20rem] gap-4 items-stretch">
             
             {/* Left: Main Visualizer */}
-            <div className="flex-1 py-8 px-10 flex flex-col items-center gap-4 relative border-b lg:border-b-0 lg:border-r border-white/5">
+            <div className="bg-zinc-950/80 backdrop-blur-xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden flex-1 py-8 px-4 sm:px-10 flex flex-col items-center gap-4 relative h-full">
               {/* Question Header */}
               <div className="w-full text-center">
                 <h2 className="text-xl sm:text-2xl font-bold text-white font-[family-name:var(--font-space-grotesk)]">
@@ -202,7 +202,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                 </h2>
               </div>
 
-              <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-8">
+              <div className="w-full h-full flex flex-col sm:flex-row items-center justify-center gap-8 py-10">
                 {/* Start Plane */}
                 <div className="flex flex-col items-center gap-4 z-10 w-fit">
                   <CompassCircle size="lg">
@@ -262,7 +262,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
             </div>
 
             {/* Right: Answer & Progress Column */}
-            <div className="w-full lg:w-60 p-4 flex flex-col gap-6 bg-black/20">
+            <div className="w-full rounded-3xl border border-white/5 bg-zinc-950/80 backdrop-blur-xl p-6 flex flex-col gap-6 shadow-2xl h-full">
               {/* Progress */}
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
@@ -278,7 +278,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
 
               {/* Answers */}
               <div className="flex-1 flex flex-col">
-                <h3 className="text-[10px] font-bold text-zinc-600 mb-4 uppercase tracking-widest text-center">
+                <h3 className="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest text-center">
                   Your Answer
                 </h3>
 
@@ -327,14 +327,14 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                   <button
                     onClick={handleSubmit}
                     disabled={selectedAngle === null || selectedDir === null}
-                    className="mt-auto w-full py-3 rounded-xl bg-white text-zinc-900 font-bold text-base disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl"
+                    className="mt-auto w-full py-3.5 rounded-xl bg-white text-zinc-900 font-bold text-base disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl"
                   >
                     Submit Route
                   </button>
                 ) : (
                   <div className="mt-auto pt-4">
                     <div
-                      className={`p-2 rounded-lg mb-3 text-center font-bold text-sm ${
+                      className={`p-3 rounded-lg mb-3 text-center font-bold text-sm ${
                         isCorrect
                           ? "bg-green-500/20 text-green-400 border border-green-500/30"
                           : "bg-red-500/20 text-red-400 border border-red-500/30"

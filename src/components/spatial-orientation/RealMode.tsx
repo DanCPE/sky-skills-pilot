@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import React from "react";
+import { useRouter } from "next/navigation";
 import Timer from "@/components/shared/Timer";
 import ProgressBar from "@/components/shared/ProgressBar";
 import QuizCompleteConfirmation from "@/components/spatial-orientation/QuizCompleteConfirmation";
@@ -86,53 +87,70 @@ const QuestionRow = ({
   return (
     <div
       id={`question-${question.id}`}
-      className={`relative mb-6 p-6 rounded-3xl bg-white dark:bg-zinc-900 border-2 transition-all ${
+      className={`relative p-4 rounded-xl transition-all ${
         isSubmitted
           ? isCorrect
-            ? "border-green-500 bg-green-50/30 dark:bg-green-900/10"
-            : "border-red-500 bg-red-50/30 dark:bg-red-900/10"
-          : "border-zinc-200 dark:border-white/5 hover:border-zinc-300 dark:hover:border-white/10 shadow-sm"
+            ? "border-2 border-green-500/50 bg-green-500/10"
+            : "border-2 border-red-500/50 bg-red-500/10"
+          : selectedAnswer
+          ? "border-2 border-brand-purple/50 bg-brand-purple/10"
+          : "border-2 border-white/5 bg-zinc-900/60"
       }`}
     >
       <div className="flex flex-col gap-5">
-        {/* Top Row: Index + Visual Sequence (Always horizontal, single line) */}
-        <div className="flex items-center gap-4">
-          <div className="flex items-center justify-center w-12 h-12 rounded-xl bg-zinc-100 dark:bg-zinc-800 text-base font-black text-zinc-400 dark:text-zinc-500 shrink-0">
-            {index + 1}
-          </div>
-
-          {/* Visual Sequence Box */}
-          <div className="flex flex-1 items-center gap-4 min-w-0 bg-zinc-50 dark:bg-white/5 px-4 py-2.5 rounded-2xl border border-zinc-100 dark:border-white/5">
-            <CompassCircle size="sm" className="shrink-0">
-              <AirplaneIcon angle={question.initialHeading} color="#3b82f6" />
-            </CompassCircle>
-            
-            <div className="flex flex-1 items-center justify-center flex-wrap gap-1.5 min-w-0 py-1">
-              {question.sequence.map((step, i) => {
-                const isLast = i === question.sequence.length - 1;
-                return (
-                  <React.Fragment key={i}>
-                    <div className="flex items-center gap-1 shrink-0 font-bold text-sm bg-white dark:bg-zinc-800 px-3 py-2 rounded-lg shadow-sm border border-zinc-100 dark:border-zinc-700/50 text-zinc-600 dark:text-zinc-200 whitespace-nowrap">
-                      <span>{step.angle}°</span>
-                      <span className={step.dir === "L" ? "text-blue-500" : "text-amber-500 font-black"}>
-                        {step.dir}
-                      </span>
-                    </div>
-                    {!isLast && (
-                      <span className="text-zinc-300 dark:text-zinc-700 font-bold shrink-0">→</span>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </div>
-
-            <CompassCircle size="sm">
-              <AirplaneIcon angle={question.targetHeading} color="#7c3aed" />
-            </CompassCircle>
+        <div className="flex items-center justify-between mb-1">
+          <div className="flex items-center gap-3">
+            <h3 className="text-sm font-black text-zinc-300 uppercase tracking-widest">
+              Question {index + 1}
+            </h3>
+            {selectedAnswer && !isSubmitted && (
+              <span className="uppercase tracking-widest rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-black text-brand-purple">
+                Answered
+              </span>
+            )}
+            {isSubmitted && (
+              <span className={`uppercase tracking-widest rounded-full border px-3 py-0.5 text-[10px] font-black ${
+                isCorrect 
+                  ? "bg-green-500/20 border-green-500/40 text-green-400" 
+                  : "bg-red-500/20 border-red-500/40 text-red-400"
+              }`}>
+                {isCorrect ? "Correct" : "Incorrect"}
+              </span>
+            )}
           </div>
         </div>
 
-        {/* Bottom Row: Answer Buttons (Always below question) */}
+        {/* Visual Sequence Box */}
+        <div className="flex flex-1 items-center gap-4 min-w-0 bg-black/40 px-4 py-3 rounded-2xl border border-white/5 shadow-inner">
+          <CompassCircle size="sm" className="shrink-0 ring-2 ring-blue-500/20">
+            <AirplaneIcon angle={question.initialHeading} color="#3b82f6" />
+          </CompassCircle>
+          
+          <div className="flex flex-1 items-center justify-center flex-wrap gap-2 min-w-0 py-1">
+            {question.sequence.map((step, i) => {
+              const isLast = i === question.sequence.length - 1;
+              return (
+                <React.Fragment key={i}>
+                  <div className="flex items-center gap-1.5 shrink-0 font-bold text-sm bg-white/5 px-3 py-2 rounded-lg border border-white/10 text-white shadow-sm">
+                    <span>{step.angle}°</span>
+                    <span className={step.dir === "L" ? "text-blue-400 font-black" : "text-amber-400 font-black"}>
+                      {step.dir}
+                    </span>
+                  </div>
+                  {!isLast && (
+                    <span className="text-zinc-600 font-black shrink-0">→</span>
+                  )}
+                </React.Fragment>
+              );
+            })}
+          </div>
+
+          <CompassCircle size="sm" className="ring-2 ring-brand-purple/20">
+            <AirplaneIcon angle={question.targetHeading} color="#8b5cf6" />
+          </CompassCircle>
+        </div>
+
+        {/* Bottom Row: Answer Buttons */}
         <div className="grid grid-cols-5 gap-2">
           {question.options.map((opt, i) => {
             const optVal =
@@ -141,19 +159,18 @@ const QuestionRow = ({
             const isActuallyCorrect =
               optVal === `${question.correctAngle}${question.correctDir}`;
 
-            let btnStyle =
-              "bg-zinc-100 hover:bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:hover:bg-zinc-700 dark:text-zinc-400";
+            let btnStyle = "bg-white/5 hover:bg-white/10 text-zinc-400 border border-white/5 hover:text-white";
 
             if (isSubmitted) {
               if (isActuallyCorrect) {
-                btnStyle = "bg-green-500 text-white shadow-lg shadow-green-500/30 ring-2 ring-green-400 ring-offset-2 dark:ring-offset-zinc-900";
+                btnStyle = "bg-green-500 text-white shadow-lg shadow-green-500/20 ring-2 ring-green-400 ring-offset-2 ring-offset-zinc-900 border-green-400";
               } else if (isSelected && !isActuallyCorrect) {
-                btnStyle = "bg-red-500 text-white shadow-lg shadow-red-500/30";
+                btnStyle = "bg-red-500 text-white shadow-lg shadow-red-500/20 border-red-400";
               } else {
-                btnStyle = "bg-zinc-100 text-zinc-300 opacity-30 dark:bg-zinc-800 dark:text-zinc-600";
+                btnStyle = "bg-white/5 text-zinc-600 opacity-50 border-white/5";
               }
             } else if (isSelected) {
-              btnStyle = "bg-violet-600 text-white shadow-md shadow-violet-500/30 ring-2 ring-violet-400 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 scale-105 z-10";
+              btnStyle = "bg-brand-purple text-white shadow-lg shadow-brand-purple/30 ring-2 ring-brand-purple ring-offset-2 ring-offset-zinc-900 border-brand-purple scale-105 z-10";
             }
 
             return (
@@ -161,7 +178,7 @@ const QuestionRow = ({
                 key={i}
                 disabled={isSubmitted}
                 onClick={() => onSelect(optVal)}
-                className={`h-12 px-3 rounded-xl font-black text-sm transition-all tracking-tight ${btnStyle}`}
+                className={`h-12 px-2 sm:px-3 rounded-xl font-black text-xs sm:text-sm transition-all tracking-tight ${btnStyle}`}
               >
                 {opt.dir === null ? "N/A" : `${opt.angle}° ${opt.dir}`}
               </button>
@@ -171,9 +188,9 @@ const QuestionRow = ({
       </div>
 
       {isSubmitted && !isCorrect && selectedAnswer !== null && (
-        <div className="mt-4 flex items-center gap-2 text-sm">
-           <span className="font-black uppercase tracking-widest text-red-500">Target:</span>
-           <span className="font-bold text-zinc-600 dark:text-zinc-400">{question.correctAngle}° {question.correctDir}</span>
+        <div className="mt-5 pt-4 border-t border-white/10 flex items-center justify-center gap-2 text-sm">
+           <span className="font-black uppercase tracking-widest text-red-400">Target was:</span>
+           <span className="font-bold text-white bg-white/10 px-3 py-1 rounded-md">{question.correctAngle}° {question.correctDir}</span>
         </div>
       )}
     </div>
@@ -184,6 +201,7 @@ export default function RealMode({
   quizData,
   onRestart,
 }: RealModeProps) {
+  const router = useRouter();
   const { questions, timeLimit } = quizData;
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
@@ -235,145 +253,153 @@ export default function RealMode({
   };
 
   return (
-    <div className="w-full max-w-[1600px] pr-4 sm:pr-6 lg:pr-8 pb-20">
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Left Column (Questions) */}
-        <div className="flex-1 flex flex-col gap-6">
-          <div className="flex justify-between items-center bg-white dark:bg-black/40 dark:backdrop-blur-md border-2 border-zinc-100 dark:border-white/10 rounded-3xl p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="text-2xl font-black text-brand-gold">
-                <span className="text-2xl">✈️</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                  Aircraft Rotation
-                </h1>
-              </div>
+    <div className="w-full max-w-[1200px] mx-auto p-4 sm:p-6 mb-20 animate-in fade-in duration-700">
+      <div className="flex flex-col gap-4">
+        {/* Top Header Panel */}
+        <div className="flex justify-between items-center bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md border-2 border-white/5 rounded-2xl p-6 shadow-xl">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Aircraft Rotation
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="uppercase text-[10px] font-black tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                REAL MODE
+              </span>
             </div>
           </div>
-
-          {isSubmitted && (
-            <div className="mb-4 text-center bg-violet-50 dark:bg-violet-900/20 p-8 rounded-3xl border border-violet-200 dark:border-violet-800/50">
-              <h2 className="text-3xl font-black mb-2 text-violet-700 dark:text-violet-400">
-                Score: {calculateScore()}%
-              </h2>
-              <p className="font-bold text-zinc-600 dark:text-zinc-400 mb-6">
-                Completed in {Math.floor(totalTimeTaken / 60)}m{" "}
-                {totalTimeTaken % 60}s
-              </p>
-              <button
-                onClick={onRestart}
-                className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-3 rounded-xl font-bold transition-all shadow-md"
-              >
-                Play Again
-              </button>
-            </div>
-          )}
-
-          <div className="space-y-6">
-            {questions.map((q, idx) => (
-              <div
-                key={q.id}
-                id={`question-${idx}`}
-                className="scroll-mt-24"
-              >
-                <QuestionRow
-                  question={q}
-                  index={idx}
-                  selectedAnswer={answers[q.id] || null}
-                  onSelect={(val) => {
-                    if (!isSubmitted) {
-                      setAnswers((prev) => ({ ...prev, [q.id]: val }));
-                      setCurrentQuestionIndex(idx);
-                    }
-                  }}
-                  isSubmitted={isSubmitted}
-                />
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8">
-            <button
-              onClick={onRestart}
-              className="group flex items-center gap-2 rounded-xl bg-zinc-200/60 px-5 py-2.5 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 w-max"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition-transform group-hover:-translate-x-1"
-              >
-                <path d="M9 14 4 9l5-5" />
-                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
-              </svg>
-              Exit
-            </button>
+          <div className="text-2xl font-black text-white/90 font-[family-name:var(--font-space-grotesk)]">
+            {answeredCount} / {questions.length} Answered
           </div>
         </div>
 
-        {/* Right Column (Sidebar) */}
-        <div className="flex w-full flex-col gap-6 md:w-80 shrink-0 sticky top-24 self-start">
-          <div className="rounded-[1.5rem] border-2 border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-6 shadow-sm flex flex-col gap-5">
-            {/* Timer */}
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                Time Remaining
-              </span>
-              {timeLimit && !isSubmitted && (
-                <div className="[&>div]:mb-0 [&>div]:bg-transparent [&>div]:px-0">
-                  <Timer
-                    timeLimit={timeLimit}
-                    onTimeUp={handleTimeUp}
-                    isPaused={isSubmitted}
-                    compact
+        {isSubmitted && (
+          <div className="mb-2 text-center bg-brand-purple/20 backdrop-blur-md p-8 rounded-2xl border-2 border-brand-purple/50 shadow-xl shadow-brand-purple/20">
+            <h2 className="text-4xl font-black mb-2 text-white">
+              Score: {calculateScore()}%
+            </h2>
+            <p className="font-bold text-zinc-400 uppercase tracking-widest text-sm mb-6">
+              Completed in {Math.floor(totalTimeTaken / 60)}m{" "}
+              {totalTimeTaken % 60}s
+            </p>
+            <button
+              onClick={onRestart}
+              className="bg-brand-purple hover:bg-brand-purple/80 text-white px-10 py-4 rounded-xl font-black transition-all shadow-lg active:scale-95 text-lg"
+            >
+              Play Again
+            </button>
+          </div>
+        )}
+
+        {/* Main Content Area (Two Columns) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
+          {/* Left Column: Scrollable Questions */}
+          <div className="flex flex-col bg-zinc-900/40 dark:bg-black/20 rounded-2xl border-2 border-white/5 overflow-hidden" style={{ height: "calc(100vh - 260px)", minHeight: "400px" }}>
+            <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
+              {questions.map((q, idx) => (
+                <div key={q.id}>
+                  <QuestionRow
+                    question={q}
+                    index={idx}
+                    selectedAnswer={answers[q.id] || null}
+                    onSelect={(val) => {
+                      if (!isSubmitted) {
+                        setAnswers((prev) => ({ ...prev, [q.id]: val }));
+                        setCurrentQuestionIndex(idx);
+                      }
+                    }}
+                    isSubmitted={isSubmitted}
                   />
                 </div>
-              )}
+              ))}
+            </div>
+          </div>
+
+          {/* Right Column: Sidebar Panels */}
+          <div className="flex flex-col gap-4">
+            {/* Timer & Progress Panel */}
+            <div className="rounded-2xl border-2 border-white/5 bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md p-6 shadow-xl flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-zinc-300 uppercase tracking-widest text-xs">
+                  Time Remaining
+                </span>
+                {timeLimit && !isSubmitted ? (
+                  <div className="text-xl font-black text-white font-[family-name:var(--font-space-grotesk)]">
+                    <Timer
+                      timeLimit={timeLimit}
+                      onTimeUp={handleTimeUp}
+                      isPaused={isSubmitted}
+                      compact
+                    />
+                  </div>
+                ) : (
+                  <span className="text-xl font-black text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
+                    --:--
+                  </span>
+                )}
+              </div>
+              <div className="space-y-2">
+                <ProgressBar
+                  current={answeredCount}
+                  total={questions.length}
+                  score={isSubmitted ? calculateScore() : undefined}
+                  compact
+                />
+                <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                  <span>Progress: {Math.round((answeredCount / questions.length) * 100)}% Complete</span>
+                  <span>{answeredCount} of {questions.length}</span>
+                </div>
+              </div>
             </div>
 
-            <ProgressBar
-              current={answeredCount}
-              total={questions.length}
-              score={isSubmitted ? calculateScore() : undefined}
-              compact
-            />
-          </div>
+            {/* Question Navigator Panel */}
+            <div className="rounded-2xl border-2 border-white/5 bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md p-6 shadow-xl flex-1">
+              <h3 className="mb-2 font-bold text-zinc-300 uppercase tracking-widest text-xs">
+                Question Navigator
+              </h3>
+              <QuestionNavigator
+                totalQuestions={questions.length}
+                currentIndex={currentQuestionIndex}
+                answeredIndices={answeredSet}
+                skippedIndices={skippedSet}
+                onSelectQuestion={(index) => {
+                  const element = document.getElementById(`question-${questions[index].id}`);
+                  if (element) {
+                    element.scrollIntoView({ behavior: "smooth", block: "center" });
+                  }
+                  setCurrentQuestionIndex(index);
+                }}
+              />
+            </div>
 
-          <div className="rounded-[1.5rem] border-2 border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-6 shadow-sm">
-            <h3 className="mb-5 font-bold text-zinc-800 dark:text-zinc-200">
-              Question Navigator
-            </h3>
-            <QuestionNavigator
-              totalQuestions={questions.length}
-              currentIndex={currentQuestionIndex}
-              answeredIndices={answeredSet}
-              skippedIndices={skippedSet}
-              onSelectQuestion={(index) => {
-                const element = document.getElementById(`question-${index}`);
-                if (element) {
-                  element.scrollIntoView({ behavior: "smooth", block: "center" });
-                }
-                setCurrentQuestionIndex(index);
-              }}
-            />
+            {/* Submit Button */}
+            {!isSubmitted && (
+              <button
+                onClick={handleSubmitClick}
+                disabled={isSubmitted || answeredCount === 0}
+                className={`w-full py-4 rounded-xl font-black text-base transition-all shadow-lg active:scale-95 ${
+                  isSubmitted || answeredCount === 0
+                    ? "bg-zinc-700 text-zinc-500 cursor-not-allowed"
+                    : "bg-amber-400 text-zinc-900 hover:bg-amber-500 shadow-amber-400/20"
+                }`}
+              >
+                Submit
+              </button>
+            )}
           </div>
+        </div>
 
+        {/* Bottom Navigation Bar */}
+        <div className="flex items-center gap-3">
           <button
-            onClick={handleSubmitClick}
-            disabled={isSubmitted}
-            className={`w-full rounded-[1.25rem] py-3.5 text-base font-bold transition-all shadow-sm ${
-              isSubmitted
-                ? "bg-zinc-300 text-zinc-500 cursor-not-allowed dark:bg-zinc-700 dark:text-zinc-400"
-                : "bg-brand-gold text-zinc-900 hover:bg-amber-300 active:scale-[0.98] shadow-sm shadow-brand-gold/20"
-            }`}
+            onClick={() => router.back()}
+            className="flex items-center gap-2 px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-zinc-400 font-bold text-sm hover:text-white hover:border-white/20 hover:bg-white/10 transition-all"
           >
-            {isSubmitted ? "Submitted" : "Submit"}
+            <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+              <polyline points="16 17 21 12 16 7"/>
+              <line x1="21" y1="12" x2="9" y2="12"/>
+            </svg>
+            Exit
           </button>
         </div>
       </div>

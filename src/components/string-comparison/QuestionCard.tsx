@@ -62,23 +62,23 @@ export default function QuestionCard({
       )}
 
       {/* Strings Display - Horizontal Layout */}
-      <div className="flex flex-row gap-2 w-full overflow-hidden mb-4">
+      <div className="flex flex-row gap-2 w-full mb-4">
         {/* String A */}
-        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-white/5 p-2 sm:p-3 border-2 border-transparent dark:border-white/5">
+        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-white/5 p-2 sm:p-3 border-2 border-transparent dark:border-white/5 flex flex-col justify-center">
           <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String A
           </div>
-          <div className="text-center tracking-[0.05em] sm:tracking-[0.1em] text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)] whitespace-nowrap overflow-hidden text-ellipsis text-base sm:text-lg">
+          <div className="text-center tracking-[0.05em] text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)] break-all text-sm sm:text-base">
             {question.stringA}
           </div>
         </div>
 
         {/* String B */}
-        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-white/5 p-2 sm:p-3 border-2 border-transparent dark:border-white/5">
+        <div className="flex-1 min-w-0 rounded-xl bg-zinc-100 dark:bg-white/5 p-2 sm:p-3 border-2 border-transparent dark:border-white/5 flex flex-col justify-center">
           <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String B
           </div>
-          <div className="text-center tracking-[0.05em] sm:tracking-[0.1em] text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)] whitespace-nowrap overflow-hidden text-ellipsis text-base sm:text-lg">
+          <div className="text-center tracking-[0.05em] text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)] break-all text-sm sm:text-base">
             {question.stringB}
           </div>
         </div>
