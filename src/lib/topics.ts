@@ -16,6 +16,7 @@ export const topics: Topic[] = [
     description: "Find the pattern in numerical sequences.",
     category: "logical",
     isLocked: false,
+    coverImage: "/images/icons/SkyQuests/number.png",
   },
   {
     slug: "calculate",
@@ -56,6 +57,7 @@ export const topics: Topic[] = [
     description: "Quickly compare alphanumeric strings and identify differences.",
     category: "scanning",
     isLocked: false,
+    coverImage: "/images/icons/SkyQuests/string.png",
   },
 ];
 

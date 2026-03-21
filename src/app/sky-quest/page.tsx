@@ -36,7 +36,7 @@ export default function SkyQuestPage() {
           <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
             Sky Quests
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm md:text-base text-zinc-500 dark:text-zinc-400 font-medium font-[family-name:var(--font-space-grotesk)]">
+          <p className="mx-auto mt-4 max-w-2xl text-sm md:text-base text-zinc-500 dark:text-zinc-400 font-medium font-[family-name:var(--font-inter)]">
             Sky Quests helps you practice different Sky Skills and aptitude
             areas, one challenge at a time, so you can prepare with confidence
             for pilot assessments.
@@ -52,7 +52,7 @@ export default function SkyQuestPage() {
                 <button
                   key={category.value}
                   onClick={() => setSelectedCategory(category.value)}
-                  className={`flex-1 min-w-[110px] md:min-w-0 rounded-lg md:rounded-xl px-4 py-2 text-[10px] md:text-xs font-bold font-[family-name:var(--font-space-grotesk)] transition-all ${
+                  className={`flex-1 min-w-[110px] md:min-w-0 rounded-lg md:rounded-xl px-4 py-2 text-[14px] font-bold font-[family-name:var(--font-space-grotesk)] transition-all ${
                     isSelected
                       ? "bg-violet-700 text-white shadow"
                       : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
@@ -67,62 +67,73 @@ export default function SkyQuestPage() {
 
         {/* Topic Cards Grid */}
         {filteredTopics.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:gap-10 lg:grid-cols-3">
-            {filteredTopics.map((topic) => (
-              <div
-                key={topic.slug}
-                className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md transition-all hover:shadow-xl hover:-translate-y-1"
-              >
-                {/* Top Image/Icon Placeholder area */}
-                <div className="relative flex h-40 w-full items-center justify-center bg-zinc-100/80 dark:bg-white/5">
-                  {topic.isLocked && (
-                    <div className="absolute top-4 left-4 w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white/40 dark:bg-zinc-800/80 flex items-center justify-center shadow-sm">
+          <div className="mx-auto max-w-4xl">
+            <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:gap-10 lg:grid-cols-3">
+              {filteredTopics.map((topic) => (
+                <div
+                  key={topic.slug}
+                  className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md transition-all hover:shadow-xl hover:-translate-y-1"
+                >
+                  {/* Top Image/Icon Placeholder area */}
+                  <div className="relative flex h-40 w-full items-center justify-center bg-zinc-100/80 dark:bg-white/5 overflow-hidden">
+                    {topic.coverImage ? (
                       <Image
-                        src="/images/icons/SkyQuests/LOCK.png"
-                        alt="Locked"
+                        src={topic.coverImage}
+                        alt={topic.title}
                         fill
-                        className="object-contain p-1.5"
+                        className="object-cover group-hover:scale-105 transition-transform duration-500"
                       />
-                    </div>
-                  )}
-                  <span className="text-6xl filter grayscale opacity-60 dark:opacity-70 mix-blend-multiply dark:mix-blend-normal group-hover:grayscale-0 group-hover:opacity-100 transition-all">
-                    {topic.icon}
-                  </span>
-                </div>
-
-                {/* Content */}
-                <div className="flex flex-1 flex-col p-5 font-[family-name:var(--font-space-grotesk)]">
-                  <h2 className="mb-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
-                    {topic.title}
-                  </h2>
-                  <p className="mb-5 flex-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
-                    {topic.description}
-                  </p>
-
-                  {/* Actions */}
-                  {topic.isLocked ? (
-                    <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300">
-                      <span className="relative w-5 h-5 rounded border border-zinc-300 dark:border-zinc-600 bg-white/80 dark:bg-zinc-700/80 flex-shrink-0">
+                    ) : (
+                      <span className="text-6xl filter grayscale opacity-60 dark:opacity-70 mix-blend-multiply dark:mix-blend-normal group-hover:grayscale-0 group-hover:opacity-100 transition-all">
+                        {topic.icon}
+                      </span>
+                    )}
+                    {topic.isLocked && (
+                      <div className="absolute top-4 left-4 z-10 w-8 h-8 rounded-lg border border-zinc-200 dark:border-zinc-600 bg-white/40 dark:bg-zinc-800/80 flex items-center justify-center shadow-sm backdrop-blur-sm">
                         <Image
                           src="/images/icons/SkyQuests/LOCK.png"
-                          alt="Subscribe"
+                          alt="Locked"
                           fill
-                          className="object-contain p-1"
+                          className="object-contain p-1.5"
                         />
-                      </span>
-                      Subscribe to Unlock
-                    </button>
-                  ) : (
-                    <Link
-                      href={`/sky-quest/${topic.slug}`}
-                      className="flex w-full items-center justify-center gap-1 rounded-lg bg-brand-purple px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-violet-600 shadow-lg shadow-brand-purple/20 active:scale-[0.98]"
-                    >
-                      Start Trial <span>→</span>
-                    </Link>
-                  )}
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Content */}
+                  <div className="flex flex-1 flex-col p-5">
+                    <h2 className="mb-2 text-sm font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
+                      {topic.title}
+                    </h2>
+                    <p className="mb-5 flex-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 font-[family-name:var(--font-inter)]">
+                      {topic.description}
+                    </p>
+
+                    {/* Actions */}
+                    {topic.isLocked ? (
+                      <button className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-100 dark:bg-zinc-800 px-4 py-2.5 text-xs font-bold text-zinc-500 dark:text-zinc-400 transition-colors hover:bg-zinc-200 dark:hover:bg-zinc-700 hover:text-zinc-700 dark:hover:text-zinc-300">
+                        <span className="relative w-5 h-5 rounded border border-zinc-300 dark:border-zinc-600 bg-white/80 dark:bg-zinc-700/80 flex-shrink-0">
+                          <Image
+                            src="/images/icons/SkyQuests/LOCK.png"
+                            alt="Subscribe"
+                            fill
+                            className="object-contain p-1"
+                          />
+                        </span>
+                        Subscribe to Unlock
+                      </button>
+                    ) : (
+                      <Link
+                        href={`/sky-quest/${topic.slug}`}
+                        className="flex w-full items-center justify-center gap-1 rounded-lg bg-brand-purple px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-violet-600 shadow-lg shadow-brand-purple/20 active:scale-[0.98]"
+                      >
+                        Start Trial <span>→</span>
+                      </Link>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
         ) : (
           <div className="py-20 text-center">
