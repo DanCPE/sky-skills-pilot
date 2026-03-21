@@ -194,7 +194,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
           <div className="bg-zinc-950/80 backdrop-blur-xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden flex flex-col lg:flex-row items-stretch">
             
             {/* Left: Main Visualizer */}
-            <div className="flex-1 p-10 flex flex-col items-center gap-8 relative border-b lg:border-b-0 lg:border-r border-white/5">
+            <div className="flex-1 py-8 px-10 flex flex-col items-center gap-4 relative border-b lg:border-b-0 lg:border-r border-white/5">
               {/* Question Header */}
               <div className="w-full text-center">
                 <h2 className="text-xl sm:text-2xl font-bold text-white font-[family-name:var(--font-space-grotesk)]">
@@ -202,9 +202,9 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                 </h2>
               </div>
 
-              <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-12">
+              <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-8">
                 {/* Start Plane */}
-                <div className="flex flex-col items-center gap-8 z-10 w-fit">
+                <div className="flex flex-col items-center gap-4 z-10 w-fit">
                   <CompassCircle size="lg">
                     <AirplaneIcon
                       angle={
@@ -217,7 +217,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                             ? "#22c55e"
                             : "#ef4444"
                       }
-                      className="w-32 h-32"
+                      className="w-24 h-24"
                     />
                   </CompassCircle>
                   <div className="text-sm font-black uppercase tracking-widest text-zinc-300">
@@ -226,12 +226,12 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                 </div>
 
                 {/* Sequence */}
-                <div className="flex flex-col items-center gap-3 z-10">
-                  <div className="flex flex-col gap-3">
+                <div className="flex flex-col items-center gap-2 z-10">
+                  <div className="flex flex-col gap-2">
                     {roundData.seq.map((step, idx) => (
                       <div
                         key={idx}
-                        className="flex justify-center items-center bg-transparent px-8 py-3 rounded-xl text-xl font-black border border-white/40 text-white min-w-[140px]"
+                        className="flex justify-center items-center bg-transparent px-8 py-2 rounded-xl text-lg font-black border border-white/40 text-white min-w-[140px]"
                       >
                         <span className="flex items-center gap-1">
                           {step.angle}
@@ -245,12 +245,12 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                 </div>
 
                 {/* Target Plane */}
-                <div className="flex flex-col items-center gap-8 z-10 w-fit">
+                <div className="flex flex-col items-center gap-4 z-10 w-fit">
                   <CompassCircle size="lg">
                     <AirplaneIcon
                       angle={roundData.targetHeading}
                       color="#7c3aed" // violet target
-                      className="w-32 h-32"
+                      className="w-24 h-24"
                     />
                   </CompassCircle>
                   <div className="text-sm font-black uppercase tracking-widest text-zinc-300 flex items-center gap-2">

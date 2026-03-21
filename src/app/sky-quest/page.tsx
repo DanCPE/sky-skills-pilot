@@ -45,7 +45,7 @@ export default function SkyQuestPage() {
 
         {/* Category Filter Navbar */}
         <div className="mb-12 flex justify-center">
-          <div className="w-full max-w-8xl flex flex-wrap md:flex-nowrap rounded-xl md:rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-1.5 shadow-sm">
+          <div className="w-full max-w-8xl flex flex-wrap md:flex-nowrap gap-1.5 rounded-xl md:rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-1.5 shadow-sm">
             {categories.map((category) => {
               const isSelected = selectedCategory === category.value;
               return (

@@ -13,7 +13,7 @@ export default function CompassCircle({
   size = "lg",
   className = "",
 }: CompassCircleProps) {
-  const containerSize = size === "lg" ? "w-48 h-48" : "w-16 h-16";
+  const containerSize = size === "lg" ? "w-40 h-40" : "w-16 h-16";
   const labelOffset = size === "lg" ? "top-2" : "top-0";
   const fontSize = size === "lg" ? "text-xs" : "text-[8px]";
   const tickSize = size === "lg" ? "h-4" : "h-1.5";

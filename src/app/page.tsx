@@ -41,7 +41,7 @@ export default function Home() {
               href="/sky-quest"
               className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-8 py-3.5 text-base font-bold text-white transition-colors hover:bg-violet-600 shadow-lg active:scale-95"
             >
-              Start Free Trial
+              GO TO QUESTS 
             </Link>
             <p className="mt-3 text-sm text-zinc-400 font-medium">
               No credit card required for trial

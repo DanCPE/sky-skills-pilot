@@ -26,28 +26,28 @@ export default function QuestionNavigator({
     const isCurrent = index === currentIndex;
 
     if (isCurrent) {
-      return "bg-white text-violet-900 border-2 border-violet-100 font-black shadow-sm dark:bg-zinc-800 dark:text-violet-400 dark:border-violet-900/50";
+      return "bg-zinc-800 text-white border-2 border-white font-black shadow-lg scale-105 z-10";
     }
 
     if (status === "answered") {
-      return "bg-[#4314A0] text-white font-bold border-2 border-transparent dark:bg-violet-900";
+      return "bg-brand-purple text-white font-bold border-2 border-transparent";
     }
 
     if (status === "skipped") {
-      return "bg-[#FFC000] text-zinc-900 font-bold border-2 border-transparent dark:bg-amber-500";
+      return "bg-amber-400 text-zinc-900 font-bold border-2 border-transparent";
     }
 
-    return "bg-zinc-100/80 text-zinc-400 font-semibold border-2 border-transparent hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-500 dark:hover:bg-zinc-700";
+    return "bg-zinc-900/80 text-zinc-500 font-semibold border-2 border-white/5 hover:border-white/10 hover:bg-zinc-800 transition-all";
   };
 
   return (
-    <div className="flex flex-col gap-5">
-      <div className="grid grid-cols-10 gap-1.5 sm:gap-2">
+    <div className="flex flex-col gap-10">
+      <div className="grid grid-cols-10 gap-1.5 content-start">
         {Array.from({ length: totalQuestions }, (_, i) => i).map((index) => (
           <button
             key={index}
             onClick={() => onSelectQuestion(index)}
-            className={`aspect-square w-full rounded-md text-[10px] sm:text-xs flex items-center justify-center transition-all duration-200 active:scale-95 ${getButtonStyle(index)}`}
+            className={`aspect-square w-full rounded-md text-[10px] flex items-center justify-center transition-all duration-200 active:scale-95 ${getButtonStyle(index)}`}
             aria-label={`Go to question ${index + 1}`}
             aria-current={index === currentIndex ? "step" : undefined}
           >
@@ -56,13 +56,13 @@ export default function QuestionNavigator({
         ))}
       </div>
 
-      <div className="flex gap-6 mt-2 pt-4 border-t border-zinc-100 dark:border-zinc-800/50 text-[10px] font-bold text-zinc-500 tracking-widest uppercase">
+      <div className="flex gap-6 text-[10px] font-black text-zinc-400 tracking-widest uppercase">
         <div className="flex items-center gap-2">
-          <div className="h-2.5 w-2.5 rounded-full bg-[#4314A0] dark:bg-violet-900"></div>
+          <div className="h-2 w-2 rounded-full bg-brand-purple"></div>
           <span>DONE</span>
         </div>
         <div className="flex items-center gap-2">
-          <div className="h-2.5 w-2.5 rounded-full bg-[#FFC000] dark:bg-amber-500"></div>
+          <div className="h-2 w-2 rounded-full bg-amber-400"></div>
           <span>SKIP</span>
         </div>
       </div>

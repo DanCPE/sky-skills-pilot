@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { useRouter } from "next/navigation";
 import Timer from "@/components/shared/Timer";
 import ProgressBar from "@/components/shared/ProgressBar";
 import QuestionCard from "./QuestionCard";
@@ -34,6 +35,7 @@ export default function QuizInterface({
   quizData,
   onRestart,
 }: QuizInterfaceProps) {
+  const router = useRouter();
   const { questions, mode, timeLimit } = quizData;
 
   // Quiz state
@@ -94,6 +96,10 @@ export default function QuizInterface({
     }
 
     setSelectedAnswer(answer);
+    
+    // Add 0.1s delay before proceeding with submission logic
+    await new Promise(resolve => setTimeout(resolve, 100));
+    
     setIsSubmitting(true);
     isSubmittingRef.current = true;
 
@@ -337,148 +343,80 @@ export default function QuizInterface({
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
   return (
-    <div className="w-full max-w-[1600px] pr-4 sm:pr-6 lg:pr-8 pb-20">
-      <div className="flex flex-col gap-6 lg:flex-row">
-        {/* Left Column (Question Area) */}
-        <div className="flex-1 flex flex-col gap-6">
-          {/* Header for Practice Mode / Modes */}
-          <div className="flex justify-between items-center bg-white dark:bg-black/40 dark:backdrop-blur-md border-2 border-zinc-100 dark:border-white/10 rounded-3xl p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="text-2xl font-black text-brand-gold">
-                <svg
-                  className="w-8 h-8"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                  />
-                </svg>
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-zinc-900 dark:text-brand-gold">
-                  Series Pictures
-                </h1>
-                {mode !== "real" && (
-                  <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-brand-gold text-zinc-900 px-2.5 py-1 rounded-sm">
-                    PRACTICE MODE
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-brand-gold/90">
-              Question {currentQuestionIndex + 1}
+    <div className="w-full max-w-[1200px] mx-auto p-4 sm:p-6 mb-20 animate-in fade-in duration-700">
+      <div className="flex flex-col gap-4">
+        {/* Top Header Panel */}
+        <div className="flex justify-between items-center bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md border-2 border-white/5 rounded-2xl p-6 shadow-xl">
+          <div className="flex flex-col gap-1">
+            <h1 className="text-2xl font-black text-white tracking-tight">
+              Number Series
+            </h1>
+            <div className="flex items-center gap-2">
+              <span className="uppercase text-[10px] font-black tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                {mode === "real" ? "REAL MODE" : "LEARN MODE"}
+              </span>
             </div>
           </div>
-
-          {/* Question Card */}
-          <QuestionCard
-            question={currentQuestion}
-            onAnswer={handleAnswer}
-            disabled={isSubmitting || showExplanation}
-            selectedAnswer={selectedAnswer ?? undefined}
-            showResult={mode === "real" && currentResult !== null}
-            isCorrect={currentResult?.correct}
-          />
-
-          {/* Action Buttons row (Previous, Skip, Next) */}
-          {mode === "real" &&
-            !showExplanation &&
-            !currentResult &&
-            !isSubmitting && (
-              <div className="mt-2 flex justify-center w-full">
-                <button
-                  onClick={handleSkip}
-                  className="rounded-2xl border-2 border-zinc-200 px-10 py-3.5 text-sm font-bold text-zinc-600 transition-all hover:bg-zinc-50 dark:border-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-800"
-                >
-                  SKIP
-                </button>
-              </div>
-            )}
-
-          {/* Explanation Card (Learn Mode Only) */}
-          {mode === "learn" && showExplanation && currentResult && (
-            <ExplanationCard
-              question={currentQuestion}
-              result={currentResult}
-              onNext={moveToNextQuestion}
-              isLastQuestion={isLastQuestion}
-            />
-          )}
-
-          {/* Real Mode: Auto-advance indicator */}
-          {mode === "real" && isSubmitting && (
-            <div className="mt-4 text-center text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              Moving to next question...
-            </div>
-          )}
-          
-          <div className="mt-6">
-            <button
-              onClick={onRestart}
-              className="group flex items-center gap-2 rounded-xl bg-zinc-200/60 px-5 py-2.5 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 w-max"
-            >
-              <svg
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="transition-transform group-hover:-translate-x-1"
-              >
-                <path d="M9 14 4 9l5-5" />
-                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
-              </svg>
-              Exit
-            </button>
+          <div className="text-2xl font-black text-white/90 font-[family-name:var(--font-space-grotesk)]">
+            Question {currentQuestionIndex + 1}
           </div>
         </div>
 
-        {/* Right Column (Sidebar) */}
-        <div className="flex w-full flex-col gap-6 md:w-80 shrink-0">
-          {/* Top Panel: Timer and Progress Bar */}
-          <div className="rounded-[1.5rem] border-2 border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-6 shadow-sm flex flex-col gap-5">
-            {/* Timer header */}
-            <div className="flex items-center justify-between">
-              <span className="font-bold text-zinc-800 dark:text-zinc-200">
-                Time Remaining
-              </span>
-              {mode === "real" && timeLimit ? (
-                <div className="[&>div]:mb-0 [&>div]:bg-transparent [&>div]:px-0">
-                  <Timer
-                    timeLimit={timeLimit}
-                    onTimeUp={handleTimeUp}
-                    isPaused={quizComplete || showConfirmation}
-                    compact
-                  />
-                </div>
-              ) : (
-                <span className="text-xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-400">
-                  --:--
-                </span>
-              )}
-            </div>
-
-            {/* Progress Bar */}
-            <ProgressBar
-              current={currentQuestionIndex + 1}
-              total={questions.length}
-              score={mode === "real" ? calculateScore() : undefined}
-              compact
+        {/* Main Content Area (Two Columns) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
+          {/* Left Column: Question Card */}
+          <div className="flex flex-col">
+            <QuestionCard
+              question={currentQuestion}
+              onAnswer={handleAnswer}
+              disabled={isSubmitting || showExplanation}
+              selectedAnswer={selectedAnswer ?? undefined}
+              showResult={mode === "real" && currentResult !== null}
+              isCorrect={currentResult?.correct}
             />
           </div>
 
-          {/* Question Navigator Panel (Real Mode Only) */}
-          {mode === "real" && (
-            <div className="rounded-[1.5rem] border-2 border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-6 shadow-sm">
-              <h3 className="mb-5 font-bold text-zinc-800 dark:text-zinc-200">
+          {/* Right Column: Sidebar Panels */}
+          <div className="flex flex-col gap-4">
+            {/* Timer & Progress Panel */}
+            <div className="rounded-2xl border-2 border-white/5 bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md p-6 shadow-xl flex flex-col gap-6">
+              <div className="flex items-center justify-between">
+                <span className="font-bold text-zinc-300 uppercase tracking-widest text-xs">
+                  Time Remaining
+                </span>
+                {mode === "real" && timeLimit ? (
+                  <div className="text-xl font-black text-white font-[family-name:var(--font-space-grotesk)]">
+                    <Timer
+                      timeLimit={timeLimit}
+                      onTimeUp={handleTimeUp}
+                      isPaused={quizComplete || showConfirmation}
+                      compact
+                    />
+                  </div>
+                ) : (
+                  <span className="text-xl font-black text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
+                    --:--
+                  </span>
+                )}
+              </div>
+
+              <div className="space-y-2">
+                <ProgressBar
+                  current={currentQuestionIndex + 1}
+                  total={questions.length}
+                  score={mode === "real" ? calculateScore() : undefined}
+                  compact
+                />
+                <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+                  <span>Progress: {Math.round(((currentQuestionIndex + 1) / questions.length) * 100)}% Complete</span>
+                  <span>{currentQuestionIndex + 1} of {questions.length}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Question Navigator Panel */}
+            <div className="rounded-2xl border-2 border-white/5 bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md p-6 shadow-xl flex-1">
+              <h3 className="mb-2 font-bold text-zinc-300 uppercase tracking-widest text-xs">
                 Question Navigator
               </h3>
               <QuestionNavigator
@@ -487,12 +425,7 @@ export default function QuizInterface({
                 answeredIndices={answeredQuestionIndices}
                 skippedIndices={skippedIndicesSet}
                 onSelectQuestion={(index) => {
-                  if (
-                    isSubmitting ||
-                    (mode === "real" && currentResult !== null)
-                  ) {
-                    return;
-                  }
+                  if (isSubmitting || (mode === "real" && currentResult !== null)) return;
                   setShowExplanation(false);
                   setSelectedAnswer(null);
                   setCurrentResult(null);
@@ -500,17 +433,56 @@ export default function QuizInterface({
                 }}
               />
             </div>
-          )}
+          </div>
+        </div>
 
-          {/* Submit/Next Button Container */}
-          {mode === "real" && (
+        {/* Bottom Navigation Bar */}
+        <div className="flex items-center justify-between gap-4">
+          <div className="flex-1 flex gap-3">
+            <button
+              onClick={() => router.back()}
+              className="flex items-center gap-2 px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-zinc-400 font-bold text-sm hover:text-white hover:border-white/20 hover:bg-white/10 transition-all"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
+                <polyline points="16 17 21 12 16 7"/>
+                <line x1="21" y1="12" x2="9" y2="12"/>
+              </svg>
+              Exit
+            </button>
+            <button
+              onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+              disabled={currentQuestionIndex === 0}
+              className="px-8 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+            >
+              Previous
+            </button>
+            <div className="flex-1" /> {/* Spacer */}
+            <div className="flex gap-3">
+              <button
+                onClick={handleSkip}
+                className="px-10 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 transition-all"
+              >
+                Skip
+              </button>
+              <button
+                onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                disabled={currentQuestionIndex === questions.length - 1}
+                className="px-12 py-3.5 rounded-xl bg-brand-purple text-white font-bold text-sm hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand-purple/20"
+              >
+                Next
+              </button>
+            </div>
+          </div>
+          
+          <div className="w-96 shrink-0 flex justify-end">
             <button
               onClick={handleSubmitClick}
-              className="w-full rounded-[1.25rem] bg-amber-400 py-3.5 text-base font-bold text-zinc-900 transition-all hover:bg-amber-500 active:scale-[0.98] shadow-sm shadow-amber-400/20"
+              className="w-full py-4 rounded-xl bg-amber-400 text-zinc-900 font-black text-base hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95"
             >
               Submit
             </button>
-          )}
+          </div>
         </div>
       </div>
     </div>
