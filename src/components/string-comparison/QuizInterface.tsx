@@ -200,6 +200,7 @@ export default function QuizInterface({
             questionId: question.id,
             answer: "",
             isCorrect: false,
+            timeTaken: 0,
           };
         }
 

@@ -218,10 +218,8 @@ export default function QuizInterface({
     }
   };
 
-  // Skip current question (real mode only)
+  // Skip current question
   const handleSkip = () => {
-    if (mode !== "real") return;
-
     const currentQuestion = questions[currentQuestionIndex];
     const alreadySkipped = skippedQuestions.some(
       (sq) => sq.questionIndex === currentQuestionIndex,
@@ -249,7 +247,8 @@ export default function QuizInterface({
 
   // Show submit confirmation
   const handleSubmitClick = () => {
-    const unansweredCount = questions.length - answeredQuestionIndices.size;
+    const answeredCount = new Set(answers.map(a => a.questionId)).size;
+    const unansweredCount = questions.length - answeredCount;
     if (unansweredCount > 0) {
       // Show confirmation if there are unanswered questions
       setShowConfirmation(true);
@@ -259,20 +258,19 @@ export default function QuizInterface({
     }
   };
 
-  // Handle manual submit (real mode only)
+  // Handle manual submit
   const handleSubmitQuiz = () => {
-    if (mode !== "real") return;
-
     // Mark all unanswered/skipped questions as incorrect
-    const unansweredCount = questions.length - answeredQuestionIndices.size;
+    const unansweredCount = questions.length - answers.length;
     if (unansweredCount > 0) {
+      const answeredQuestionIds = new Set(answers.map(a => a.questionId));
       const unansweredAnswers = questions
-        .map((_, idx) => idx)
-        .filter((idx) => !answeredQuestionIndices.has(idx))
-        .map((idx) => ({
-          questionId: questions[idx].id,
+        .filter((q) => !answeredQuestionIds.has(q.id))
+        .map((q) => ({
+          questionId: q.id,
           answer: "",
           isCorrect: false,
+          timeTaken: 0,
         }));
       setAnswers((prev) => [...prev, ...unansweredAnswers]);
     }
@@ -302,17 +300,19 @@ export default function QuizInterface({
 
   // Show confirmation when there are skipped questions
   if (showConfirmation) {
-    const unansweredCount = questions.length - answeredQuestionIndices.size;
+    const answeredCount = new Set(answers.map(a => a.questionId)).size;
+    const unansweredCount = questions.length - answeredCount;
     return (
       <QuizCompleteConfirmation
         totalQuestions={questions.length}
-        answeredCount={answeredQuestionIndices.size}
+        answeredCount={answeredCount}
         skippedCount={unansweredCount}
         onBackToQuestions={() => {
           setShowConfirmation(false);
           // Move to the first unanswered/skipped question
+          const answeredQuestionIds = new Set(answers.map(a => a.questionId));
           const firstUnanswered = questions.findIndex(
-            (_, idx) => !answeredQuestionIndices.has(idx),
+            (q) => !answeredQuestionIds.has(q.id),
           );
           if (firstUnanswered !== -1) {
             setCurrentQuestionIndex(firstUnanswered);
