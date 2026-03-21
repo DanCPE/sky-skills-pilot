@@ -342,6 +342,21 @@ export default function QuizInterface({
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
+  // Derive visual state for the current question
+  const existingAnswer = answers.find((a) => a.questionId === currentQuestion.id);
+  const effIsAnswered = existingAnswer !== undefined;
+  
+  // Use temporary state if we are currently interacting, otherwise use saved state
+  const effSelectedAnswer = selectedAnswer ?? existingAnswer?.answer;
+  const effShowExplanation = showExplanation || (mode === "learn" && effIsAnswered);
+  
+  // Reconstruct result for explanation card if needed
+  const effResult: NumberSeriesSubmitResult | null = currentResult ?? 
+    (existingAnswer ? {
+      correct: existingAnswer.isCorrect,
+      correctAnswer: currentQuestion.correctAnswer
+    } : null);
+
   return (
     <div className="w-full max-w-[1200px] mx-auto p-4 sm:p-6 mb-20 animate-in fade-in duration-700">
       <div className="flex flex-col gap-4">
@@ -365,15 +380,24 @@ export default function QuizInterface({
         {/* Main Content Area (Two Columns) */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
           {/* Left Column: Question Card */}
-          <div className="flex flex-col">
+          <div className="flex flex-col space-y-4">
             <QuestionCard
               question={currentQuestion}
               onAnswer={handleAnswer}
-              disabled={isSubmitting || showExplanation}
-              selectedAnswer={selectedAnswer ?? undefined}
-              showResult={mode === "real" && currentResult !== null}
-              isCorrect={currentResult?.correct}
+              disabled={isSubmitting || effShowExplanation || (mode === "real" && effIsAnswered)}
+              selectedAnswer={effSelectedAnswer ?? undefined}
+              showResult={mode === "real" && effResult !== null}
+              isCorrect={effResult?.correct}
             />
+            
+            {effShowExplanation && effResult && (
+              <ExplanationCard
+                question={currentQuestion}
+                result={effResult}
+                onNext={moveToNextQuestion}
+                isLastQuestion={isLastQuestion}
+              />
+            )}
           </div>
 
           {/* Right Column: Sidebar Panels */}
@@ -451,7 +475,12 @@ export default function QuizInterface({
               Exit
             </button>
             <button
-              onClick={() => setCurrentQuestionIndex(prev => Math.max(0, prev - 1))}
+              onClick={() => {
+                setShowExplanation(false);
+                setSelectedAnswer(null);
+                setCurrentResult(null);
+                setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
+              }}
               disabled={currentQuestionIndex === 0}
               className="px-8 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             >
@@ -466,7 +495,12 @@ export default function QuizInterface({
                 Skip
               </button>
               <button
-                onClick={() => setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1))}
+                onClick={() => {
+                  setShowExplanation(false);
+                  setSelectedAnswer(null);
+                  setCurrentResult(null);
+                  setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1));
+                }}
                 disabled={currentQuestionIndex === questions.length - 1}
                 className="px-12 py-3.5 rounded-xl bg-brand-purple text-white font-bold text-sm hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand-purple/20"
               >
