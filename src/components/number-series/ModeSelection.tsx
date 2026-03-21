@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import { useState } from "react";
+import QuestionCountSlider from "../shared/QuestionCountSlider";
 import type { NumberSeriesQuizResponse } from "@/types";
 
 interface ModeSelectionProps {
@@ -175,46 +175,15 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           )}
         </div>
       </div>
-      {/* Question Count Slider */}
-      <div className="mb-8 rounded-2xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/40 dark:backdrop-blur-md p-6">
-        <label className="mb-6 block text-[16px] font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-inter)]">
-          Number of Questions
-        </label>
-        <div className="relative h-10 flex items-center px-2">
-          {/* Custom Track Background */}
-          <div className="absolute left-2 right-2 h-1.5 rounded-lg bg-[#F2F1F9] dark:bg-[#FFFFFF]" />
-          
-          {/* Custom Progress Line */}
-          <div 
-            className="absolute left-2 h-1.5 rounded-l-lg bg-[#4F12A6] dark:bg-brand-gold transition-all duration-200"
-            style={{ width: `calc(${(questionCount - 10) / 40 * 100}% - 8px)` }}
-          />
-
-          <input
-            type="range"
-            min="10"
-            max="50"
-            step="10"
-            value={questionCount}
-            onChange={(e) => setQuestionCount(parseInt(e.target.value))}
-            disabled={isLoading}
-            className="relative w-full h-1.5 appearance-none bg-transparent cursor-pointer z-10
-              [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 
-              [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#4F12A6] dark:[&::-webkit-slider-thumb]:bg-brand-gold
-              [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white dark:[&::-webkit-slider-thumb]:border-zinc-900
-              [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full 
-              [&::-moz-range-thumb]:bg-[#4F12A6] dark:[&::-moz-range-thumb]:bg-brand-gold
-              [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white dark:[&::-moz-range-thumb]:border-zinc-900"
-          />
-        </div>
-        <div className="mt-2 flex justify-between text-[16px] font-bold text-zinc-500 dark:text-zinc-400 font-[family-name:var(--font-inter)] px-1">
-          <span className={questionCount === 10 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>10</span>
-          <span className={questionCount === 20 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>20</span>
-          <span className={questionCount === 30 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>30</span>
-          <span className={questionCount === 40 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>40</span>
-          <span className={questionCount === 50 ? "text-[#4F12A6] dark:text-brand-gold" : ""}>50</span>
-        </div>
-      </div>
+      <QuestionCountSlider
+        value={questionCount}
+        min={10}
+        max={50}
+        step={10}
+        onChange={setQuestionCount}
+        labels={[10, 20, 30, 40, 50]}
+        isLoading={isLoading}
+      />
 
       {/* Error Message */}
       {error && (

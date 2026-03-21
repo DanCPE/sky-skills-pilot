@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import QuestionCountSlider from "../shared/QuestionCountSlider";
 import type { SpatialOrientationQuizResponse } from "@/types";
 
 interface ModeSelectionProps {
@@ -8,9 +9,11 @@ interface ModeSelectionProps {
 }
 
 type Mode = "learn" | "real" | null;
+type Difficulty = "easy" | "medium" | "hard" | "mixed";
 
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   const [selectedMode, setSelectedMode] = useState<Mode>(null);
+  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>("mixed");
   const [questionCount, setQuestionCount] = useState(20);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -23,8 +26,9 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
       // or we can mock the API response. We'll use the imported generator directly for speed.
       const { generateSpatialOrientationQuiz } = await import("@/lib/spatial-orientation-generator");
       const quizData = generateSpatialOrientationQuiz(
-         selectedMode === "learn" ? 10 : questionCount,
-         selectedMode
+         questionCount,
+         selectedMode,
+         selectedDifficulty
       );
       
       onStart(quizData);
@@ -114,31 +118,40 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           </p>
         </button>
       </div>
-
-       {/* Slider for Real Mode Only */}
-       {selectedMode === "real" && (
-        <div className="mb-8 p-6 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-900/50">
-          <label className="mb-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-            Number of Questions: <span className="font-bold text-violet-600 dark:text-violet-400">{questionCount}</span>
-          </label>
-          <input
-            type="range"
-            min="10"
-            max="50"
-            step="10"
-            value={questionCount}
-            onChange={(e) => setQuestionCount(parseInt(e.target.value))}
-            className="w-full cursor-pointer accent-violet-600"
-          />
-          <div className="mt-2 flex justify-between text-xs text-zinc-500 dark:text-zinc-400">
-            <span>10</span>
-            <span>20</span>
-            <span>30</span>
-            <span>40</span>
-            <span>50</span>
-          </div>
+      {/* Difficulty Selection */}
+      <div className="mb-8">
+        <label className="mb-3 block text-sm font-medium text-zinc-900 dark:text-zinc-100">
+          Difficulty Level
+        </label>
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+          {(["easy", "medium", "hard", "mixed"] as Difficulty[]).map(
+            (difficulty) => (
+              <button
+                key={difficulty}
+                onClick={() => setSelectedDifficulty(difficulty)}
+                disabled={isLoading}
+                className={`rounded-lg border-2 px-4 py-3 text-sm font-medium capitalize transition-all ${
+                  selectedDifficulty === difficulty
+                    ? "border-brand-purple bg-brand-purple text-white shadow-md shadow-brand-purple/20"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
+                } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+              >
+                {difficulty}
+              </button>
+            )
+          )}
         </div>
-      )}
+      </div>
+
+      <QuestionCountSlider
+        value={questionCount}
+        min={10}
+        max={50}
+        step={10}
+        onChange={setQuestionCount}
+        labels={[10, 20, 30, 40, 50]}
+        isLoading={isLoading}
+      />
 
       <div className="text-center">
         <button

@@ -1,14 +1,49 @@
 import { Direction, Instruction, SpatialOrientationQuestion } from "@/types";
 
-export function generateSpatialOrientationRound(): SpatialOrientationQuestion {
-  const possibleAngles = [45, 90, 135, 180];
+export type Difficulty = "easy" | "medium" | "hard" | "mixed";
+
+export function generateSpatialOrientationRound(difficulty: Difficulty = "medium"): SpatialOrientationQuestion {
+  let activeDifficulty = difficulty;
+  if (difficulty === "mixed") {
+    const diffs: Difficulty[] = ["easy", "medium", "hard"];
+    activeDifficulty = diffs[Math.floor(Math.random() * diffs.length)];
+  }
+
+  let angleIncrement = 45;
+  let maxAngle = 180;
+  let seqLengths = [3, 4, 5];
+
+  switch (activeDifficulty) {
+    case "easy":
+      angleIncrement = 45;
+      maxAngle = 360; // Based on user request "easy: 360"
+      seqLengths = [3, 4];
+      break;
+    case "hard":
+      angleIncrement = 22.5;
+      maxAngle = 720; // Based on user request "hard: 720"
+      seqLengths = [6, 7, 8, 9, 10];
+      break;
+    case "medium":
+    default:
+      angleIncrement = 22.5;
+      maxAngle = 360; // Based on user request "medium: 360"
+      seqLengths = [4, 5, 6];
+      break;
+  }
+
+  // Generate possible angles based on increment and max
+  const possibleAngles: number[] = [];
+  for (let a = angleIncrement; a <= maxAngle; a += angleIncrement) {
+    possibleAngles.push(a);
+  }
+  
   const possibleDirs: Direction[] = ["L", "R"];
   
-  // Start Heading
+  // Start Heading (Always 45/90/etc for standard orientation start, or keep 45 increments)
   const initialHeading = Math.floor(Math.random() * 8) * 45;
 
   // Generate Sequence
-  const seqLengths = [3, 4, 5];
   const length = seqLengths[Math.floor(Math.random() * seqLengths.length)];
   const sequence: Instruction[] = [];
 
@@ -19,13 +54,20 @@ export function generateSpatialOrientationRound(): SpatialOrientationQuestion {
     sequence.push({ angle, dir });
     
     const factor = dir === "R" ? 1 : -1;
-    currentHeading = (currentHeading + angle * factor + 360) % 360;
+    // Spatial orientation heading is usually 0-359.9...
+    currentHeading = (currentHeading + angle * factor) % 360;
+    if (currentHeading < 0) currentHeading += 360;
   }
 
-  // Generate target heading
-  let targetHeading = Math.floor(Math.random() * 8) * 45;
-  while (targetHeading === currentHeading) {
-    targetHeading = Math.floor(Math.random() * 8) * 45;
+  // Generate target heading (ensure it's on a valid coordinate, maybe multiples of 22.5 now)
+  const targetPool: number[] = [];
+  for (let a = 0; a < 360; a += angleIncrement) {
+    targetPool.push(a);
+  }
+  
+  let targetHeading = targetPool[Math.floor(Math.random() * targetPool.length)];
+  while (Math.abs(targetHeading - currentHeading) < 0.1) {
+    targetHeading = targetPool[Math.floor(Math.random() * targetPool.length)];
   }
 
   // Calculate Difference and exact shortest path
@@ -34,38 +76,34 @@ export function generateSpatialOrientationRound(): SpatialOrientationQuestion {
   let correctAngle = diff > 180 ? 360 - diff : diff;
   let correctDir: Direction = diff <= 180 ? "R" : "L";
   
-  // Wrap-around edge case: 180 can be L or R, standardizing on R for consistency
-  if (correctAngle === 180) {
+  // Wrap-around edge case: 180 can be L or R, standardizing on R
+  if (Math.abs(correctAngle - 180) < 0.1) {
+     correctAngle = 180;
      correctDir = "R";
   }
 
   // Generate Distractor Options
-  // We need 5 total options: 1 Correct, 1 NO ANSWER, 3 Distractors
   const optionsSet = new Set<string>();
   const correctStr = `${correctAngle}${correctDir}`;
   optionsSet.add(correctStr);
 
-  while (optionsSet.size < 4) { // Get 3 distractors
+  while (optionsSet.size < 4) {
     const randAngle = possibleAngles[Math.floor(Math.random() * possibleAngles.length)];
     const randDir = possibleDirs[Math.floor(Math.random() * possibleDirs.length)];
     const distStr = `${randAngle}${randDir}`;
     
-    // Ensure distractor doesn't equal correct answer equivalent (e.g. 180L is effectively 180R)
-    if (distStr !== correctStr && !(randAngle === 180 && correctAngle === 180)) {
+    if (distStr !== correctStr && !(Math.abs(randAngle - 180) < 0.1 && Math.abs(correctAngle - 180) < 0.1)) {
         optionsSet.add(distStr);
     }
   }
 
-  // Build the final options array
   const formattedOptions: { angle: number; dir: Direction | null }[] = Array.from(optionsSet).map(opt => ({
-      angle: parseInt(opt.slice(0, -1)),
+      angle: parseFloat(opt.replace(/[LR]/, "")),
       dir: opt.slice(-1) as Direction
   }));
 
-  // Add the NO ANSWER option
   formattedOptions.push({ angle: 0, dir: null });
 
-  // Shuffle options
   for (let i = formattedOptions.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
       [formattedOptions[i], formattedOptions[j]] = [formattedOptions[j], formattedOptions[i]];
@@ -82,12 +120,14 @@ export function generateSpatialOrientationRound(): SpatialOrientationQuestion {
   };
 }
 
-export function generateSpatialOrientationQuiz(count: number, mode: "learn" | "real") {
-  const questions = Array.from({ length: count }, () => generateSpatialOrientationRound());
+export function generateSpatialOrientationQuiz(count: number, mode: "learn" | "real", difficulty: Difficulty = "medium") {
+  const questions = Array.from({ length: count }, () => generateSpatialOrientationRound(difficulty));
 
   return {
     questions,
     mode,
-    timeLimit: mode === "real" ? count * 15 : undefined, // Give 15s per question
+    // Calculate time limit based on difficulty complexity
+    // Easy: 10s, Medium: 15s, Hard: 20s
+    timeLimit: mode === "real" ? count * (difficulty === "easy" ? 10 : difficulty === "hard" ? 20 : 15) : undefined,
   };
 }

@@ -2,7 +2,9 @@
 
 import { useState, useEffect } from "react";
 import Link from "next/link";
+import ProgressBar from "@/components/shared/ProgressBar";
 import { Direction, Instruction } from "@/types";
+import CompassCircle from "@/components/spatial-orientation/CompassCircle";
 
 interface RoundData {
   initial: number;
@@ -143,197 +145,238 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
   if (!roundData) return null;
 
   return (
-    <div className="flex flex-col items-center">
-      <div className="w-full max-w-4xl flex justify-between items-center mb-8">
-        <button
-          onClick={onRestart}
-          className="text-sm font-bold text-zinc-500 hover:text-zinc-900 dark:hover:text-zinc-100 transition-colors"
-        >
-          ← Change Mode
-        </button>
-        <div className="text-xl font-bold font-[family-name:var(--font-space-grotesk)]">
-          Score: {score} / {maxRounds}
-        </div>
-      </div>
-
-      <div className="text-center mb-8">
-         <h1 className="text-3xl font-extrabold tracking-tight mb-2 font-[family-name:var(--font-space-grotesk)]">
-          Learn Mode
-        </h1>
-        <p className="text-zinc-500 dark:text-zinc-400">
-          Round {round} of {maxRounds}
-        </p>
-      </div>
-
+    <div className="w-full max-w-[1600px] pr-4 sm:pr-6 lg:pr-8 pb-20">
       {status === "gameover" ? (
-        <div className="text-center mt-20 p-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl dark:shadow-zinc-950 border border-zinc-200 dark:border-zinc-800">
-          <h2 className="text-4xl font-bold mb-4 font-[family-name:var(--font-space-grotesk)]">
-            Game Over!
-          </h2>
-          <p className="text-xl mb-8">Final Score: {score} out of {maxRounds}</p>
-          <button
-            onClick={() => {
-              setScore(0);
-              setRound(1);
-              generateRound();
-            }}
-            className="rounded-full bg-violet-700 px-8 py-3 font-bold text-white transition-colors hover:bg-violet-600"
-          >
-            Play Again
-          </button>
+        <div className="flex flex-col items-center">
+          <div className="text-center mt-20 p-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl dark:shadow-zinc-950 border border-zinc-200 dark:border-zinc-800 w-full max-w-2xl">
+            <h2 className="text-4xl font-bold mb-4 font-[family-name:var(--font-space-grotesk)]">
+              Game Over!
+            </h2>
+            <p className="text-xl mb-8">
+              Final Score: {score} out of {maxRounds}
+            </p>
+            <button
+              onClick={() => {
+                setScore(0);
+                setRound(1);
+                generateRound();
+              }}
+              className="rounded-full bg-violet-700 px-8 py-3 font-bold text-white transition-colors hover:bg-violet-600"
+            >
+              Play Again
+            </button>
+          </div>
         </div>
       ) : (
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 w-full max-w-5xl">
-          {/* Main Visualizer */}
-          <div className="lg:col-span-2 bg-white dark:bg-zinc-900 rounded-3xl p-8 shadow-sm border border-zinc-200 dark:border-zinc-800 flex flex-col sm:flex-row items-center gap-10 sm:gap-4 justify-between relative overflow-hidden">
-            
-            {/* Start Plane */}
-            <div className="flex flex-col items-center gap-6 z-10">
-              <div className="text-sm font-bold uppercase tracking-widest text-zinc-400">
-                Start
+        <div className="flex flex-col gap-6 lg:flex-row">
+        <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
+          {/* Header Bar */}
+          <div className="flex justify-between items-center bg-white dark:bg-black/40 dark:backdrop-blur-md border-2 border-zinc-100 dark:border-white/10 rounded-3xl p-6 shadow-sm">
+            <div className="flex items-center gap-3">
+              <div className="text-2xl font-black">
+                <span className="text-2xl">✈️</span>
               </div>
-              <div className="relative w-32 h-32 rounded-full border-2 border-dashed border-zinc-200 dark:border-zinc-800 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-                 {/* Compass Ticks */}
-                 <div className="absolute inset-0">
-                    {[0, 45, 90, 135, 180, 225, 270, 315].map(deg => (
-                       <div key={deg} className="absolute w-full h-full" style={{ transform: `rotate(${deg}deg)` }}>
-                          <div className={`w-1 h-3 mx-auto ${deg % 90 === 0 ? 'bg-zinc-400' : 'bg-zinc-200 dark:bg-zinc-800'}`}></div>
-                       </div>
-                    ))}
-                 </div>
-                 <AirplaneIcon
-                  angle={status === "playing" ? roundData.initial : feedbackHeading}
-                  color={status === "playing" ? "#3b82f6" : isCorrect ? "#22c55e" : "#ef4444"} // blue start, green/red feedback
-                  className="w-20 h-20"
-                />
-              </div>
-               {status !== 'playing' && (
-                  <div className="text-xs font-bold text-zinc-500 absolute bottom-4 border border-zinc-200 dark:border-zinc-800 px-2 rounded bg-white dark:bg-zinc-800">
-                     Heading: {feedbackHeading}°
-                  </div>
-               )}
-            </div>
-
-            {/* Sequence */}
-            <div className="flex flex-col items-center gap-2 flex-1 px-4 z-10 w-full">
-              <div className="w-full flex sm:flex-col gap-2 overflow-x-auto pb-2 sm:pb-0">
-                {roundData.seq.map((step, idx) => (
-                  <div
-                    key={idx}
-                    className="flex justify-between items-center bg-zinc-100 dark:bg-zinc-800 px-4 py-2 rounded-lg text-sm font-bold min-w-[100px]"
-                  >
-                    <span>{step.angle}°</span>
-                    <span className={step.dir === "L" ? "text-blue-500" : "text-amber-500"}>
-                      {step.dir === "L" ? "↺ L" : "↻ R"}
-                    </span>
-                  </div>
-                ))}
-              </div>
-              <div className="text-2xl font-black text-zinc-300 dark:text-zinc-700 rotate-90 sm:rotate-0 my-2">→</div>
-              <div className="border-t-2 border-dashed border-zinc-200 dark:border-zinc-700 w-full pt-4 text-center">
-                 <div className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold">What is the final adjustment?</div>
+              <div>
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
+                  Spatial Orientation
+                </h1>
+                <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-brand-gold text-zinc-900 px-2.5 py-1 rounded-sm">
+                  PRACTICE MODE
+                </span>
               </div>
             </div>
-
-            {/* Target Plane */}
-            <div className="flex flex-col items-center gap-6 z-10">
-              <div className="text-sm font-bold uppercase tracking-widest text-zinc-400 flex items-center gap-2">
-                Target Image <span className="w-3 h-3 rounded-full bg-violet-600 animate-pulse"></span>
-              </div>
-              <div className="relative w-32 h-32 rounded-full border-2 border-zinc-200 dark:border-zinc-800 flex items-center justify-center bg-zinc-50 dark:bg-zinc-950">
-                 {/* Compass Ticks */}
-                 <div className="absolute inset-0">
-                    {[0, 45, 90, 135, 180, 225, 270, 315].map(deg => (
-                       <div key={deg} className="absolute w-full h-full" style={{ transform: `rotate(${deg}deg)` }}>
-                          <div className={`w-1 h-3 mx-auto ${deg % 90 === 0 ? 'bg-zinc-400' : 'bg-zinc-200 dark:bg-zinc-800'}`}></div>
-                       </div>
-                    ))}
-                 </div>
-                <AirplaneIcon
-                  angle={roundData.targetHeading}
-                  color="#7c3aed" // violet target
-                  className="w-20 h-20 opacity-80"
-                />
-              </div>
+            <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-zinc-100/90">
+              Round {round}
             </div>
-
           </div>
 
-          {/* Controls */}
-          <div className="bg-white dark:bg-zinc-900 rounded-3xl p-6 shadow-sm border border-zinc-200 dark:border-zinc-800 flex flex-col">
-            <h3 className="text-sm font-bold text-zinc-500 mb-4 uppercase tracking-widest text-center">
-              Your Answer
-            </h3>
+          {/* Unified Visualizer & Answer Frame */}
+          <div className="bg-zinc-950/80 backdrop-blur-xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden flex flex-col lg:flex-row items-stretch">
             
-            <div className="flex-1 flex flex-col justify-center gap-6">
-               <div className="grid grid-cols-2 gap-3">
-                 {[45, 90, 135, 180].map((angle) => (
-                   <button
-                     key={angle}
-                     disabled={status !== "playing"}
-                     onClick={() => setSelectedAngle(angle)}
-                     className={`py-3 rounded-xl font-bold text-lg transition-all ${
-                       selectedAngle === angle
-                         ? "bg-violet-700 text-white shadow-md shadow-violet-500/30 ring-2 ring-violet-400 ring-offset-2 ring-offset-zinc-900"
-                         : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                     } ${status !== "playing" ? "opacity-50 cursor-not-allowed" : ""}`}
-                   >
-                     {angle}°
-                   </button>
-                 ))}
-               </div>
-   
-               <div className="grid grid-cols-2 gap-3">
-                 {[
-                   { val: "L", label: "↺ Left" },
-                   { val: "R", label: "↻ Right" },
-                 ].map((dir) => (
-                   <button
-                     key={dir.val}
-                     disabled={status !== "playing"}
-                     onClick={() => setSelectedDir(dir.val as Direction)}
-                     className={`py-3 rounded-xl font-bold transition-all ${
-                       selectedDir === dir.val
-                         ? dir.val === "L" 
-                           ? "bg-blue-600 text-white shadow-md shadow-blue-500/30 ring-2 ring-blue-400 ring-offset-2 ring-offset-zinc-900"
-                           : "bg-amber-600 text-white shadow-md shadow-amber-500/30 ring-2 ring-amber-400 ring-offset-2 ring-offset-zinc-900"
-                         : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700"
-                     } ${status !== "playing" ? "opacity-50 cursor-not-allowed" : ""}`}
-                   >
-                     {dir.label}
-                   </button>
-                 ))}
-               </div>
-            </div>
+            {/* Left: Main Visualizer */}
+            <div className="flex-1 p-10 flex flex-col items-center gap-8 relative border-b lg:border-b-0 lg:border-r border-white/5">
+              {/* Question Header */}
+              <div className="w-full text-center">
+                <h2 className="text-xl sm:text-2xl font-bold text-white font-[family-name:var(--font-space-grotesk)]">
+                  What is the final adjustment?
+                </h2>
+              </div>
 
-            {status === "playing" ? (
-              <button
-                onClick={handleSubmit}
-                disabled={selectedAngle === null || selectedDir === null}
-                className="mt-8 w-full py-4 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 font-bold text-lg disabled:opacity-30 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl"
-              >
-                Submit Route
-              </button>
-            ) : (
-              <div className="mt-8">
-                <div
-                  className={`p-4 rounded-xl mb-4 text-center font-bold ${
-                    isCorrect
-                      ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
-                      : "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                  }`}
-                >
-                  {isCorrect ? "Correct!" : "Incorrect"}
+              <div className="w-full flex flex-col sm:flex-row items-center justify-center gap-12">
+                {/* Start Plane */}
+                <div className="flex flex-col items-center gap-8 z-10 w-fit">
+                  <CompassCircle size="lg">
+                    <AirplaneIcon
+                      angle={
+                        status === "playing" ? roundData.initial : feedbackHeading
+                      }
+                      color={
+                        status === "playing"
+                          ? "#fbbf24" // brand-gold/yellow
+                          : isCorrect
+                            ? "#22c55e"
+                            : "#ef4444"
+                      }
+                      className="w-32 h-32"
+                    />
+                  </CompassCircle>
+                  <div className="text-sm font-black uppercase tracking-widest text-zinc-300">
+                    START
+                  </div>
                 </div>
-                <button
-                  onClick={handleNextRound}
-                  className="w-full py-4 rounded-xl bg-violet-700 text-white font-bold text-lg hover:bg-violet-600 transition-all shadow-xl"
-                >
-                  Next Round
-                </button>
+
+                {/* Sequence */}
+                <div className="flex flex-col items-center gap-3 z-10">
+                  <div className="flex flex-col gap-3">
+                    {roundData.seq.map((step, idx) => (
+                      <div
+                        key={idx}
+                        className="flex justify-center items-center bg-transparent px-8 py-3 rounded-xl text-xl font-black border border-white/40 text-white min-w-[140px]"
+                      >
+                        <span className="flex items-center gap-1">
+                          {step.angle}
+                          <span className={step.dir === "L" ? "text-rose-500" : "text-blue-400"}>
+                            {step.dir}
+                          </span>
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Target Plane */}
+                <div className="flex flex-col items-center gap-8 z-10 w-fit">
+                  <CompassCircle size="lg">
+                    <AirplaneIcon
+                      angle={roundData.targetHeading}
+                      color="#7c3aed" // violet target
+                      className="w-32 h-32"
+                    />
+                  </CompassCircle>
+                  <div className="text-sm font-black uppercase tracking-widest text-zinc-300 flex items-center gap-2">
+                    TARGET{" "}
+                    <span className="w-3 h-3 rounded-full bg-brand-purple animate-pulse"></span>
+                  </div>
+                </div>
               </div>
-            )}
+            </div>
+
+            {/* Right: Answer & Progress Column */}
+            <div className="w-full lg:w-60 p-4 flex flex-col gap-6 bg-black/20">
+              {/* Progress */}
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-zinc-500 uppercase tracking-widest text-[10px]">
+                    Progress
+                  </span>
+                  <span className="text-lg font-bold font-[family-name:var(--font-space-grotesk)] text-brand-gold">
+                    {score}/{maxRounds}
+                  </span>
+                </div>
+                <ProgressBar current={round} total={maxRounds} compact />
+              </div>
+
+              {/* Answers */}
+              <div className="flex-1 flex flex-col">
+                <h3 className="text-[10px] font-bold text-zinc-600 mb-4 uppercase tracking-widest text-center">
+                  Your Answer
+                </h3>
+
+                <div className="flex flex-col gap-4">
+                  <div className="grid grid-cols-2 gap-2">
+                    {[45, 90, 135, 180].map((angle) => (
+                      <button
+                        key={angle}
+                        disabled={status !== "playing"}
+                        onClick={() => setSelectedAngle(angle)}
+                        className={`py-1.5 rounded-lg font-bold text-sm transition-all ${
+                          selectedAngle === angle
+                            ? "bg-violet-700 text-white shadow-lg shadow-violet-900/40 ring-1 ring-violet-400"
+                            : "bg-white/5 text-zinc-400 hover:bg-white/10 border border-white/10"
+                        } ${status !== "playing" ? "opacity-30 cursor-not-allowed" : ""}`}
+                      >
+                        {angle}°
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2">
+                    {[
+                      { val: "L", label: "↺ Left" },
+                      { val: "R", label: "↻ Right" },
+                    ].map((dir) => (
+                      <button
+                        key={dir.val}
+                        disabled={status !== "playing"}
+                        onClick={() => setSelectedDir(dir.val as Direction)}
+                        className={`py-1.5 rounded-lg font-bold text-sm transition-all ${
+                          selectedDir === dir.val
+                            ? dir.val === "L"
+                              ? "bg-blue-600 text-white shadow-lg shadow-blue-900/40 ring-1 ring-blue-400"
+                              : "bg-amber-600 text-white shadow-lg shadow-amber-900/40 ring-1 ring-amber-400"
+                            : "bg-white/5 text-zinc-400 hover:bg-white/10 border border-white/10"
+                        } ${status !== "playing" ? "opacity-30 cursor-not-allowed" : ""}`}
+                      >
+                        {dir.label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {status === "playing" ? (
+                  <button
+                    onClick={handleSubmit}
+                    disabled={selectedAngle === null || selectedDir === null}
+                    className="mt-auto w-full py-3 rounded-xl bg-white text-zinc-900 font-bold text-base disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl"
+                  >
+                    Submit Route
+                  </button>
+                ) : (
+                  <div className="mt-auto pt-4">
+                    <div
+                      className={`p-2 rounded-lg mb-3 text-center font-bold text-sm ${
+                        isCorrect
+                          ? "bg-green-500/20 text-green-400 border border-green-500/30"
+                          : "bg-red-500/20 text-red-400 border border-red-500/30"
+                      }`}
+                    >
+                      {isCorrect ? "Correct!" : "Incorrect"}
+                    </div>
+                    <button
+                      onClick={handleNextRound}
+                      className="w-full py-4 rounded-xl bg-violet-700 text-white font-bold text-lg hover:bg-violet-600 transition-all shadow-xl"
+                    >
+                      Next Round
+                    </button>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
+
+          <div className="mt-4">
+            <button
+              onClick={onRestart}
+              className="group flex items-center gap-2 rounded-xl bg-zinc-200/60 px-5 py-2.5 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 w-max"
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="transition-transform group-hover:-translate-x-1"
+              >
+                <path d="M9 14 4 9l5-5" />
+                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+              </svg>
+              Exit
+            </button>
+          </div>
+        </div>
         </div>
       )}
     </div>

@@ -14,6 +14,7 @@ export default function SpatialOrientationPage() {
     <TopicLayout
       title="Spatial Orientation"
       description="Calculate aircraft heading changes and visualize rotations."
+      fullWidth={true}
     >
       {!quizData ? (
         <ModeSelection onStart={setQuizData} />
