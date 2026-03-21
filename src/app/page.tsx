@@ -3,13 +3,13 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[#0a0f18] text-white" style={{ "--font-scale": 1 } as React.CSSProperties}>
+    <div className="min-h-screen bg-black text-white" style={{ "--font-scale": 1 } as React.CSSProperties}>
       {/* Hero Section */}
       <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden">
-        {/* Background Image Layer */}
-        <div className="absolute inset-0 z-0 bg-[#0a0f18]">
+        {/* Fixed Background Image Layer */}
+        <div className="fixed inset-0 z-0 bg-black">
           <Image
-            src="/images/backgrounds/home.png"
+            src="/images/backgrounds/home-dark.png"
             alt="Cockpit background"
             fill
             priority
@@ -17,8 +17,8 @@ export default function Home() {
             className="object-cover opacity-80"
             sizes="100vw"
           />
-          {/* Overlay for text readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/40 to-[#0a0f18]" />
+          {/* Dark gradient overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-violet-950/40 via-violet-900/10 to-black" />
         </div>
 
         {/* Content Layer */}
@@ -30,7 +30,7 @@ export default function Home() {
             Ace Your <span className="text-amber-400">SkySkills</span>
           </h2>
 
-          <p className="mx-auto mt-8 max-w-2xl text-lg md:text-xl text-slate-300 font-medium leading-relaxed ">
+          <p className="mx-auto mt-8 max-w-2xl text-lg md:text-xl text-zinc-300 font-medium leading-relaxed">
             Develop the logical, spatial, scanning and short-term memory skills
             essential for your exams. The most comprehensive, distraction-free
             preparation platform designed for your success.
@@ -39,7 +39,7 @@ export default function Home() {
           <div className="mt-10 flex flex-col items-center">
             <Link
               href="/sky-quest"
-              className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-8 py-3.5 text-base font-semibold text-white transition-colors hover:bg-violet-600 shadow-lg"
+              className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-8 py-3.5 text-base font-bold text-white transition-colors hover:bg-violet-600 shadow-lg active:scale-95"
             >
               Start Free Trial
             </Link>

@@ -12,7 +12,7 @@ export default function SpatialOrientationPage() {
 
   return (
     <TopicLayout
-      title="Spatial Orientation"
+      title="Aircraft Rotation"
       description="Calculate aircraft heading changes and visualize rotations."
       fullWidth={true}
     >

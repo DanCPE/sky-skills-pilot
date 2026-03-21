@@ -246,7 +246,7 @@ export default function RealMode({
               </div>
               <div>
                 <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                  Spatial Orientation
+                  Aircraft Rotation
                 </h1>
               </div>
             </div>

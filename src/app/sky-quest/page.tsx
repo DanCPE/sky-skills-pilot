@@ -10,7 +10,7 @@ const categories: { value: TopicCategory | "all"; label: string }[] = [
   { value: "all", label: "All Categories" },
   { value: "scanning", label: "Scanning" },
   { value: "logical", label: "Logical" },
-  { value: "spatial", label: "Spatial" },
+  { value: "spatial", label: "Spatial Orientation" },
   { value: "approximation", label: "Approximation" },
   { value: "short-term-memory", label: "Short Term Memory" },
 ];

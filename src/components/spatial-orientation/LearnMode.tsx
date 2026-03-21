@@ -178,7 +178,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
               </div>
               <div>
                 <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                  Spatial Orientation
+                  Aircraft Rotation
                 </h1>
                 <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-brand-gold text-zinc-900 px-2.5 py-1 rounded-sm">
                   PRACTICE MODE
