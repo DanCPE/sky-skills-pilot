@@ -9,7 +9,6 @@ import { useTheme } from "@/lib/use-theme";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/sky-quest", label: "Sky Quests" },
-  { href: "/subscription", label: "Subscription" },
   { href: "/news", label: "News" },
 ];
 
@@ -39,7 +38,7 @@ export default function Navbar() {
           </Link>
 
           {/* Desktop Navigation Links */}
-          <div className="hidden md:flex flex-1 justify-center gap-8 font-bold text-[14px] uppercase tracking-wider">
+          <div className="hidden md:flex flex-1 justify-center gap-8 font-medium text-[14px] tracking-wider">
             {navItems.map((item) => {
               const isActive =
                 pathname === item.href ||
@@ -99,18 +98,6 @@ export default function Navbar() {
                 </svg>
               )}
             </button>
-            <Link
-              href="/login"
-              className="text-[14px] font-bold uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white"
-            >
-              Log In
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-brand-purple px-5 py-2 text-[14px] font-bold uppercase tracking-wider text-white transition-all hover:bg-violet-500 hover:shadow-lg hover:shadow-brand-purple/25 active:scale-95"
-            >
-              Sign Up
-            </Link>
           </div>
 
           {/* Mobile Menu Button */}
@@ -165,22 +152,6 @@ export default function Navbar() {
                 </Link>
               );
             })}
-            <div className="px-4 pt-4 space-y-3">
-              <Link
-                href="/login"
-                className="block text-center text-[14px] font-bold uppercase tracking-wider text-zinc-600 hover:text-zinc-900 dark:text-zinc-300 dark:hover:text-white py-2"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Log In
-              </Link>
-              <Link
-                href="/signup"
-                className="block text-center rounded-lg bg-violet-700 px-5 py-2 text-[14px] font-bold uppercase tracking-wider text-white transition-colors hover:bg-violet-600 shadow-sm"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                Sign Up
-              </Link>
-            </div>
           </div>
         )}
       </div>

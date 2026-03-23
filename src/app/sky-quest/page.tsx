@@ -77,12 +77,20 @@ export default function SkyQuestPage() {
                   {/* Top Image/Icon Placeholder area */}
                   <div className="relative flex h-40 w-full items-center justify-center bg-zinc-100/80 dark:bg-white/5 overflow-hidden">
                     {topic.coverImage ? (
-                      <Image
-                        src={topic.coverImage}
-                        alt={topic.title}
-                        fill
-                        className="object-cover group-hover:scale-105 transition-transform duration-500"
-                      />
+                      <>
+                        <Image
+                          src={topic.coverImage}
+                          alt={topic.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500 dark:hidden"
+                        />
+                        <Image
+                          src={topic.coverImageDark ?? topic.coverImage}
+                          alt={topic.title}
+                          fill
+                          className="object-cover group-hover:scale-105 transition-transform duration-500 hidden dark:block"
+                        />
+                      </>
                     ) : (
                       <span className="text-6xl filter grayscale opacity-60 dark:opacity-70 mix-blend-multiply dark:mix-blend-normal group-hover:grayscale-0 group-hover:opacity-100 transition-all">
                         {topic.icon}
@@ -120,7 +128,7 @@ export default function SkyQuestPage() {
                             className="object-contain p-1"
                           />
                         </span>
-                        Subscribe to Unlock
+                        Coming Soon
                       </button>
                     ) : (
                       <Link

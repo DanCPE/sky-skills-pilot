@@ -23,14 +23,14 @@ export default function Home() {
 
         {/* Content Layer */}
         <div className="relative z-10 mx-auto max-w-4xl px-6 text-center mt-[-10vh]">
-          <h1 className="text-5xl md:text-7xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-white mb-2 shadow-sm drop-shadow-md">
+          <h1 className="text-[71.4px] md:text-7xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-white mb-2 shadow-sm drop-shadow-md">
             Clear for Takeoff
           </h1>
-          <h2 className="text-5xl md:text-7xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-white drop-shadow-md">
+          <h2 className="text-[71.4px] md:text-7xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-white drop-shadow-md">
             Ace Your <span className="text-amber-400">SkySkills</span>
           </h2>
 
-          <p className="mx-auto mt-8 max-w-2xl text-lg md:text-xl text-zinc-300 font-medium leading-relaxed">
+          <p className="mx-auto mt-8 max-w-2xl text-[20px] md:text-xl text-zinc-300 font-light leading-relaxed">
             Develop the logical, spatial, scanning and short-term memory skills
             essential for your exams. The most comprehensive, distraction-free
             preparation platform designed for your success.
@@ -41,11 +41,11 @@ export default function Home() {
               href="/sky-quest"
               className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-8 py-3.5 text-base font-bold text-white transition-colors hover:bg-violet-600 shadow-lg active:scale-95"
             >
-              GO TO QUESTS 
+              Our Quests 
             </Link>
-            <p className="mt-3 text-sm text-zinc-400 font-medium">
+            {/* <p className="mt-3 text-sm text-zinc-400 font-medium">
               No credit card required for trial
-            </p>
+            </p> */}
           </div>
         </div>
       </div>

@@ -17,6 +17,7 @@ export const topics: Topic[] = [
     category: "logical",
     isLocked: false,
     coverImage: "/images/icons/SkyQuests/number.png",
+    coverImageDark: "/images/icons/SkyQuests/number dark.png",
   },
   {
     slug: "calculate",
@@ -49,6 +50,8 @@ export const topics: Topic[] = [
     description: "Calculate aircraft heading changes and visualize rotations.",
     category: "spatial",
     isLocked: false,
+    coverImage: "/images/icons/SkyQuests/aircraft rota.png",
+    coverImageDark: "/images/icons/SkyQuests/aircaft rota dark.png",
   },
   {
     slug: "string-comparison",
@@ -58,6 +61,7 @@ export const topics: Topic[] = [
     category: "scanning",
     isLocked: false,
     coverImage: "/images/icons/SkyQuests/string.png",
+    coverImageDark: "/images/icons/SkyQuests/string dark.png",
   },
 ];
 
