@@ -284,7 +284,7 @@ export default function QuizInterface({
     return (
       <div className="flex min-h-[400px] items-center justify-center">
         <div className="text-center">
-          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-violet-600 border-r-transparent dark:border-violet-500"></div>
+          <div className="mb-4 inline-block h-12 w-12 animate-spin rounded-full border-4 border-solid border-[#4F12A6] border-r-transparent"></div>
           <p className="text-zinc-600 dark:text-zinc-400">
             Loading questions...
           </p>
@@ -358,12 +358,12 @@ export default function QuizInterface({
     } : null);
 
   return (
-    <div className="w-full max-w-[1200px] mx-auto p-4 sm:p-6 mb-20 animate-in fade-in duration-700">
+    <div className="w-full max-w-[1200px] mx-auto p-4 sm:p-6 pt-12 sm:pt-16 mb-20 animate-in fade-in duration-700">
       <div className="flex flex-col gap-4">
         {/* Top Header Panel */}
-        <div className="flex justify-between items-center bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md border-2 border-white/5 rounded-2xl p-6 shadow-xl">
+        <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl p-6">
           <div className="flex flex-col gap-1">
-            <h1 className="text-2xl font-black text-white tracking-tight">
+            <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
               Number Series
             </h1>
             <div className="flex items-center gap-2">
@@ -372,7 +372,7 @@ export default function QuizInterface({
               </span>
             </div>
           </div>
-          <div className="text-2xl font-black text-white/90 font-[family-name:var(--font-space-grotesk)]">
+          <div className="text-2xl font-black text-zinc-900 dark:text-white/90 font-[family-name:var(--font-space-grotesk)]">
             Question {currentQuestionIndex + 1}
           </div>
         </div>
@@ -403,9 +403,9 @@ export default function QuizInterface({
           {/* Right Column: Sidebar Panels */}
           <div className="flex flex-col gap-4">
             {/* Timer & Progress Panel */}
-            <div className="rounded-2xl border-2 border-white/5 bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md p-6 shadow-xl flex flex-col gap-6">
+            <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 shadow-xl flex flex-col gap-6">
               <div className="flex items-center justify-between">
-                <span className="font-bold text-zinc-300 uppercase tracking-widest text-xs">
+                <span className="font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
                   Time Remaining
                 </span>
                 {mode === "real" && timeLimit ? (
@@ -431,16 +431,12 @@ export default function QuizInterface({
                   score={mode === "real" ? calculateScore() : undefined}
                   compact
                 />
-                <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                  <span>Progress: {Math.round(((currentQuestionIndex + 1) / questions.length) * 100)}% Complete</span>
-                  <span>{currentQuestionIndex + 1} of {questions.length}</span>
-                </div>
               </div>
             </div>
 
             {/* Question Navigator Panel */}
-            <div className="rounded-2xl border-2 border-white/5 bg-zinc-900/60 dark:bg-black/40 backdrop-blur-md p-6 shadow-xl flex-1">
-              <h3 className="mb-2 font-bold text-zinc-300 uppercase tracking-widest text-xs">
+            <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 shadow-xl flex-1">
+              <h3 className="mb-2 font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
                 Question Navigator
               </h3>
               <QuestionNavigator
@@ -465,7 +461,7 @@ export default function QuizInterface({
           <div className="flex-1 flex gap-3">
             <button
               onClick={() => router.back()}
-              className="flex items-center gap-2 px-4 py-3.5 rounded-xl bg-white/5 border border-white/10 text-zinc-400 font-bold text-sm hover:text-white hover:border-white/20 hover:bg-white/10 transition-all"
+              className="flex items-center gap-2 px-4 py-3.5 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 font-bold text-sm hover:text-zinc-900 dark:hover:text-white hover:border-zinc-300 dark:hover:border-white/20 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/>
@@ -482,7 +478,7 @@ export default function QuizInterface({
                 setCurrentQuestionIndex(prev => Math.max(0, prev - 1));
               }}
               disabled={currentQuestionIndex === 0}
-              className="px-8 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              className="px-8 py-3.5 rounded-xl bg-white dark:bg-white/5 border border-[#E0E0E0] dark:border-white/10 text-zinc-700 dark:text-white font-bold text-sm hover:bg-zinc-50 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
             >
               Previous
             </button>
@@ -490,7 +486,7 @@ export default function QuizInterface({
             <div className="flex gap-3">
               <button
                 onClick={handleSkip}
-                className="px-10 py-3.5 rounded-xl bg-white/5 border border-white/10 text-white font-bold text-sm hover:bg-white/10 transition-all"
+                className="px-10 py-3.5 rounded-xl bg-white dark:bg-white/5 border border-[#E0E0E0] dark:border-white/10 text-zinc-700 dark:text-white font-bold text-sm hover:bg-zinc-50 dark:hover:bg-white/10 transition-all"
               >
                 Skip
               </button>
@@ -502,7 +498,7 @@ export default function QuizInterface({
                   setCurrentQuestionIndex(prev => Math.min(questions.length - 1, prev + 1));
                 }}
                 disabled={currentQuestionIndex === questions.length - 1}
-                className="px-12 py-3.5 rounded-xl bg-brand-purple text-white font-bold text-sm hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-brand-purple/20"
+                className="px-12 py-3.5 rounded-xl bg-[#4F12A6] text-white font-bold text-sm hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#4F12A6]/20"
               >
                 Next
               </button>

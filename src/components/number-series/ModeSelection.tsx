@@ -67,14 +67,14 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           disabled={isLoading}
           className={`rounded-2xl border-2 p-6 text-left transition-all ${
             selectedMode === "learn"
-              ? "border-brand-purple bg-violet-50 dark:border-brand-purple dark:bg-brand-purple/20"
+              ? "border-[#4F12A6] bg-violet-50 dark:border-[#4F12A6] dark:bg-[#4F12A6]/20"
               : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md dark:hover:border-white/20"
           } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
         >
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-brand-purple">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-[#4F12A6]">
               <svg
-                className="h-6 w-6 text-violet-600 dark:text-violet-400"
+                className="h-6 w-6 text-[#4F12A6] dark:text-violet-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -108,14 +108,14 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           disabled={isLoading}
           className={`rounded-2xl border-2 p-6 text-left transition-all ${
             selectedMode === "real"
-              ? "border-brand-purple bg-violet-50 dark:border-brand-purple dark:bg-brand-purple/20"
+              ? "border-[#4F12A6] bg-violet-50 dark:border-[#4F12A6] dark:bg-[#4F12A6]/20"
               : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md dark:hover:border-white/20"
           } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
         >
           <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-brand-purple">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-[#4F12A6]">
               <svg
-                className="h-6 w-6 text-violet-600 dark:text-violet-400"
+                className="h-6 w-6 text-[#4F12A6] dark:text-violet-400"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -165,7 +165,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
                 disabled={isLoading}
                 className={`rounded-lg border-2 px-4 py-3 text-sm font-medium capitalize transition-all ${
                   selectedDifficulty === difficulty
-                    ? "border-brand-purple bg-brand-purple text-white shadow-md shadow-brand-purple/20"
+                    ? "border-[#4F12A6] bg-[#4F12A6] text-white shadow-md shadow-[#4F12A6]/20"
                     : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
                 } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
               >
@@ -200,7 +200,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           className={`inline-flex items-center gap-2 rounded-xl px-12 py-4 text-lg font-bold text-white transition-all active:scale-95 shadow-lg ${
             !selectedMode || isLoading
               ? "cursor-not-allowed bg-zinc-400"
-              : "cursor-pointer bg-brand-purple hover:bg-violet-500 shadow-brand-purple/20 dark:hover:shadow-brand-purple/40"
+              : "cursor-pointer bg-[#4F12A6] hover:opacity-90 shadow-[#4F12A6]/20 dark:hover:shadow-[#4F12A6]/40"
           }`}
         >
           {isLoading ? (

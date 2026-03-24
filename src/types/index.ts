@@ -7,6 +7,7 @@ export interface Topic {
   isLocked?: boolean;
   coverImage?: string;
   coverImageDark?: string;
+  coverBg?: string;
 }
 
 export type TopicCategory = "scanning" | "logical" | "spatial" | "approximation" | "short-term-memory";

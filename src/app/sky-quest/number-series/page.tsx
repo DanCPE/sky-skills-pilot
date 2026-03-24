@@ -11,17 +11,17 @@ export default function NumberSeriesPage() {
     null
   );
 
+  if (quizData) {
+    return <QuizInterface quizData={quizData} onRestart={() => setQuizData(null)} />;
+  }
+
   return (
     <TopicLayout
       title="Number Series"
       description="Find the pattern in numerical sequences."
       fullWidth={true}
     >
-      {!quizData ? (
-        <ModeSelection onStart={setQuizData} />
-      ) : (
-        <QuizInterface quizData={quizData} onRestart={() => setQuizData(null)} />
-      )}
+      <ModeSelection onStart={setQuizData} />
     </TopicLayout>
   );
 }

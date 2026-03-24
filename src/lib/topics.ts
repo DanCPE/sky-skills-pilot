@@ -18,6 +18,7 @@ export const topics: Topic[] = [
     isLocked: false,
     coverImage: "/images/icons/SkyQuests/number.png",
     coverImageDark: "/images/icons/SkyQuests/number dark.png",
+    coverBg: "bg-white dark:bg-white/5",
   },
   {
     slug: "calculate",

@@ -6,8 +6,8 @@ export default function PatternRecognitionPage() {
       title="Pattern Recognition"
       description="Identify rules and predict what comes next."
     >
-      <div className="flex min-h-[300px] items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
-        <p className="text-sm text-zinc-400 dark:text-zinc-600">Exercises coming soon</p>
+      <div className="flex min-h-[300px] items-center justify-center rounded-2xl border-1x border-dashed border-zinc-200 dark:border-zinc-800">
+        <p className="text-sm black dark:text-zinc-600">Exercises coming soon</p>
       </div>
     </TopicLayout>
   );

@@ -14,7 +14,7 @@ export default function ExplanationCard({
   isLastQuestion,
 }: ExplanationCardProps) {
   return (
-    <div className="mt-6 rounded-2xl border-2 border-white/5 bg-zinc-900/60 backdrop-blur-md p-6 shadow-xl">
+    <div className="mt-6 rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-900/60 backdrop-blur-md p-6 shadow-xl">
       <div className="mb-4 flex items-center gap-3">
         <div
           className={`flex h-10 w-10 items-center justify-center rounded-full ${
@@ -53,14 +53,14 @@ export default function ExplanationCard({
             </svg>
           )}
         </div>
-        <h4 className="text-xl font-black text-white font-[family-name:var(--font-space-grotesk)]">
+        <h4 className="text-xl font-black text-zinc-900 dark:text-white font-[family-name:var(--font-space-grotesk)]">
           {result.correct ? "Correct!" : "Incorrect"}
         </h4>
       </div>
 
       {/* Pattern Type Badge */}
       <div className="mb-4">
-        <span className="inline-block rounded-md bg-brand-purple/20 border border-brand-purple/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-brand-purple-light dark:text-violet-400">
+        <span className="inline-block rounded-md bg-[#4F12A6]/20 border border-[#4F12A6]/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#4F12A6] dark:text-violet-400">
           {question.patternType
             .split("_")
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -70,8 +70,8 @@ export default function ExplanationCard({
       </div>
 
       {/* Explanation */}
-      <div className="mb-6 rounded-xl bg-black/40 border border-white/5 p-4 shadow-inner">
-        <p className="text-zinc-300 leading-relaxed font-medium">
+      <div className="mb-6 rounded-xl bg-zinc-100 dark:bg-black/40 border border-zinc-200 dark:border-white/5 p-4 shadow-inner">
+        <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed font-medium">
           {question.explanation}
         </p>
       </div>
@@ -80,7 +80,7 @@ export default function ExplanationCard({
       <div className="flex justify-end">
         <button
           onClick={onNext}
-          className="inline-flex items-center gap-2 rounded-xl bg-brand-purple px-8 py-3.5 font-bold text-white transition-all hover:opacity-90 active:scale-95 shadow-lg shadow-brand-purple/20"
+          className="inline-flex items-center gap-2 rounded-xl bg-[#4F12A6] px-8 py-3.5 font-bold text-white transition-all hover:opacity-90 active:scale-95 shadow-lg shadow-[#4F12A6]/20"
         >
           {isLastQuestion ? (
             <>

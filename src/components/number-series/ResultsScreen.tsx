@@ -83,7 +83,7 @@ export default function ResultsScreen({
             <div className="mb-2 text-sm font-medium text-zinc-500 dark:text-zinc-400">
               Final Score
             </div>
-            <div className="text-5xl font-bold text-violet-600 dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">
+            <div className="text-5xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">
               {score}%
             </div>
           </div>
@@ -219,7 +219,7 @@ export default function ResultsScreen({
                   <div className="border-t border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 p-4 animate-in slide-in-from-top-2">
                     <div className="mb-3 flex items-center gap-2">
                       <svg
-                        className="h-5 w-5 text-violet-600 dark:text-violet-400"
+                        className="h-5 w-5 text-[#4F12A6] dark:text-violet-400"
                         fill="none"
                         stroke="currentColor"
                         viewBox="0 0 24 24"
@@ -270,7 +270,7 @@ export default function ResultsScreen({
       <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
         <button
           onClick={onRestart}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-purple px-10 py-4 text-lg font-bold text-white transition-all hover:bg-violet-500 active:scale-95 shadow-lg shadow-brand-purple/20"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4F12A6] px-10 py-4 text-lg font-bold text-white transition-all hover:opacity-90 active:scale-95 shadow-lg shadow-[#4F12A6]/20"
         >
           <svg
             className="h-5 w-5"

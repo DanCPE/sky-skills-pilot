@@ -75,7 +75,7 @@ export default function SkyQuestPage() {
                   className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md transition-all hover:shadow-xl hover:-translate-y-1"
                 >
                   {/* Top Image/Icon Placeholder area */}
-                  <div className="relative flex h-40 w-full items-center justify-center bg-zinc-100/80 dark:bg-white/5 overflow-hidden">
+                  <div className={`relative flex h-40 w-full items-center justify-center overflow-hidden ${topic.coverBg ?? "bg-zinc-100/80 dark:bg-white/5"}`}>
                     {topic.coverImage ? (
                       <>
                         <Image
@@ -135,7 +135,7 @@ export default function SkyQuestPage() {
                         href={`/sky-quest/${topic.slug}`}
                         className="flex w-full items-center justify-center gap-1 rounded-lg bg-brand-purple px-4 py-2.5 text-xs font-bold text-white transition-all hover:bg-violet-600 shadow-lg shadow-brand-purple/20 active:scale-[0.98]"
                       >
-                        Start Trial <span>→</span>
+                        Start Quest <span>→</span>
                       </Link>
                     )}
                   </div>
