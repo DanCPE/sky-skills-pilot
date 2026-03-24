@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(npm run:*)",
-      "Bash(git mv:*)"
+      "Bash(git mv:*)",
+      "Bash(rm -rf .next)",
+      "Bash(rm -rf node_modules/.cache)"
     ]
   }
 }

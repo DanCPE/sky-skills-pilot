@@ -13,7 +13,8 @@ type Difficulty = "easy" | "medium" | "hard" | "mixed";
 
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   const [selectedMode, setSelectedMode] = useState<Mode>(null);
-  const [selectedDifficulty, setSelectedDifficulty] = useState<Difficulty>("mixed");
+  const [selectedDifficulty, setSelectedDifficulty] =
+    useState<Difficulty>("mixed");
   const [questionCount, setQuestionCount] = useState(20);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -22,15 +23,16 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
     setIsLoading(true);
 
     try {
-      // For this implementation, we can just generate client-side to save API wiring, 
+      // For this implementation, we can just generate client-side to save API wiring,
       // or we can mock the API response. We'll use the imported generator directly for speed.
-      const { generateSpatialOrientationQuiz } = await import("@/lib/spatial-orientation-generator");
+      const { generateSpatialOrientationQuiz } =
+        await import("@/lib/spatial-orientation-generator");
       const quizData = generateSpatialOrientationQuiz(
-         questionCount,
-         selectedMode,
-         selectedDifficulty
+        questionCount,
+        selectedMode,
+        selectedDifficulty,
       );
-      
+
       onStart(quizData);
     } catch (err) {
       console.error(err);
@@ -73,20 +75,21 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           }`}
         >
           <div className="mb-3 flex items-center gap-3">
-             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900">
-               <span className="text-2xl">✈️</span>
-             </div>
-             <div>
-               <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                 Learn Mode
-               </h3>
-               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                 No time limit
-               </p>
-             </div>
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900">
+              <span className="text-2xl">✈️</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                Learn Mode
+              </h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                No time limit
+              </p>
+            </div>
           </div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Learn at your own pace with interactive 3D visualizers and animated feedback loops.
+            Learn at your own pace with interactive 3D visualizers and animated
+            feedback loops.
           </p>
         </button>
 
@@ -100,21 +103,22 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
               : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
           }`}
         >
-           <div className="mb-3 flex items-center gap-3">
-             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900">
-                <span className="text-2xl">⏱️</span>
-             </div>
-             <div>
-               <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                 Real Mode
-               </h3>
-               <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                  {formatTime(timeLimit)}
-               </p>
-             </div>
+          <div className="mb-3 flex items-center gap-3">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-violet-900">
+              <span className="text-2xl">⏱️</span>
+            </div>
+            <div>
+              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                Real Mode
+              </h3>
+              <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                {formatTime(timeLimit)}
+              </p>
+            </div>
           </div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Test your math speed under time pressure. Answer {questionCount} rapid-fire format questions.
+            Test your math speed under time pressure. Answer {questionCount}{" "}
+            rapid-fire format questions.
           </p>
         </button>
       </div>
@@ -138,7 +142,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
               >
                 {difficulty}
               </button>
-            )
+            ),
           )}
         </div>
       </div>
@@ -163,7 +167,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
               : "cursor-pointer bg-violet-600 hover:bg-violet-500"
           }`}
         >
-          {isLoading ? "Loading..." : "Start Sequence"}
+          {isLoading ? "Loading..." : "Start Quest"}
         </button>
       </div>
     </div>

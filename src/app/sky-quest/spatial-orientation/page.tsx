@@ -10,6 +10,11 @@ import type { SpatialOrientationQuizResponse } from "@/types";
 export default function SpatialOrientationPage() {
   const [quizData, setQuizData] = useState<SpatialOrientationQuizResponse | null>(null);
 
+  // RealMode has its own full-page layout, so we don't use TopicLayout for it
+  if (quizData && quizData.mode === "real") {
+    return <RealMode quizData={quizData} onRestart={() => setQuizData(null)} />;
+  }
+
   return (
     <TopicLayout
       title="Aircraft Rotation"
@@ -18,10 +23,8 @@ export default function SpatialOrientationPage() {
     >
       {!quizData ? (
         <ModeSelection onStart={setQuizData} />
-      ) : quizData.mode === "learn" ? (
-        <LearnMode onRestart={() => setQuizData(null)} />
       ) : (
-        <RealMode quizData={quizData} onRestart={() => setQuizData(null)} />
+        <LearnMode onRestart={() => setQuizData(null)} />
       )}
     </TopicLayout>
   );

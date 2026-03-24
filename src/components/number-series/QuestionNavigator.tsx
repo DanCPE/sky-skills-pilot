@@ -26,7 +26,7 @@ export default function QuestionNavigator({
     const isCurrent = index === currentIndex;
 
     if (isCurrent) {
-      return "bg-zinc-800 text-white border-2 border-white font-black shadow-lg scale-105 z-10";
+      return "bg-[#FFFFFF] text-[#4F12A6] border-2 border-[#4F12A6] font-black shadow-lg scale-105 z-10";
     }
 
     if (status === "answered") {
@@ -34,10 +34,10 @@ export default function QuestionNavigator({
     }
 
     if (status === "skipped") {
-      return "bg-amber-400 text-zinc-900 font-bold border-2 border-transparent";
+      return "bg-amber-400 text-white font-bold border-2 border-transparent";
     }
 
-    return "bg-zinc-900/80 text-zinc-500 font-semibold border-2 border-white/5 hover:border-white/10 hover:bg-zinc-800 transition-all";
+    return "bg-[#F1F5F9] text-zinc-500 font-semibold border-2 border-white/5 hover:border-white/10 hover:bg-zinc-800 transition-all";
   };
 
   return (

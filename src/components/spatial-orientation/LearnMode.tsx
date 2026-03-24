@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import Link from "next/link";
 import ProgressBar from "@/components/shared/ProgressBar";
 import { Direction, Instruction } from "@/types";
 import CompassCircle from "@/components/spatial-orientation/CompassCircle";
@@ -327,7 +326,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                   <button
                     onClick={handleSubmit}
                     disabled={selectedAngle === null || selectedDir === null}
-                    className="mt-auto w-full py-3.5 rounded-xl bg-white text-zinc-900 font-bold text-base disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl"
+                    className="mt-auto w-full py-3.5 rounded-xl bg-white text-zinc-900 disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl font-[family-name:var(--font-space-grotesk)] text-[16px] font-bold leading-none"
                   >
                     Submit Route
                   </button>

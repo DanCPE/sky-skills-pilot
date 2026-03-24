@@ -37,7 +37,7 @@ export default function QuestionCard({
   };
 
   return (
-    <div className="flex flex-col gap-16 py-6 px-4 bg-white dark:bg-black/20 rounded-2xl border-2 border-[#E2EAF0] dark:border-white/5">
+    <div className="flex flex-col gap-16 py-6 px-4 bg-white dark:bg-black/20 rounded-2xl border-2 border-[#E2EAF0] dark:border-white/5 hover:shadow-xl transition-shadow">
       {/* Question Prompt */}
       <div className="text-center">
         <h3 className="text-md md:text-xl font-black text-zinc-900 dark:text-white tracking-tight drop-shadow-sm">
@@ -53,7 +53,9 @@ export default function QuestionCard({
               <span className="text-3xl md:text-4xl font-black text-zinc-900 dark:text-white font-[family-name:var(--font-space-grotesk)] tracking-tighter">
                 {num}
               </span>
-              <span className="text-3xl md:text-4xl font-black text-black dark:text-zinc-600">,</span>
+              <span className="text-3xl md:text-4xl font-black text-black dark:text-zinc-600">
+                ,
+              </span>
             </React.Fragment>
           ))}
           <span className="text-3xl md:text-4xl font-black text-zinc-900 dark:text-white font-[family-name:var(--font-space-grotesk)]">
@@ -68,9 +70,12 @@ export default function QuestionCard({
           {question.options.map((option, index) => {
             const label = String.fromCharCode(65 + index); // A, B, C, D...
             const isSelected = selectedAnswer === option;
-            
+
             return (
-              <div key={option} className="flex flex-col items-center gap-4 flex-1 max-w-[200px]">
+              <div
+                key={option}
+                className="flex flex-col items-center gap-4 flex-1 max-w-[200px]"
+              >
                 <button
                   disabled={disabled}
                   onClick={() => onAnswer(option)}
@@ -84,13 +89,15 @@ export default function QuestionCard({
                 >
                   {option}
                 </button>
-                
+
                 {/* Circle Indicator Label */}
-                <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 font-black text-xs transition-all duration-300 ${
-                  isSelected 
-                    ? "bg-[#4F12A6] border-[#4F12A6] text-white scale-110"
-                    : "border-[#E0E0E0] dark:border-white/20 text-zinc-500"
-                }`}>
+                <div
+                  className={`flex items-center justify-center w-8 h-8 rounded-full border-2 font-black text-xs transition-all duration-300 ${
+                    isSelected
+                      ? "bg-[#4F12A6] border-[#4F12A6] text-white scale-110"
+                      : "border-[#E0E0E0] dark:border-white/20 text-zinc-500"
+                  }`}
+                >
                   {label}
                 </div>
               </div>

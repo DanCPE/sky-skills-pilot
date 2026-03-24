@@ -14,7 +14,7 @@ export default function ExplanationCard({
   isLastQuestion,
 }: ExplanationCardProps) {
   return (
-    <div className="mt-6 rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-900/60 backdrop-blur-md p-6 shadow-xl">
+    <div className="mt-6 rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-900/60 backdrop-blur-md p-6 hover:shadow-xl transition-shadow">
       <div className="mb-4 flex items-center gap-3">
         <div
           className={`flex h-10 w-10 items-center justify-center rounded-full ${
