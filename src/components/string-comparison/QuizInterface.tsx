@@ -282,8 +282,6 @@ export default function QuizInterface({
       <ResultsScreen
         questions={questions}
         answers={answers}
-        mode={mode}
-        score={calculateScore()}
         timeTaken={mode === "real" ? totalTimeTaken : undefined}
         onRestart={onRestart}
       />

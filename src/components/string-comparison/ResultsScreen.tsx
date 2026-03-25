@@ -1,4 +1,3 @@
-import Link from "next/link";
 import type { ScanningPracticeQuestion } from "@/types";
 
 interface QuizAnswer {
@@ -11,17 +10,13 @@ interface QuizAnswer {
 interface ResultsScreenProps {
   questions: ScanningPracticeQuestion[];
   answers: QuizAnswer[];
-  mode: "learn" | "real";
-  score?: number;
-  timeTaken?: number; // Total time in seconds (real mode)
+  timeTaken?: number;
   onRestart: () => void;
 }
 
 export default function ResultsScreen({
   questions,
   answers,
-  mode,
-  score,
   timeTaken,
   onRestart,
 }: ResultsScreenProps) {
@@ -29,22 +24,16 @@ export default function ResultsScreen({
   const totalCount = questions.length;
   const percentage = Math.round((correctCount / totalCount) * 100);
 
-  // Calculate average response time
-  const answeredQuestions = answers.filter((a) => a.timeTaken !== undefined);
-  const averageResponseTime =
-    answeredQuestions.length > 0
-      ? Math.round(
-          answeredQuestions.reduce((sum, a) => sum + (a.timeTaken || 0), 0) /
-            answeredQuestions.length
-        )
-      : null;
+  const attemptedCount = answers.filter((a) => a.answer !== undefined && a.answer !== "").length;
+  const accuracy = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : 0;
 
   // Get performance message
   const getPerformanceMessage = () => {
-    if (percentage >= 90) return { text: "Excellent!", stars: "★★★★★" };
-    if (percentage >= 75) return { text: "Great Job!", stars: "★★★★" };
-    if (percentage >= 60) return { text: "Good Effort!", stars: "★★★" };
-    return { text: "Keep Practicing!", stars: "★★" };
+    if (percentage >= 90) return { text: "Excellent!", starCount: 5 };
+    if (percentage >= 75) return { text: "Great Job!", starCount: 4 };
+    if (percentage >= 60) return { text: "Good Effort!", starCount: 3 };
+    if (percentage >= 40) return { text: "Keep Practicing!", starCount: 2 };
+    return { text: "Keep Practicing!", starCount: 1 };
   };
 
   const performance = getPerformanceMessage();
@@ -60,48 +49,43 @@ export default function ResultsScreen({
     <div className="mx-auto max-w-4xl">
       {/* Score Card */}
       <div className="mb-8 rounded-2xl border-2 bg-zinc-50 p-8 text-center dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
-        <div className="mb-4 text-4xl">{performance.stars}</div>
-        <h2 className="mb-2 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-brand-gold">
+        <div className="mb-4 flex justify-center gap-1">
+          {Array.from({ length: performance.starCount }).map((_, i) => (
+            <svg key={i} className="w-14 h-14" fill="none" stroke="#FACC15" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5z" />
+            </svg>
+          ))}
+        </div>
+        <h2 className="mb-1 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-white">
           {performance.text}
         </h2>
-        <p className="text-lg text-zinc-600 dark:text-zinc-400">
+        <p className="text-base text-zinc-500 dark:text-zinc-400 mb-6">
           You got {correctCount} out of {totalCount} correct
         </p>
-
-        {/* Score Display (Real Mode Only) */}
-        {mode === "real" && score !== undefined && (
-          <div className="mt-6">
-            <div className="mb-2 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              Final Score
-            </div>
-            <div className="text-5xl font-bold text-brand-gold font-[family-name:var(--font-space-grotesk)]">
-              {score}%
-            </div>
+        <div className="flex justify-center gap-8 mb-4">
+          <div className="flex flex-col items-center">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{attemptedCount}</span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Attempted</span>
           </div>
-        )}
-
-        {/* Time Display (Real Mode Only) */}
-        {mode === "real" && timeTaken !== undefined && (
-          <div className="mt-4">
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-              Time Taken: {formatTime(timeTaken)}
-            </div>
+          <div className="flex flex-col items-center">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{correctCount}</span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Correct</span>
           </div>
-        )}
-
-        {/* Average Response Time (Both Modes) */}
-        {averageResponseTime !== null && (
-          <div className="mt-2">
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-              Average Response Time: {averageResponseTime}s per question
-            </div>
+          <div className="flex flex-col items-center">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{accuracy}%</span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Accuracy</span>
           </div>
+        </div>
+        {timeTaken !== undefined && (
+          <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">
+            Duration : {formatTime(timeTaken)}
+          </p>
         )}
       </div>
 
       {/* Questions Review */}
       <div className="mb-8">
-        <h3 className="mb-4 text-xl font-bold text-zinc-900 dark:text-brand-gold">
+        <h3 className="text-xl font-bold text-zinc-900 dark:text-brand-gold mb-4">
           Review Your Answers
         </h3>
         <div className="space-y-4">
@@ -112,99 +96,73 @@ export default function ResultsScreen({
             return (
               <div
                 key={question.id}
-                className={`rounded-xl border-2 p-4 ${
+                className={`relative rounded-xl border-2 p-4 ${
                   isCorrect
-                    ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950"
-                    : "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950"
+                    ? "border-green-500/50 bg-green-500/10"
+                    : "border-red-500/50 bg-red-500/10"
                 }`}
               >
-                <div className="flex items-start justify-between gap-4">
-                  <div className="flex-1">
-                    <div className="mb-2 flex items-center gap-2">
-                      <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
-                        Question {index + 1}
-                      </span>
-                      {isCorrect ? (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900 dark:text-green-300">
-                          <svg
-                            className="h-3 w-3"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Correct
-                        </span>
-                      ) : (
-                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 dark:bg-red-900 dark:text-red-300">
-                          <svg
-                            className="h-3 w-3"
-                            fill="currentColor"
-                            viewBox="0 0 20 20"
-                          >
-                            <path
-                              fillRule="evenodd"
-                              d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z"
-                              clipRule="evenodd"
-                            />
-                          </svg>
-                          Incorrect
-                        </span>
-                      )}
-                    </div>
+                {isCorrect ? (
+                  <svg className="absolute top-3 right-3 w-8 h-8 text-green-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                  </svg>
+                ) : (
+                  <svg className="absolute top-3 right-3 w-8 h-8 text-red-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+                  </svg>
+                )}
+                <div className="mb-2">
+                  <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                    Question {index + 1}
+                  </span>
+                </div>
 
-                    {/* String Pairs */}
-                    <div className="mb-3 grid gap-2 md:grid-cols-2">
-                      <div className="rounded-lg bg-white p-2 dark:bg-zinc-800">
-                        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                          String A
-                        </div>
-                        <div className="text-sm font-bold tracking-wider text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)]">
-                          {question.stringA}
-                        </div>
-                      </div>
-                      <div className="rounded-lg bg-white p-2 dark:bg-zinc-800">
-                        <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
-                          String B
-                        </div>
-                        <div className="text-sm font-bold tracking-wider text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)]">
-                          {question.stringB}
-                        </div>
-                      </div>
+                {/* String Pairs */}
+                <div className="mb-3 grid gap-2 md:grid-cols-2">
+                  <div className="rounded-lg bg-white p-2 dark:bg-zinc-800">
+                    <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                      String A
                     </div>
-
-                    {/* Answer */}
-                    <div className="mb-2 text-sm">
-                      <span className="font-medium text-zinc-700 dark:text-zinc-300">
-                        Your answer:{" "}
-                      </span>
-                      <span
-                        className={`font-bold ${
-                          isCorrect
-                            ? "text-green-700 dark:text-green-300"
-                            : "text-red-700 dark:text-red-300"
-                        } font-[family-name:var(--font-space-grotesk)]`}
-                      >
-                        {answer?.answer ?? "Not answered"}
-                      </span>
-                      {!isCorrect && (
-                        <span className="ml-2 text-zinc-600 dark:text-zinc-400">
-                          (Correct: {question.differenceCount})
-                        </span>
-                      )}
+                    <div className="text-sm font-bold tracking-wider text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)]">
+                      {question.stringA}
                     </div>
-
-                    {/* Response Time */}
-                    {answer?.timeTaken !== undefined && (
-                      <div className="text-xs text-zinc-500 dark:text-zinc-400">
-                        Response time: {answer.timeTaken}s
-                      </div>
-                    )}
                   </div>
+                  <div className="rounded-lg bg-white p-2 dark:bg-zinc-800">
+                    <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">
+                      String B
+                    </div>
+                    <div className="text-sm font-bold tracking-wider text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-geist-mono)]">
+                      {question.stringB}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Answer Buttons */}
+                <div className="grid grid-cols-6 gap-2">
+                  {[0, 1, 2, 3, 4, 5].map((opt) => {
+                    const optStr = String(opt);
+                    const isActuallyCorrect = opt === question.differenceCount;
+                    const isSelected = answer?.answer === optStr;
+
+                    let btnStyle: string;
+                    if (isActuallyCorrect) {
+                      btnStyle = "bg-green-500 text-white shadow-lg shadow-green-500/20 border-transparent";
+                    } else if (isSelected && !isActuallyCorrect) {
+                      btnStyle = "bg-red-500 text-white shadow-lg shadow-red-500/20 border-red-400";
+                    } else {
+                      btnStyle = "bg-white dark:bg-white/5 text-zinc-600 dark:text-zinc-600 opacity-50 border-zinc-200 dark:border-white/5";
+                    }
+
+                    return (
+                      <button
+                        key={opt}
+                        disabled
+                        className={`h-12 rounded-xl font-black text-sm border-2 ${btnStyle}`}
+                      >
+                        {opt}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             );
@@ -213,45 +171,13 @@ export default function ResultsScreen({
       </div>
 
       {/* Action Buttons */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
+      <div className="flex justify-center">
         <button
           onClick={onRestart}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-purple px-10 py-4 text-lg font-bold text-white transition-all hover:bg-violet-500 active:scale-95 shadow-lg shadow-brand-purple/20"
+          className="bg-[#4F12A6] hover:bg-[#4F12A6]/80 text-white px-10 py-4 rounded-xl font-black transition-all shadow-lg shadow-[#4F12A6]/20 active:scale-95 text-lg"
         >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"
-            />
-          </svg>
-          Try Again
+          Play Again
         </button>
-        <Link
-          href="/sky-quest"
-          className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-300 px-8 py-4 font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
-        >
-          <svg
-            className="h-5 w-5"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              strokeWidth={2}
-              d="M10 19l-7-7m0 0l7-7m-7 7h18"
-            />
-          </svg>
-          Back to Sky Quests
-        </Link>
       </div>
     </div>
   );
