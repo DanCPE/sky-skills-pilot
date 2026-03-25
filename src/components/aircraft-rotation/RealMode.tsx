@@ -325,13 +325,13 @@ export default function RealMode({ quizData, onRestart }: RealModeProps) {
             {/* Left Column: Header + Scrollable Questions */}
             <div className="flex flex-col gap-4">
               {/* Top Header Panel */}
-              <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl p-6">
+              <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl px-10 pt-2 pb-4">
                 <div className="flex flex-col gap-1">
-                  <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+                  <h1 className="text-[30px] font-bold text-zinc-900 dark:text-white tracking-tight">
                     Aircraft Rotation
                   </h1>
                   <div className="flex items-center gap-2">
-                    <span className="uppercase text-[10px] font-black tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                    <span className="uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
                       REAL MODE
                     </span>
                   </div>

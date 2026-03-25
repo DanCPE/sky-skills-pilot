@@ -170,21 +170,18 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
         <div className="flex flex-col gap-6 lg:flex-row">
         <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
           {/* Header Bar */}
-          <div className="flex justify-between items-center bg-white dark:bg-black/40 dark:backdrop-blur-md border-2 border-zinc-100 dark:border-white/10 rounded-3xl p-6 shadow-sm">
-            <div className="flex items-center gap-3">
-              <div className="text-2xl font-black">
-                <span className="text-2xl">✈️</span>
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-zinc-900 dark:text-zinc-100">
-                  Aircraft Rotation
-                </h1>
-                <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-brand-gold text-zinc-900 px-2.5 py-1 rounded-sm">
+          <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl px-10 pt-1 pb-2">
+            <div className="flex flex-col gap-0">
+              <h1 className="text-[30px] font-bold text-zinc-900 dark:text-white tracking-tight">
+                Aircraft Rotation
+              </h1>
+              <div className="flex items-center gap-2">
+                <span className="uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
                   LEARN MODE
                 </span>
               </div>
             </div>
-            <div className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-800 dark:text-zinc-100/90">
+            <div className="text-[24px] font-bold font-[family-name:var(--font-inter)] text-zinc-900 dark:text-white/90">
               Round {round}
             </div>
           </div>

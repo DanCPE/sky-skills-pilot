@@ -23,7 +23,7 @@ export default function ProgressBar({ current, total, score, compact = false }: 
         </div>
       )}
       
-      <div className={`w-full overflow-hidden rounded-full ${compact ? "h-2.5 bg-violet-100 dark:bg-white/5 mb-2.5 border dark:border-white/5" : "h-2 bg-zinc-200 dark:bg-zinc-800"}`}>
+      <div className={`w-full overflow-hidden rounded-full ${compact ? "h-2.5 bg-violet-100 dark:bg-[#D6D6D6]/40 mb-2.5" : "h-2 bg-zinc-200 dark:bg-zinc-800"}`}>
         <div
           className={`h-full rounded-full transition-all duration-300 ease-in-out ${compact ? "bg-[#4F12A6]" : "bg-[#4F12A6]"}`}
           style={{ width: `${progress}%` }}

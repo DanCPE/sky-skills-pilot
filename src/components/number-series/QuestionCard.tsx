@@ -39,7 +39,7 @@ export default function QuestionCard({
   return (
     <div className="flex flex-col gap-16 py-6 px-4 bg-white dark:bg-black/20 rounded-2xl border-2 border-[#E2EAF0] dark:border-white/5 hover:shadow-xl transition-shadow">
       {/* Question Prompt */}
-      <div className="text-center">
+      <div className="text-center pt-6">
         <h3 className="text-md md:text-xl font-black text-zinc-900 dark:text-white tracking-tight drop-shadow-sm">
           {question.prompt}
         </h3>
