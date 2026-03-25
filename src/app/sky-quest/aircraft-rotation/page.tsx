@@ -2,9 +2,9 @@
 
 import { useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
-import ModeSelection from "@/components/spatial-orientation/ModeSelection";
-import LearnMode from "@/components/spatial-orientation/LearnMode";
-import RealMode from "@/components/spatial-orientation/RealMode";
+import ModeSelection from "@/components/aircraft-rotation/ModeSelection";
+import LearnMode from "@/components/aircraft-rotation/LearnMode";
+import RealMode from "@/components/aircraft-rotation/RealMode";
 import type { SpatialOrientationQuizResponse } from "@/types";
 
 export default function SpatialOrientationPage() {

@@ -16,8 +16,8 @@ export default function QuizCompleteConfirmation({
   const unansweredCount = totalQuestions - answeredCount;
 
   return (
-    <div className="mx-auto max-w-2xl">
-      <div className="rounded-2xl border-2 border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-900 dark:bg-amber-950">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
+      <div className="w-full max-w-2xl rounded-2xl border-2 border-amber-200 bg-amber-50 p-8 text-center dark:border-amber-900 dark:bg-amber-950">
         {/* Warning Icon */}
         <div className="mb-6 inline-flex h-20 w-20 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900">
           <svg
@@ -83,3 +83,4 @@ export default function QuizCompleteConfirmation({
     </div>
   );
 }
+

@@ -298,33 +298,6 @@ export default function QuizInterface({
     skippedQuestions.map((sq) => sq.questionIndex),
   );
 
-  // Show confirmation when there are skipped questions
-  if (showConfirmation) {
-    const answeredCount = new Set(answers.map((a) => a.questionId)).size;
-    const unansweredCount = questions.length - answeredCount;
-    return (
-      <QuizCompleteConfirmation
-        totalQuestions={questions.length}
-        answeredCount={answeredCount}
-        skippedCount={unansweredCount}
-        onBackToQuestions={() => {
-          setShowConfirmation(false);
-          // Move to the first unanswered/skipped question
-          const answeredQuestionIds = new Set(answers.map((a) => a.questionId));
-          const firstUnanswered = questions.findIndex(
-            (q) => !answeredQuestionIds.has(q.id),
-          );
-          if (firstUnanswered !== -1) {
-            setCurrentQuestionIndex(firstUnanswered);
-          }
-        }}
-        onFinishQuiz={() => {
-          handleSubmitQuiz();
-        }}
-      />
-    );
-  }
-
   // Show results screen when quiz is complete
   if (quizComplete) {
     return (
@@ -341,6 +314,8 @@ export default function QuizInterface({
 
   const currentQuestion = questions[currentQuestionIndex];
   const isLastQuestion = currentQuestionIndex === questions.length - 1;
+  const confirmedAnsweredCount = new Set(answers.map((a) => a.questionId)).size;
+  const confirmedUnansweredCount = questions.length - confirmedAnsweredCount;
 
   // Derive visual state for the current question
   const existingAnswer = answers.find(
@@ -549,6 +524,28 @@ export default function QuizInterface({
           © 2026 SkySkills. All rights reserved.
         </p>
       </div>
+
+      {/* Confirmation Modal */}
+      {showConfirmation && (
+        <QuizCompleteConfirmation
+          totalQuestions={questions.length}
+          answeredCount={confirmedAnsweredCount}
+          skippedCount={confirmedUnansweredCount}
+          onBackToQuestions={() => {
+            setShowConfirmation(false);
+            const answeredQuestionIds = new Set(answers.map((a) => a.questionId));
+            const firstUnanswered = questions.findIndex(
+              (q) => !answeredQuestionIds.has(q.id),
+            );
+            if (firstUnanswered !== -1) {
+              setCurrentQuestionIndex(firstUnanswered);
+            }
+          }}
+          onFinishQuiz={() => {
+            handleSubmitQuiz();
+          }}
+        />
+      )}
     </div>
   );
 }

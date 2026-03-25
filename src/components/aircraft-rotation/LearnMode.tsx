@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import ProgressBar from "@/components/shared/ProgressBar";
 import { Direction, Instruction } from "@/types";
-import CompassCircle from "@/components/spatial-orientation/CompassCircle";
+import CompassCircle from "@/components/aircraft-rotation/CompassCircle";
 
 interface RoundData {
   initial: number;

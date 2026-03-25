@@ -5,7 +5,7 @@ import React from "react";
 import { useRouter } from "next/navigation";
 import Timer from "@/components/shared/Timer";
 import ProgressBar from "@/components/shared/ProgressBar";
-import QuizCompleteConfirmation from "@/components/spatial-orientation/QuizCompleteConfirmation";
+import QuizCompleteConfirmation from "@/components/aircraft-rotation/QuizCompleteConfirmation";
 import QuestionNavigator from "@/components/number-series/QuestionNavigator";
 import {
   SpatialOrientationQuizResponse,
@@ -313,9 +313,6 @@ export default function RealMode({ quizData, onRestart }: RealModeProps) {
                   REAL MODE
                 </span>
               </div>
-            </div>
-            <div className="text-2xl font-black text-zinc-900 dark:text-white/90 font-[family-name:var(--font-space-grotesk)]">
-              {answeredCount} / {questions.length} Answered
             </div>
           </div>
 

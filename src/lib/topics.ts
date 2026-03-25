@@ -45,7 +45,7 @@ export const topics: Topic[] = [
     isLocked: true,
   },
   {
-    slug: "spatial-orientation",
+    slug: "aircraft-rotation",
     icon: "✈️",
     title: "Aircraft Rotation",
     description: "Calculate aircraft heading changes and visualize rotations.",

@@ -26,7 +26,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
       // For this implementation, we can just generate client-side to save API wiring,
       // or we can mock the API response. We'll use the imported generator directly for speed.
       const { generateSpatialOrientationQuiz } =
-        await import("@/lib/spatial-orientation-generator");
+        await import("@/lib/aircraft-rotation-generator");
       const quizData = generateSpatialOrientationQuiz(
         questionCount,
         selectedMode,

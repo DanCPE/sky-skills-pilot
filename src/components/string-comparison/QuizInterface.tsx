@@ -276,24 +276,6 @@ export default function QuizInterface({
     );
   }
 
-  // Show confirmation when there are unanswered questions (real mode)
-  if (showConfirmation) {
-    const answeredCount = Object.keys(selectedAnswers).length;
-    return (
-      <QuizCompleteConfirmation
-        totalQuestions={questions.length}
-        answeredCount={answeredCount}
-        skippedCount={questions.length - answeredCount}
-        onBackToQuestions={() => {
-          setShowConfirmation(false);
-        }}
-        onFinishQuiz={() => {
-          handleSubmitQuiz();
-        }}
-      />
-    );
-  }
-
   // Show results screen when quiz is complete
   if (quizComplete) {
     return (
