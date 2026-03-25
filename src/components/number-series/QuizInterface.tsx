@@ -339,7 +339,7 @@ export default function QuizInterface({
       : null);
 
   return (
-    <div className="bg-[#F1F5F9] min-h-screen flex flex-col w-full">
+    <div className="bg-[#F1F5F9] dark:bg-transparent min-h-screen flex flex-col w-full">
       <div className="flex-1 w-full max-w-[1200px] mx-auto p-4 sm:p-6 pt-12 sm:pt-16 mb-20 animate-in fade-in duration-700">
         {/* Main Content Area (Two Columns) */}
         <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
@@ -520,7 +520,7 @@ export default function QuizInterface({
       </div>
 
       {/* Footer Bar */}
-      <div className="w-full bg-white py-4 flex justify-center items-center mt-auto shrink-0">
+      <div className="w-full bg-white dark:bg-black/40 py-4 flex justify-center items-center mt-auto shrink-0">
         <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
           © 2026 SkySkills. All rights reserved.
         </p>

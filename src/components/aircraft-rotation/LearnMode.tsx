@@ -180,7 +180,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                   Aircraft Rotation
                 </h1>
                 <span className="inline-block mt-1 uppercase text-[10px] font-black tracking-widest bg-brand-gold text-zinc-900 px-2.5 py-1 rounded-sm">
-                  PRACTICE MODE
+                  LEARN MODE
                 </span>
               </div>
             </div>
