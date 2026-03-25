@@ -341,27 +341,28 @@ export default function QuizInterface({
   return (
     <div className="bg-[#F1F5F9] min-h-screen flex flex-col w-full">
       <div className="flex-1 w-full max-w-[1200px] mx-auto p-4 sm:p-6 pt-12 sm:pt-16 mb-20 animate-in fade-in duration-700">
-        <div className="flex flex-col gap-4">
-          {/* Top Header Panel */}
-          <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl p-6">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
-                Number Series
-              </h1>
-              <div className="flex items-center gap-2">
-                <span className="uppercase text-[10px] font-black tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
-                  {mode === "real" ? "REAL MODE" : "LEARN MODE"}
-                </span>
+        {/* Main Content Area (Two Columns) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
+          {/* Left Column: Header + Question Card */}
+          <div className="flex flex-col gap-4">
+            {/* Top Header Panel */}
+            <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl p-6">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+                  Number Series
+                </h1>
+                <div className="flex items-center gap-2">
+                  <span className="uppercase text-[10px] font-black tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                    {mode === "real" ? "REAL MODE" : "LEARN MODE"}
+                  </span>
+                </div>
+              </div>
+              <div className="text-2xl font-black text-zinc-900 dark:text-white/90 font-[family-name:var(--font-space-grotesk)]">
+                Question {currentQuestionIndex + 1}
               </div>
             </div>
-            <div className="text-2xl font-black text-zinc-900 dark:text-white/90 font-[family-name:var(--font-space-grotesk)]">
-              Question {currentQuestionIndex + 1}
-            </div>
-          </div>
 
-          {/* Main Content Area (Two Columns) */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
-            {/* Left Column: Question Card */}
+            {/* Question Card */}
             <div className="flex flex-col space-y-4">
               <QuestionCard
                 question={currentQuestion}
@@ -385,9 +386,10 @@ export default function QuizInterface({
                 />
               )}
             </div>
+          </div>
 
-            {/* Right Column: Sidebar Panels */}
-            <div className="flex flex-col gap-4">
+          {/* Right Column: Sidebar Panels */}
+          <div className="flex flex-col gap-4">
               {/* Timer & Progress Panel */}
               <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex flex-col gap-6">
                 <div className="flex items-center justify-between">
@@ -421,7 +423,7 @@ export default function QuizInterface({
               </div>
 
               {/* Question Navigator Panel */}
-              <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex-1">
+              <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow">
                 <h3 className="mb-2 font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
                   Question Navigator
                 </h3>
@@ -443,7 +445,14 @@ export default function QuizInterface({
                   }}
                 />
               </div>
-            </div>
+
+              {/* Submit Button */}
+              <button
+                onClick={handleSubmitClick}
+                className="w-full px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
+              >
+                Submit
+              </button>
           </div>
 
           {/* Bottom Navigation Bar */}
@@ -506,18 +515,10 @@ export default function QuizInterface({
                 </button>
               </div>
             </div>
-
-            <div className="w-96 shrink-0 flex justify-center">
-              <button
-                onClick={handleSubmitClick}
-                className="px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
-              >
-                Submit
-              </button>
-            </div>
           </div>
         </div>
       </div>
+
       {/* Footer Bar */}
       <div className="w-full bg-white py-4 flex justify-center items-center mt-auto shrink-0">
         <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">

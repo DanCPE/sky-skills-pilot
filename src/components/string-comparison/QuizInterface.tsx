@@ -452,27 +452,28 @@ export default function QuizInterface({
   return (
     <div className="bg-[#F1F5F9] min-h-screen flex flex-col w-full">
       <div className="flex-1 w-full max-w-[1200px] mx-auto p-4 sm:p-6 pt-12 sm:pt-16 mb-20 animate-in fade-in duration-700">
-        <div className="flex flex-col gap-4">
-          {/* Top Header Panel */}
-          <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl p-6">
-            <div className="flex flex-col gap-1">
-              <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
-                String Comparison
-              </h1>
-              <div className="flex items-center gap-2">
-                <span className="uppercase text-[10px] font-black tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
-                  REAL MODE
-                </span>
+        {/* Main Content Area (Two Columns) */}
+        <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
+          {/* Left Column: Header + Scrollable Questions */}
+          <div className="flex flex-col gap-4">
+            {/* Top Header Panel */}
+            <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl p-6">
+              <div className="flex flex-col gap-1">
+                <h1 className="text-2xl font-black text-zinc-900 dark:text-white tracking-tight">
+                  String Comparison
+                </h1>
+                <div className="flex items-center gap-2">
+                  <span className="uppercase text-[10px] font-black tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                    REAL MODE
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Main Content Area (Two Columns) */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
-            {/* Left Column: Scrollable Questions */}
+            {/* Scrollable Questions */}
             <div
               className="flex flex-col bg-white dark:bg-black/20 rounded-2xl border-2 border-zinc-200 dark:border-white/5 overflow-hidden"
-              style={{ height: "calc(100vh - 260px)", minHeight: "400px" }}
+              style={{ height: "calc(100vh - 320px)", minHeight: "400px" }}
             >
               <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
                 {questions.map((question, index) => (
@@ -510,8 +511,9 @@ export default function QuizInterface({
                 ))}
               </div>
             </div>
+          </div>
 
-            {/* Right Column: Sidebar Panels */}
+          {/* Right Column: Sidebar Panels */}
             <div className="flex flex-col gap-4">
               {/* Timer & Progress Panel */}
               <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex flex-col gap-6">
@@ -555,7 +557,7 @@ export default function QuizInterface({
               </div>
 
               {/* Question Navigator Panel */}
-              <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex-1">
+              <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow">
                 <h3 className="mb-2 font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
                   Question Navigator
                 </h3>
@@ -579,12 +581,20 @@ export default function QuizInterface({
                 />
               </div>
 
+              {/* Submit Button */}
+              <button
+                onClick={handleSubmitClick}
+                className="w-full px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
+              >
+                Submit
+              </button>
+
             </div>
           </div>
 
           {/* Bottom Navigation Bar */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 flex gap-3">
+          <div className="flex items-center justify-between gap-4 mt-2">
+            <div className="flex-1 flex gap-5">
               <button
                 onClick={() => router.back()}
                 className="flex items-center gap-2 px-4 py-3 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 font-bold text-sm hover:text-zinc-900 dark:hover:text-white hover:border-zinc-300 dark:hover:border-white/20 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all"
@@ -607,17 +617,8 @@ export default function QuizInterface({
                 Exit
               </button>
             </div>
-            <div className="w-96 shrink-0 flex justify-center">
-              <button
-                onClick={handleSubmitClick}
-                className="px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
-              >
-                Submit
-              </button>
-            </div>
           </div>
         </div>
-      </div>
 
       {/* Confirmation Modal */}
       {showConfirmation && (
