@@ -23,8 +23,6 @@ interface ResultsScreenProps {
 export default function ResultsScreen({
   questions,
   answers,
-  mode,
-  score,
   timeTaken,
   onRestart,
 }: ResultsScreenProps) {
@@ -53,7 +51,8 @@ export default function ResultsScreen({
     if (percentage >= 90) return { text: "Excellent!", stars: "★★★★★" };
     if (percentage >= 75) return { text: "Great Job!", stars: "★★★★" };
     if (percentage >= 60) return { text: "Good Effort!", stars: "★★★" };
-    return { text: "Keep Practicing!", stars: "★★" };
+    if (percentage >= 40) return { text: "Keep Practicing!", stars: "★★" };
+    return { text: "Keep Practicing!", stars: "★" };
   };
 
   const performance = getPerformanceMessage();
@@ -69,33 +68,44 @@ export default function ResultsScreen({
     <div className="mx-auto max-w-4xl">
       {/* Score Card */}
       <div className="mb-8 rounded-2xl border-2 bg-zinc-50 p-8 text-center dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
-        <div className="mb-4 text-4xl">{performance.stars}</div>
+        {/* Stars */}
+        <div className="mb-4 flex justify-center gap-1">
+          {Array.from({ length: performance.stars.length }).map((_, i) => (
+            <svg key={i} className="w-14 h-14" fill="none" stroke="#FACC15" strokeWidth={1.5} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5z" />
+            </svg>
+          ))}
+        </div>
         <h2 className="mb-2 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-brand-gold">
           {performance.text}
         </h2>
-        <p className="text-lg text-zinc-600 dark:text-zinc-400">
+        <p className="text-base text-zinc-500 dark:text-zinc-400 mb-6">
           You got {correctCount} out of {totalCount} correct
         </p>
 
-        {/* Score Display (Real Mode Only) */}
-        {mode === "real" && score !== undefined && (
-          <div className="mt-6">
-            <div className="mb-2 text-sm font-medium text-zinc-500 dark:text-zinc-400">
-              Final Score
-            </div>
-            <div className="text-5xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">
-              {score}%
-            </div>
+        {/* Stats Row */}
+        <div className="flex justify-center gap-8 mb-4">
+          <div className="flex flex-col items-center">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{answers.length}</span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Attempted</span>
           </div>
-        )}
+          <div className="flex flex-col items-center">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{correctCount}</span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Correct</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">
+              {answers.length > 0 ? Math.round((correctCount / answers.length) * 100) : 0}%
+            </span>
+            <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Accuracy</span>
+          </div>
+        </div>
 
-        {/* Time Display (Real Mode Only) */}
-        {mode === "real" && timeTaken !== undefined && (
-          <div className="mt-4">
-            <div className="text-sm text-zinc-500 dark:text-zinc-400">
-              Time Taken: {formatTime(timeTaken)}
-            </div>
-          </div>
+        {/* Duration */}
+        {timeTaken !== undefined && (
+          <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">
+            Duration : {formatTime(timeTaken)}
+          </p>
         )}
       </div>
 

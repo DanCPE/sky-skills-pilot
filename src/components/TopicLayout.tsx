@@ -23,14 +23,14 @@ export default function TopicLayout({
         {showBackLink && (
           <Link
             href="/sky-quest"
-            className="mb-8 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:text-brand-gold/80 dark:hover:text-brand-gold"
+            className="mb-8 inline-flex items-center gap-1 text-sm text-[#4F12A6] transition-colors hover:text-zinc-900 dark:text-brand-gold/80 dark:hover:text-brand-gold"
           >
             ← BACK TO EXAMS
           </Link>
         )}
 
         <div className="mb-10 text-center flex flex-col items-center">
-          <h1 className="text-4xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] dark:text-brand-gold uppercase">
+          <h1 className="text-[48px] font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-[#4F12A6] dark:text-brand-gold">
             {title}
           </h1>
           <p className="mt-2 text-base text-zinc-500 dark:text-zinc-400 max-w-2xl">

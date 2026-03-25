@@ -7,6 +7,7 @@ import Timer from "@/components/shared/Timer";
 import ProgressBar from "@/components/shared/ProgressBar";
 import QuizCompleteConfirmation from "@/components/aircraft-rotation/QuizCompleteConfirmation";
 import QuestionNavigator from "@/components/number-series/QuestionNavigator";
+import TopicLayout from "@/components/TopicLayout";
 import {
   SpatialOrientationQuizResponse,
   SpatialOrientationQuestion,
@@ -303,21 +304,28 @@ export default function RealMode({ quizData, onRestart }: RealModeProps) {
       <div className="flex-1 w-full max-w-[1200px] mx-auto p-4 sm:p-6 pt-12 sm:pt-16 mb-20 animate-in fade-in duration-700">
         <div className="flex flex-col gap-4">
           {isSubmitted && (
-            <div className="mb-2 text-center bg-white dark:bg-black/20 backdrop-blur-md p-8 rounded-2xl border-2 border-zinc-200 dark:border-white/5 shadow-xl shadow-zinc-200/50">
-              <h2 className="text-4xl font-black mb-2 text-zinc-900 dark:text-white">
-                Score: {calculateScore()}%
-              </h2>
-              <p className="font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest text-sm mb-6">
-                Completed in {Math.floor(totalTimeTaken / 60)}m{" "}
-                {totalTimeTaken % 60}s
-              </p>
-              <button
-                onClick={onRestart}
-                className="bg-[#4F12A6] hover:bg-[#4F12A6]/80 text-white px-10 py-4 rounded-xl font-black transition-all shadow-lg shadow-[#4F12A6]/20 active:scale-95 text-lg"
-              >
-                Play Again
-              </button>
-            </div>
+            <TopicLayout
+              title="Aircraft Rotation"
+              description="Calculate aircraft heading changes and visualize rotations."
+              showBackLink={false}
+              fullWidth={false}
+            >
+              <div className="mb-2 text-center bg-white dark:bg-black/20 backdrop-blur-md p-8 rounded-2xl border-2 border-zinc-200 dark:border-white/5 shadow-xl shadow-zinc-200/50">
+                <h2 className="text-4xl font-black mb-2 text-zinc-900 dark:text-white">
+                  Score: {calculateScore()}%
+                </h2>
+                <p className="font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest text-sm mb-6">
+                  Completed in {Math.floor(totalTimeTaken / 60)}m{" "}
+                  {totalTimeTaken % 60}s
+                </p>
+                <button
+                  onClick={onRestart}
+                  className="bg-[#4F12A6] hover:bg-[#4F12A6]/80 text-white px-10 py-4 rounded-xl font-black transition-all shadow-lg shadow-[#4F12A6]/20 active:scale-95 text-lg"
+                >
+                  Play Again
+                </button>
+              </div>
+            </TopicLayout>
           )}
 
           {/* Main Content Area (Two Columns) */}

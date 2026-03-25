@@ -7,6 +7,7 @@ import ProgressBar from "@/components/shared/ProgressBar";
 import QuestionCard from "./QuestionCard";
 import ExplanationCard from "./ExplanationCard";
 import ResultsScreen from "./ResultsScreen";
+import TopicLayout from "@/components/TopicLayout";
 import QuestionNavigator from "./QuestionNavigator";
 import QuizCompleteConfirmation from "./QuizCompleteConfirmation";
 import type {
@@ -301,14 +302,20 @@ export default function QuizInterface({
   // Show results screen when quiz is complete
   if (quizComplete) {
     return (
-      <ResultsScreen
-        questions={questions}
-        answers={answers}
-        mode={mode}
-        score={calculateScore()}
-        timeTaken={mode === "real" ? totalTimeTaken : undefined}
-        onRestart={onRestart}
-      />
+      <TopicLayout
+        title="Number Series"
+        description="Find the pattern in numerical sequences."
+        fullWidth={false}
+      >
+        <ResultsScreen
+          questions={questions}
+          answers={answers}
+          mode={mode}
+          score={calculateScore()}
+          timeTaken={mode === "real" ? totalTimeTaken : undefined}
+          onRestart={onRestart}
+        />
+      </TopicLayout>
     );
   }
 
