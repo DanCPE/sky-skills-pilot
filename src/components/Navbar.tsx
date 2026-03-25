@@ -23,7 +23,7 @@ export default function Navbar() {
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="flex h-16 items-center justify-between">
             {/* Logo */}
-            <Link href="/" className="flex items-center gap-2">
+            <Link href="/" className="flex flex-1 items-center gap-2">
               <Image
                 src="/images/icons/Logo from Google Drive.png"
                 alt="Sky Skills Logo"
@@ -60,7 +60,7 @@ export default function Navbar() {
             </div>
 
             {/* Desktop Actions */}
-            <div className="hidden sm:flex items-center gap-6">
+            <div className="hidden sm:flex flex-1 justify-end items-center gap-6">
               {/* Theme Toggle */}
               <button
                 type="button"

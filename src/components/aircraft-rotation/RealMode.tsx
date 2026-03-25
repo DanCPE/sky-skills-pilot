@@ -131,28 +131,28 @@ const QuestionRow = ({
       }`}
     >
       <div className="flex flex-col gap-5">
-        <div className="flex items-center justify-between mb-1">
-          <div className="flex items-center gap-3">
-            <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-300 uppercase tracking-widest">
-              Question {index + 1}
-            </h3>
-            {selectedAnswer && !isSubmitted && (
-              <span className="uppercase tracking-widest rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-black text-brand-purple">
-                Answered
-              </span>
-            )}
-            {isSubmitted && (
-              <span
-                className={`uppercase tracking-widest rounded-full border px-3 py-0.5 text-[10px] font-black ${
-                  isCorrect
-                    ? "bg-green-500/20 border-green-500/40 text-green-400"
-                    : "bg-red-500/20 border-red-500/40 text-red-400"
-                }`}
-              >
-                {isCorrect ? "Correct" : "Incorrect"}
-              </span>
+        {isSubmitted && (
+          <div className="absolute top-3 right-3">
+            {isCorrect ? (
+              <svg className="w-8 h-8 text-green-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75 11.25 15 15 9.75M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+              </svg>
+            ) : (
+              <svg className="w-8 h-8 text-red-500" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m9.75 9.75 4.5 4.5m0-4.5-4.5 4.5M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0z" />
+              </svg>
             )}
           </div>
+        )}
+        <div className="flex items-center">
+          <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-300">
+            Question {index + 1}
+          </h3>
+          {selectedAnswer && !isSubmitted && (
+            <span className="uppercase tracking-widest rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-black text-brand-purple">
+              Answered
+            </span>
+          )}
         </div>
 
         {/* Visual Sequence Box */}
@@ -208,7 +208,7 @@ const QuestionRow = ({
             if (isSubmitted) {
               if (isActuallyCorrect) {
                 btnStyle =
-                  "bg-green-500 text-white shadow-lg shadow-green-500/20 ring-2 ring-green-400 ring-offset-2 ring-offset-white dark:ring-offset-zinc-900 border-green-400";
+                  "bg-green-500 text-white shadow-lg shadow-green-500/20 border-transparent";
               } else if (isSelected && !isActuallyCorrect) {
                 btnStyle =
                   "bg-red-500 text-white shadow-lg shadow-red-500/20 border-red-400";
@@ -234,17 +234,6 @@ const QuestionRow = ({
           })}
         </div>
       </div>
-
-      {isSubmitted && !isCorrect && selectedAnswer !== null && (
-        <div className="mt-5 pt-4 border-t border-zinc-200 dark:border-white/10 flex items-center justify-center gap-2 text-sm">
-          <span className="font-black uppercase tracking-widest text-red-400">
-            Target was:
-          </span>
-          <span className="font-bold text-zinc-900 dark:text-white bg-zinc-200 dark:bg-white/10 px-3 py-1 rounded-md">
-            {question.correctAngle}° {question.correctDir}
-          </span>
-        </div>
-      )}
     </div>
   );
 };
@@ -299,35 +288,103 @@ export default function RealMode({ quizData, onRestart }: RealModeProps) {
     return Math.round((score / questions.length) * 100);
   };
 
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
+  };
+
+  if (isSubmitted) {
+    const correctCount = questions.filter(
+      (q) => answers[q.id] === `${q.correctAngle}${q.correctDir}`
+    ).length;
+    const attemptedCount = Object.keys(answers).length;
+    const percentage = Math.round((correctCount / questions.length) * 100);
+    const accuracy = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : 0;
+
+    const getPerformance = () => {
+      if (percentage >= 90) return { text: "Excellent!", starCount: 5 };
+      if (percentage >= 75) return { text: "Great Job!", starCount: 4 };
+      if (percentage >= 60) return { text: "Good Effort!", starCount: 3 };
+      if (percentage >= 40) return { text: "Keep Practicing!", starCount: 2 };
+      return { text: "Keep Practicing!", starCount: 1 };
+    };
+    const performance = getPerformance();
+
+    return (
+      <TopicLayout
+        title="Aircraft Rotation"
+        description="Calculate aircraft heading changes and visualize rotations."
+        fullWidth={false}
+      >
+        {/* Score Card */}
+        <div className="mb-8 rounded-2xl border-2 bg-zinc-50 p-8 text-center dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
+          <div className="mb-4 flex justify-center gap-1">
+            {Array.from({ length: performance.starCount }).map((_, i) => (
+              <svg key={i} className="w-14 h-14" fill="none" stroke="#FACC15" strokeWidth={1.5} viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5z" />
+              </svg>
+            ))}
+          </div>
+          <h2 className="mb-1 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-white">
+            {performance.text}
+          </h2>
+          <p className="text-base text-zinc-500 dark:text-zinc-400 mb-6">
+            You got {correctCount} out of {questions.length} correct
+          </p>
+          <div className="flex justify-center gap-8 mb-4">
+            <div className="flex flex-col items-center">
+              <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{attemptedCount}</span>
+              <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Attempted</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{correctCount}</span>
+              <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Correct</span>
+            </div>
+            <div className="flex flex-col items-center">
+              <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{accuracy}%</span>
+              <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Accuracy</span>
+            </div>
+          </div>
+          <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">
+            Duration : {formatTime(totalTimeTaken)}
+          </p>
+        </div>
+
+        {/* Review Section */}
+        <div className="mb-8">
+          <h3 className="text-xl font-bold text-zinc-900 dark:text-brand-gold mb-4">Review Your Answer</h3>
+          <div className="space-y-4">
+            {questions.map((q, idx) => (
+              <QuestionRow
+                key={q.id}
+                question={q}
+                index={idx}
+                selectedAnswer={answers[q.id] || null}
+                onSelect={() => {}}
+                isSubmitted={true}
+              />
+            ))}
+          </div>
+        </div>
+
+        {/* Action Buttons */}
+        <div className="flex justify-center">
+          <button
+            onClick={onRestart}
+            className="bg-[#4F12A6] hover:bg-[#4F12A6]/80 text-white px-10 py-4 rounded-xl font-black transition-all shadow-lg shadow-[#4F12A6]/20 active:scale-95 text-lg"
+          >
+            Play Again
+          </button>
+        </div>
+      </TopicLayout>
+    );
+  }
+
   return (
     <div className="bg-[#F1F5F9] dark:bg-transparent min-h-screen flex flex-col w-full">
       <div className="flex-1 w-full max-w-[1200px] mx-auto p-4 sm:p-6 pt-12 sm:pt-16 mb-20 animate-in fade-in duration-700">
         <div className="flex flex-col gap-4">
-          {isSubmitted && (
-            <TopicLayout
-              title="Aircraft Rotation"
-              description="Calculate aircraft heading changes and visualize rotations."
-              showBackLink={false}
-              fullWidth={false}
-            >
-              <div className="mb-2 text-center bg-white dark:bg-black/20 backdrop-blur-md p-8 rounded-2xl border-2 border-zinc-200 dark:border-white/5 shadow-xl shadow-zinc-200/50">
-                <h2 className="text-4xl font-black mb-2 text-zinc-900 dark:text-white">
-                  Score: {calculateScore()}%
-                </h2>
-                <p className="font-bold text-zinc-600 dark:text-zinc-400 uppercase tracking-widest text-sm mb-6">
-                  Completed in {Math.floor(totalTimeTaken / 60)}m{" "}
-                  {totalTimeTaken % 60}s
-                </p>
-                <button
-                  onClick={onRestart}
-                  className="bg-[#4F12A6] hover:bg-[#4F12A6]/80 text-white px-10 py-4 rounded-xl font-black transition-all shadow-lg shadow-[#4F12A6]/20 active:scale-95 text-lg"
-                >
-                  Play Again
-                </button>
-              </div>
-            </TopicLayout>
-          )}
-
           {/* Main Content Area (Two Columns) */}
           <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
             {/* Left Column: Header + Scrollable Questions */}

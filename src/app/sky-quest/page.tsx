@@ -152,7 +152,7 @@ export default function SkyQuestPage() {
         )}
 
         {/* Bottom Banner */}
-        <div className="mt-20">
+        {/* <div className="mt-20">
           <div className="mx-auto max-w-lg overflow-hidden rounded-3xl border border-zinc-100 dark:border-white/10 bg-white dark:bg-black/40 dark:backdrop-blur-md p-8 text-center shadow-2xl shadow-zinc-200/50">
             <div className="mb-4 relative w-16 h-16 mx-auto">
               <Image
@@ -179,7 +179,7 @@ export default function SkyQuestPage() {
               </span>
             </button>
           </div>
-        </div>
+        </div> */}
       </main>
 
       {/* Simple Footer */}
