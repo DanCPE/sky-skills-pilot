@@ -465,9 +465,6 @@ export default function QuizInterface({
                 </span>
               </div>
             </div>
-            <div className="text-2xl font-black text-zinc-900 dark:text-white/90 font-[family-name:var(--font-space-grotesk)]">
-              {answeredCount} / {questions.length} Answered
-            </div>
           </div>
 
           {/* Main Content Area (Two Columns) */}
@@ -582,18 +579,6 @@ export default function QuizInterface({
                 />
               </div>
 
-              {/* Submit Button */}
-              <button
-                onClick={handleSubmitClick}
-                disabled={isSubmitting || answeredCount === 0}
-                className={`mx-auto px-16 py-4 rounded-xl transition-all shadow-lg active:scale-95 font-[family-name:var(--font-space-grotesk)] text-[16px] font-bold leading-none ${
-                  isSubmitting || answeredCount === 0
-                    ? "bg-zinc-700 text-zinc-500 cursor-not-allowed"
-                    : "bg-amber-400 text-zinc-900 hover:bg-amber-500 shadow-amber-400/20"
-                }`}
-              >
-                {isSubmitting ? "Submitting..." : "Submit"}
-              </button>
             </div>
           </div>
 
@@ -620,6 +605,14 @@ export default function QuizInterface({
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
                 Exit
+              </button>
+            </div>
+            <div className="w-96 shrink-0 flex justify-center">
+              <button
+                onClick={handleSubmitClick}
+                className="px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
+              >
+                Submit
               </button>
             </div>
           </div>

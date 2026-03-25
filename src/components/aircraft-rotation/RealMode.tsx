@@ -429,20 +429,6 @@ export default function RealMode({ quizData, onRestart }: RealModeProps) {
                 />
               </div>
 
-              {/* Submit Button */}
-              {!isSubmitted && (
-                <button
-                  onClick={handleSubmitClick}
-                  disabled={isSubmitted || answeredCount === 0}
-                  className={`w-auto mx-auto px-16 py-3.5 rounded-xl transition-all shadow-lg active:scale-95 font-[family-name:var(--font-space-grotesk)] text-[16px] font-bold leading-none ${
-                    isSubmitted || answeredCount === 0
-                      ? "bg-zinc-700 text-zinc-500 cursor-not-allowed"
-                      : "bg-amber-400 text-zinc-900 hover:bg-amber-500 shadow-amber-400/20"
-                  }`}
-                >
-                  Submit
-                </button>
-              )}
             </div>
           </div>
 
@@ -469,6 +455,14 @@ export default function RealMode({ quizData, onRestart }: RealModeProps) {
                   <line x1="21" y1="12" x2="9" y2="12" />
                 </svg>
                 Exit
+              </button>
+            </div>
+            <div className="w-96 shrink-0 flex justify-center">
+              <button
+                onClick={handleSubmitClick}
+                className="px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
+              >
+                Submit
               </button>
             </div>
           </div>
