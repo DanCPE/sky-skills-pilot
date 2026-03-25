@@ -50,15 +50,15 @@ export default function QuestionCard({
         <div className="flex flex-wrap items-center justify-center gap-6">
           {question.sequence.map((num, index) => (
             <React.Fragment key={index}>
-              <span className="text-3xl md:text-4xl font-black text-zinc-900 dark:text-white font-[family-name:var(--font-space-grotesk)] tracking-tighter">
+              <span className="text-[40px] md:text-4xl font-semibold text-zinc-900 dark:text-white font-[family-name:var(--font-inter)] tracking-tighter">
                 {num}
               </span>
-              <span className="text-3xl md:text-4xl font-black text-black dark:text-zinc-600">
+              <span className="text-[40px] md:text-4xl font-semibold text-black dark:text-zinc-600">
                 ,
               </span>
             </React.Fragment>
           ))}
-          <span className="text-3xl md:text-4xl font-black text-zinc-900 dark:text-white font-[family-name:var(--font-space-grotesk)]">
+          <span className="text-[40px] md:text-4xl font-semibold text-zinc-900 dark:text-white font-[family-name:var(--font-inter)] tracking-tighter">
             ?
           </span>
         </div>
