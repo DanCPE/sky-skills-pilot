@@ -32,7 +32,7 @@ const AirplaneIcon = ({
     <svg
       viewBox="0 0 24 24"
       className="w-full h-full drop-shadow-lg"
-      style={{ filter: `drop-shadow(0 4px 6px rgba(0,0,0,0.3))` }}
+      style={{ filter: `drop-shadow(0 4px 6px rgba(0,0,0,0.3))`, transform: "translateX(1px)" }}
     >
       <path
         d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z"
@@ -119,7 +119,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
     // Animate through sequence
     let currentAnimHeading = roundData.initial;
     for (let i = 0; i < roundData.seq.length; i++) {
-      await new Promise((resolve) => setTimeout(resolve, 600));
+      await new Promise((resolve) => setTimeout(resolve, 900));
       const step = roundData.seq[i];
       let stepFactor = step.dir === "R" ? 1 : -1;
       currentAnimHeading =
@@ -168,9 +168,9 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
         </div>
       ) : (
         <div className="flex flex-col gap-6 lg:flex-row">
-        <div className="flex flex-col gap-6 w-full max-w-[1400px] mx-auto">
+        <div className="flex flex-col gap-3 w-full max-w-[1400px] mx-auto">
           {/* Header Bar */}
-          <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl px-10 pt-1 pb-2">
+          <div className="flex justify-between items-center bg-white dark:bg-transparent backdrop-blur-md border-2 border-zinc-200 dark:border-none rounded-2xl px-10 pt-1 pb-2">
             <div className="flex flex-col gap-0">
               <h1 className="text-[30px] font-bold text-zinc-900 dark:text-white tracking-tight">
                 Aircraft Rotation
@@ -181,13 +181,15 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                 </span>
               </div>
             </div>
-            <div className="text-[24px] font-bold font-[family-name:var(--font-inter)] text-zinc-900 dark:text-white/90">
-              Round {round}
+            <div className="flex flex-col items-end font-[family-name:var(--font-inter)]">
+              <span className="text-[24px] font-bold text-zinc-900 dark:text-white/90">Question {round}/{maxRounds}</span>
+              <span className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400">Correct : <span className="text-green-500">{score}</span></span>
+              <span className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400">Incorrect : <span className="text-red-500">{(round - 1) - score}</span></span>
             </div>
           </div>
 
           {/* Main Content Area (Two Columns) */}
-          <div className="grid grid-cols-1 lg:grid-cols-[1fr_20rem] gap-4 items-stretch">
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_20rem] gap-4 items-start">
             
             {/* Left: Main Visualizer */}
             <div className="bg-zinc-950/80 backdrop-blur-xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden flex-1 py-8 px-4 sm:px-10 flex flex-col items-center gap-4 relative h-full">
@@ -258,23 +260,10 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
             </div>
 
             {/* Right: Answer & Progress Column */}
-            <div className="w-full rounded-3xl border border-white/5 bg-zinc-950/80 backdrop-blur-xl p-6 flex flex-col gap-6 shadow-2xl h-full">
-              {/* Progress */}
-              <div className="flex flex-col gap-3">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-zinc-500 uppercase tracking-widest text-[10px]">
-                    Progress
-                  </span>
-                  <span className="text-lg font-bold font-[family-name:var(--font-space-grotesk)] text-brand-gold">
-                    {score}/{maxRounds}
-                  </span>
-                </div>
-                <ProgressBar current={round} total={maxRounds} compact />
-              </div>
-
+            <div className="w-full rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 flex flex-col gap-6 hover:shadow-xl transition-shadow">
               {/* Answers */}
-              <div className="flex-1 flex flex-col">
-                <h3 className="text-[10px] font-bold text-zinc-500 mb-4 uppercase tracking-widest text-center">
+              <div className="flex flex-col">
+                <h3 className="text-[20px] font-bold font-[family-name:var(--font-inter)] text-zinc-500 dark:text-zinc-300 mb-4 text-center">
                   Your Answer
                 </h3>
 
@@ -323,12 +312,12 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                   <button
                     onClick={handleSubmit}
                     disabled={selectedAngle === null || selectedDir === null}
-                    className="mt-auto w-full py-3.5 rounded-xl bg-white text-zinc-900 disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl font-[family-name:var(--font-space-grotesk)] text-[16px] font-bold leading-none"
+                    className="mt-4 w-full py-3.5 rounded-xl bg-white text-zinc-900 disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl font-[family-name:var(--font-space-grotesk)] text-[16px] font-bold leading-none"
                   >
                     Submit Route
                   </button>
                 ) : (
-                  <div className="mt-auto pt-4">
+                  <div className="mt-4 pt-4">
                     <div
                       className={`p-3 rounded-lg mb-3 text-center font-bold text-sm ${
                         isCorrect
@@ -350,10 +339,10 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
             </div>
           </div>
 
-          <div className="mt-4">
+          <div className="mt-0">
             <button
               onClick={onRestart}
-              className="group flex items-center gap-2 rounded-xl bg-zinc-200/60 px-5 py-2.5 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-300 dark:bg-zinc-800 dark:text-zinc-300 dark:hover:bg-zinc-700 w-max"
+              className="group flex items-center gap-2 rounded-xl bg-zinc-200/60 px-5 py-2.5 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-300 dark:bg-transparent dark:border-2 dark:text-zinc-300 dark:hover:bg-zinc-700 w-max"
             >
               <svg
                 width="16"
@@ -364,12 +353,13 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                 strokeWidth="2.5"
                 strokeLinecap="round"
                 strokeLinejoin="round"
-                className="transition-transform group-hover:-translate-x-1"
+                className="transition-transform group-hover:translate-x-0.5 duration-200"
               >
-                <path d="M9 14 4 9l5-5" />
-                <path d="M4 9h10.5a5.5 5.5 0 0 1 5.5 5.5v0a5.5 5.5 0 0 1-5.5 5.5H11" />
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
               </svg>
-              Exit
+              Change Mode
             </button>
           </div>
         </div>

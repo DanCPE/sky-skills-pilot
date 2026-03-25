@@ -20,6 +20,7 @@ export default function SpatialOrientationPage() {
       title="Aircraft Rotation"
       description="Calculate aircraft heading changes and visualize rotations."
       fullWidth={true}
+      showBackLink={!quizData}
     >
       {!quizData ? (
         <ModeSelection onStart={setQuizData} />
