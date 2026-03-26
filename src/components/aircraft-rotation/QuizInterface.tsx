@@ -331,7 +331,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                     Aircraft Rotation
                   </h1>
                   <div className="flex items-center gap-2">
-                    <span className="uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                    <span className="font-family:var(--font-inter) uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
                       REAL MODE
                     </span>
                   </div>

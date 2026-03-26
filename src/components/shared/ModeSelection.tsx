@@ -146,7 +146,7 @@ export default function ModeSelection<T>({
               {learnIcon ?? <LearnIcon />}
             </div>
             <div>
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className="font-[family-name:var(--font-inter)] text-lg font-bold text-zinc-900 dark:text-zinc-100">
                 Learn Mode
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -174,7 +174,7 @@ export default function ModeSelection<T>({
               {realIcon ?? <RealIcon />}
             </div>
             <div>
-              <h3 className="text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className=" font-[family-name:var(--font-inter)] text-lg font-bold text-zinc-900 dark:text-zinc-100">
                 Real Mode
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
