@@ -2,7 +2,7 @@
 
 import Timer from "./Timer";
 import ProgressBar from "./ProgressBar";
-import QuestionNavigator from "@/components/number-series/QuestionNavigator";
+import QuestionNavigator from "./QuestionNavigator";
 
 interface QuizSidebarProps {
   // Timer
