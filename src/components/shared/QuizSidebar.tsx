@@ -47,11 +47,11 @@ export default function QuizSidebar({
       {/* Timer & Progress Panel */}
       <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <span className="font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
+          <span className="font-bold text-zinc-500 dark:text-zinc-300 tracking-widest text-[16px]">
             Time Remaining
           </span>
           {timeLimit ? (
-            <div className="text-xl font-black text-white font-[family-name:var(--font-space-grotesk)]">
+            <div className="text-xl font-black text-white font-[family-name:var(--font-inter)]">
               <Timer
                 timeLimit={timeLimit}
                 onTimeUp={onTimeUp ?? (() => {})}
@@ -74,7 +74,7 @@ export default function QuizSidebar({
             compact
           />
           {showProgressText && (
-            <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest">
+            <div className="flex justify-between text-[12px] font-black text-zinc-500 uppercase tracking-widest">
               <span>
                 Progress: {Math.round((answeredCount / totalQuestions) * 100)}%
                 Complete
@@ -88,8 +88,8 @@ export default function QuizSidebar({
       </div>
 
       {/* Question Navigator Panel */}
-      <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow">
-        <h3 className="mb-2 font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
+      <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-4 hover:shadow-xl transition-shadow">
+        <h3 className="mb-3 font-bold text-zinc-500 dark:text-zinc-300 tracking-widest text-[16px]">
           Question Navigator
         </h3>
         <QuestionNavigator
@@ -104,7 +104,7 @@ export default function QuizSidebar({
       {/* Submit Button */}
       <button
         onClick={onSubmit}
-        className="w-full px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
+        className="mx-auto px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-inter)] text-[16px] font-bold leading-none"
       >
         Submit
       </button>

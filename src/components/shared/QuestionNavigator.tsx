@@ -56,7 +56,7 @@ export default function QuestionNavigator({
         ))}
       </div>
 
-      <div className="flex gap-6 text-[10px] font-black text-zinc-400 tracking-widest uppercase">
+      <div className="font-[family-name:var(--font-inter)] flex gap-6 text-[10px] font-bold text-black dark:text-white tracking-widest uppercase">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-[#4F12A6]"></div>
           <span>DONE</span>
