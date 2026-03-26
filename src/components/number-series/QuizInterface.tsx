@@ -8,6 +8,7 @@ import ResultsScreen from "./ResultsScreen";
 import TopicLayout from "@/components/TopicLayout";
 import QuizCompleteConfirmation from "./QuizCompleteConfirmation";
 import QuizSidebar from "@/components/shared/QuizSidebar";
+import QuizFooterNav from "@/components/shared/QuizFooterNav";
 import type {
   NumberSeriesQuizResponse,
   NumberSeriesSubmitResult,
@@ -417,66 +418,26 @@ export default function QuizInterface({
           />
 
           {/* Bottom Navigation Bar */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 flex gap-3">
-              <button
-                onClick={() => router.back()}
-                className="flex items-center gap-2 px-4 py-3 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 font-bold text-sm hover:text-zinc-900 dark:hover:text-white hover:border-zinc-300 dark:hover:border-white/20 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-                Exit
-              </button>
-              <button
-                onClick={() => {
-                  setShowExplanation(false);
-                  setSelectedAnswer(null);
-                  setCurrentResult(null);
-                  setCurrentQuestionIndex((prev) => Math.max(0, prev - 1));
-                }}
-                disabled={currentQuestionIndex === 0}
-                className="px-8 py-3 rounded-xl bg-white dark:bg-white/5 border border-[#E0E0E0] dark:border-white/10 text-zinc-700 dark:text-white font-bold text-sm hover:bg-zinc-50 dark:hover:bg-white/10 disabled:opacity-30 disabled:cursor-not-allowed transition-all"
-              >
-                Previous
-              </button>
-              <div className="flex-1" /> {/* Spacer */}
-              <div className="flex gap-3">
-                <button
-                  onClick={handleSkip}
-                  className="px-10 py-3 rounded-xl bg-white dark:bg-white/5 border border-[#E0E0E0] dark:border-white/10 text-zinc-700 dark:text-white font-bold text-sm hover:bg-zinc-50 dark:hover:bg-white/10 transition-all"
-                >
-                  Skip
-                </button>
-                <button
-                  onClick={() => {
-                    setShowExplanation(false);
-                    setSelectedAnswer(null);
-                    setCurrentResult(null);
-                    setCurrentQuestionIndex((prev) =>
-                      Math.min(questions.length - 1, prev + 1),
-                    );
-                  }}
-                  disabled={currentQuestionIndex === questions.length - 1}
-                  className="px-12 py-3 rounded-xl bg-[#4F12A6] text-white font-bold text-sm hover:opacity-90 disabled:opacity-30 disabled:cursor-not-allowed transition-all shadow-lg shadow-[#4F12A6]/20"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
+          <QuizFooterNav
+            onExit={() => router.back()}
+            onPrevious={() => {
+              setShowExplanation(false);
+              setSelectedAnswer(null);
+              setCurrentResult(null);
+              setCurrentQuestionIndex((prev) => Math.max(0, prev - 1));
+            }}
+            previousDisabled={currentQuestionIndex === 0}
+            onSkip={handleSkip}
+            onNext={() => {
+              setShowExplanation(false);
+              setSelectedAnswer(null);
+              setCurrentResult(null);
+              setCurrentQuestionIndex((prev) =>
+                Math.min(questions.length - 1, prev + 1),
+              );
+            }}
+            nextDisabled={currentQuestionIndex === questions.length - 1}
+          />
         </div>
       </div>
 

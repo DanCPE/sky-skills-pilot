@@ -7,6 +7,7 @@ import QuizCompleteConfirmation from "@/components/aircraft-rotation/QuizComplet
 import TopicLayout from "@/components/TopicLayout";
 import SharedResultsScreen from "@/components/shared/ResultsScreen";
 import QuizSidebar from "@/components/shared/QuizSidebar";
+import QuizFooterNav from "@/components/shared/QuizFooterNav";
 import {
   SpatialOrientationQuizResponse,
   SpatialOrientationQuestion,
@@ -387,31 +388,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
           </div>
 
           {/* Bottom Navigation Bar */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex-1 flex gap-3">
-              <button
-                onClick={() => router.back()}
-                className="flex items-center gap-2 px-4 py-3.5 rounded-xl bg-zinc-100 dark:bg-white/5 border border-zinc-200 dark:border-white/10 text-zinc-600 dark:text-zinc-400 font-bold text-sm hover:text-zinc-900 dark:hover:text-white hover:border-zinc-300 dark:hover:border-white/20 hover:bg-zinc-200 dark:hover:bg-white/10 transition-all"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="15"
-                  height="15"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-                  <polyline points="16 17 21 12 16 7" />
-                  <line x1="21" y1="12" x2="9" y2="12" />
-                </svg>
-                Exit
-              </button>
-            </div>
-          </div>
+          <QuizFooterNav onExit={() => router.back()} />
         </div>
       </div>
 
