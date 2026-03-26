@@ -2,13 +2,11 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Timer from "@/components/shared/Timer";
-import ProgressBar from "@/components/shared/ProgressBar";
 import QuestionCard from "./QuestionCard";
 import ExplanationCard from "./ExplanationCard";
 import ResultsScreen from "./ResultsScreen";
-import QuestionNavigator from "@/components/number-series/QuestionNavigator";
 import QuizCompleteConfirmation from "@/components/number-series/QuizCompleteConfirmation";
+import QuizSidebar from "@/components/shared/QuizSidebar";
 import type {
   ScanningPracticeQuizResponse,
   ScanningPracticeSubmitResult,
@@ -335,56 +333,18 @@ export default function QuizInterface({
                 )}
               </div>
 
-              {/* Right Column: Sidebar Panels */}
-              <div className="flex flex-col gap-4">
-                {/* Timer & Progress Panel */}
-                <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex flex-col gap-6">
-                  <div className="flex items-center justify-between">
-                    <span className="font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
-                      Time Remaining
-                    </span>
-                    <span className="text-xl font-black text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
-                      --:--
-                    </span>
-                  </div>
-                  <div className="space-y-2">
-                    <ProgressBar
-                      current={currentQuestionIndex + 1}
-                      total={questions.length}
-                      compact
-                    />
-                    <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                      <span>
-                        Progress:{" "}
-                        {Math.round(
-                          ((currentQuestionIndex + 1) / questions.length) * 100,
-                        )}
-                        % Complete
-                      </span>
-                      <span>
-                        {currentQuestionIndex + 1} of {questions.length}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Question Navigator Panel */}
-                <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex-1">
-                  <h3 className="mb-2 font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
-                    Question Navigator
-                  </h3>
-                  <QuestionNavigator
-                    totalQuestions={questions.length}
-                    currentIndex={currentQuestionIndex}
-                    answeredIndices={answeredQuestionIndices}
-                    skippedIndices={new Set()}
-                    onSelectQuestion={(index) => {
-                      if (isSubmitting || showExplanation) return;
-                      setCurrentQuestionIndex(index);
-                    }}
-                  />
-                </div>
-              </div>
+              {/* Right Column: Sidebar (learn mode — no timer, no submit) */}
+              <QuizSidebar
+                answeredCount={currentQuestionIndex + 1}
+                totalQuestions={questions.length}
+                currentIndex={currentQuestionIndex}
+                answeredIndices={answeredQuestionIndices}
+                onSelectQuestion={(index) => {
+                  if (isSubmitting || showExplanation) return;
+                  setCurrentQuestionIndex(index);
+                }}
+                onSubmit={handleSubmitClick}
+              />
             </div>
 
             {/* Bottom Navigation Bar */}
@@ -511,83 +471,25 @@ export default function QuizInterface({
             </div>
           </div>
 
-          {/* Right Column: Sidebar Panels */}
-            <div className="flex flex-col gap-4">
-              {/* Timer & Progress Panel */}
-              <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex flex-col gap-6">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
-                    Time Remaining
-                  </span>
-                  {timeLimit ? (
-                    <div className="text-xl font-black text-white font-[family-name:var(--font-space-grotesk)]">
-                      <Timer
-                        timeLimit={timeLimit}
-                        onTimeUp={handleTimeUp}
-                        isPaused={quizComplete || showConfirmation}
-                        compact
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-xl font-black text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
-                      --:--
-                    </span>
-                  )}
-                </div>
-                <div className="space-y-2">
-                  <ProgressBar
-                    current={answeredCount}
-                    total={questions.length}
-                    score={calculateScore()}
-                    compact
-                  />
-                  <div className="flex justify-between text-[10px] font-black text-zinc-500 uppercase tracking-widest">
-                    <span>
-                      Progress:{" "}
-                      {Math.round((answeredCount / questions.length) * 100)}%
-                      Complete
-                    </span>
-                    <span>
-                      {answeredCount} of {questions.length}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Question Navigator Panel */}
-              <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow">
-                <h3 className="mb-2 font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
-                  Question Navigator
-                </h3>
-                <QuestionNavigator
-                  totalQuestions={questions.length}
-                  currentIndex={currentQuestionIndex}
-                  answeredIndices={answeredSet}
-                  skippedIndices={new Set()}
-                  onSelectQuestion={(index) => {
-                    const element = document.getElementById(
-                      `question-${index}`,
-                    );
-                    if (element) {
-                      element.scrollIntoView({
-                        behavior: "smooth",
-                        block: "center",
-                      });
-                    }
-                    setCurrentQuestionIndex(index);
-                  }}
-                />
-              </div>
-
-              {/* Submit Button */}
-              <button
-                onClick={handleSubmitClick}
-                className="w-full px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
-              >
-                Submit
-              </button>
-
-            </div>
+          {/* Right Column: Sidebar (real mode) */}
+          <QuizSidebar
+            timeLimit={timeLimit}
+            onTimeUp={handleTimeUp}
+            isPaused={quizComplete || showConfirmation}
+            answeredCount={answeredCount}
+            totalQuestions={questions.length}
+            score={calculateScore()}
+            currentIndex={currentQuestionIndex}
+            answeredIndices={answeredSet}
+            onSelectQuestion={(index) => {
+              const element = document.getElementById(`question-${index}`);
+              if (element) {
+                element.scrollIntoView({ behavior: "smooth", block: "center" });
+              }
+              setCurrentQuestionIndex(index);
+            }}
+            onSubmit={handleSubmitClick}
+          />
           </div>
 
           {/* Bottom Navigation Bar */}

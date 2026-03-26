@@ -2,14 +2,12 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import Timer from "@/components/shared/Timer";
-import ProgressBar from "@/components/shared/ProgressBar";
 import QuestionCard from "./QuestionCard";
 import ExplanationCard from "./ExplanationCard";
 import ResultsScreen from "./ResultsScreen";
 import TopicLayout from "@/components/TopicLayout";
-import QuestionNavigator from "./QuestionNavigator";
 import QuizCompleteConfirmation from "./QuizCompleteConfirmation";
+import QuizSidebar from "@/components/shared/QuizSidebar";
 import type {
   NumberSeriesQuizResponse,
   NumberSeriesSubmitResult,
@@ -395,72 +393,28 @@ export default function QuizInterface({
             </div>
           </div>
 
-          {/* Right Column: Sidebar Panels */}
-          <div className="flex flex-col gap-4">
-              {/* Timer & Progress Panel */}
-              <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex flex-col gap-6">
-                <div className="flex items-center justify-between">
-                  <span className="font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
-                    Time Remaining
-                  </span>
-                  {mode === "real" && timeLimit ? (
-                    <div className="text-xl font-black text-white font-[family-name:var(--font-space-grotesk)]">
-                      <Timer
-                        timeLimit={timeLimit}
-                        onTimeUp={handleTimeUp}
-                        isPaused={quizComplete || showConfirmation}
-                        compact
-                      />
-                    </div>
-                  ) : (
-                    <span className="text-xl font-black text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
-                      --:--
-                    </span>
-                  )}
-                </div>
-
-                <div className="space-y-2">
-                  <ProgressBar
-                    current={currentQuestionIndex + 1}
-                    total={questions.length}
-                    score={mode === "real" ? calculateScore() : undefined}
-                    compact
-                  />
-                </div>
-              </div>
-
-              {/* Question Navigator Panel */}
-              <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow">
-                <h3 className="mb-2 font-bold text-zinc-500 dark:text-zinc-300 uppercase tracking-widest text-xs">
-                  Question Navigator
-                </h3>
-                <QuestionNavigator
-                  totalQuestions={questions.length}
-                  currentIndex={currentQuestionIndex}
-                  answeredIndices={answeredQuestionIndices}
-                  skippedIndices={skippedIndicesSet}
-                  onSelectQuestion={(index) => {
-                    if (
-                      isSubmitting ||
-                      (mode === "real" && currentResult !== null)
-                    )
-                      return;
-                    setShowExplanation(false);
-                    setSelectedAnswer(null);
-                    setCurrentResult(null);
-                    setCurrentQuestionIndex(index);
-                  }}
-                />
-              </div>
-
-              {/* Submit Button */}
-              <button
-                onClick={handleSubmitClick}
-                className="w-full px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-space-grotesk)] text-sm font-bold leading-none"
-              >
-                Submit
-              </button>
-          </div>
+          {/* Right Column: Sidebar */}
+          <QuizSidebar
+            timeLimit={mode === "real" ? timeLimit : undefined}
+            onTimeUp={handleTimeUp}
+            isPaused={quizComplete || showConfirmation}
+            answeredCount={currentQuestionIndex + 1}
+            totalQuestions={questions.length}
+            score={mode === "real" ? calculateScore() : undefined}
+            showProgressText={false}
+            currentIndex={currentQuestionIndex}
+            answeredIndices={answeredQuestionIndices}
+            skippedIndices={skippedIndicesSet}
+            onSelectQuestion={(index) => {
+              if (isSubmitting || (mode === "real" && currentResult !== null))
+                return;
+              setShowExplanation(false);
+              setSelectedAnswer(null);
+              setCurrentResult(null);
+              setCurrentQuestionIndex(index);
+            }}
+            onSubmit={handleSubmitClick}
+          />
 
           {/* Bottom Navigation Bar */}
           <div className="flex items-center justify-between gap-4">
