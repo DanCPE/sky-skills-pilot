@@ -8,6 +8,7 @@ import ProgressBar from "@/components/shared/ProgressBar";
 import QuizCompleteConfirmation from "@/components/aircraft-rotation/QuizCompleteConfirmation";
 import QuestionNavigator from "@/components/number-series/QuestionNavigator";
 import TopicLayout from "@/components/TopicLayout";
+import SharedResultsScreen from "@/components/shared/ResultsScreen";
 import {
   SpatialOrientationQuizResponse,
   SpatialOrientationQuestion,
@@ -288,72 +289,27 @@ export default function RealMode({ quizData, onRestart }: RealModeProps) {
     return Math.round((score / questions.length) * 100);
   };
 
-  const formatTime = (seconds: number) => {
-    const mins = Math.floor(seconds / 60);
-    const secs = seconds % 60;
-    return `${mins}:${secs.toString().padStart(2, "0")}`;
-  };
-
   if (isSubmitted) {
-    const correctCount = questions.filter(
-      (q) => answers[q.id] === `${q.correctAngle}${q.correctDir}`
-    ).length;
-    const attemptedCount = Object.keys(answers).length;
-    const percentage = Math.round((correctCount / questions.length) * 100);
-    const accuracy = attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : 0;
-
-    const getPerformance = () => {
-      if (percentage >= 90) return { text: "Excellent!", starCount: 5 };
-      if (percentage >= 75) return { text: "Great Job!", starCount: 4 };
-      if (percentage >= 60) return { text: "Good Effort!", starCount: 3 };
-      if (percentage >= 40) return { text: "Keep Practicing!", starCount: 2 };
-      return { text: "Keep Practicing!", starCount: 1 };
-    };
-    const performance = getPerformance();
-
     return (
       <TopicLayout
         title="Aircraft Rotation"
         description="Calculate aircraft heading changes and visualize rotations."
         fullWidth={false}
       >
-        {/* Score Card */}
-        <div className="mb-8 rounded-2xl border-2 bg-zinc-50 p-8 text-center dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
-          <div className="mb-4 flex justify-center gap-1">
-            {Array.from({ length: performance.starCount }).map((_, i) => (
-              <svg key={i} className="w-14 h-14" fill="none" stroke="#FACC15" strokeWidth={1.5} viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 0 1 1.04 0l2.125 5.111a.563.563 0 0 0 .475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 0 0-.182.557l1.285 5.385a.562.562 0 0 1-.84.61l-4.725-2.885a.562.562 0 0 0-.586 0L6.982 20.54a.562.562 0 0 1-.84-.61l1.285-5.386a.562.562 0 0 0-.182-.557l-4.204-3.602a.562.562 0 0 1 .321-.988l5.518-.442a.563.563 0 0 0 .475-.345L11.48 3.5z" />
-              </svg>
-            ))}
-          </div>
-          <h2 className="mb-1 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-white">
-            {performance.text}
-          </h2>
-          <p className="text-base text-zinc-500 dark:text-zinc-400 mb-6">
-            You got {correctCount} out of {questions.length} correct
-          </p>
-          <div className="flex justify-center gap-8 mb-4">
-            <div className="flex flex-col items-center">
-              <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{attemptedCount}</span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Attempted</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{correctCount}</span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Correct</span>
-            </div>
-            <div className="flex flex-col items-center">
-              <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">{accuracy}%</span>
-              <span className="text-sm text-zinc-500 dark:text-zinc-400 mt-1">Accuracy</span>
-            </div>
-          </div>
-          <p className="text-sm font-bold text-zinc-700 dark:text-zinc-300">
-            Duration : {formatTime(totalTimeTaken)}
-          </p>
-        </div>
-
-        {/* Review Section */}
-        <div className="mb-8">
-          <h3 className="text-xl font-bold text-zinc-900 dark:text-brand-gold mb-4">Review Your Answer</h3>
+        <SharedResultsScreen
+          totalCount={questions.length}
+          answers={questions.map((q) => ({
+            isCorrect: answers[q.id] === `${q.correctAngle}${q.correctDir}`,
+            answer: answers[q.id],
+          }))}
+          timeTaken={totalTimeTaken}
+          onRestart={onRestart}
+          restartLabel="Play Again"
+          showBackButton={false}
+        >
+          <h3 className="mb-4 text-xl font-bold text-zinc-900 dark:text-brand-gold">
+            Review Your Answer
+          </h3>
           <div className="space-y-4">
             {questions.map((q, idx) => (
               <QuestionRow
@@ -366,17 +322,7 @@ export default function RealMode({ quizData, onRestart }: RealModeProps) {
               />
             ))}
           </div>
-        </div>
-
-        {/* Action Buttons */}
-        <div className="flex justify-center">
-          <button
-            onClick={onRestart}
-            className="bg-[#4F12A6] hover:bg-[#4F12A6]/80 text-white px-10 py-4 rounded-xl font-black transition-all shadow-lg shadow-[#4F12A6]/20 active:scale-95 text-lg"
-          >
-            Play Again
-          </button>
-        </div>
+        </SharedResultsScreen>
       </TopicLayout>
     );
   }
