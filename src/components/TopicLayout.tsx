@@ -23,9 +23,9 @@ export default function TopicLayout({
         {showBackLink && (
           <Link
             href="/sky-quest"
-            className="mb-8 inline-flex items-center gap-1 text-sm text-[#4F12A6] transition-colors hover:text-zinc-900 dark:text-brand-gold/80 dark:hover:text-brand-gold"
+            className="mb-8 ml-32 inline-flex items-center gap-1 text-sm text-[#4F12A6] transition-colors hover:text-zinc-900 dark:text-brand-gold/80 dark:hover:text-brand-gold"
           >
-            ← BACK TO EXAMS
+            ← BACK TO QUESTS
           </Link>
         )}
 
