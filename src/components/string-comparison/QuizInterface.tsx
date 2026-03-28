@@ -405,7 +405,7 @@ export default function QuizInterface({
                     }`}
                   >
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-300 uppercase tracking-widest">
+                      <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-300 tracking-widest">
                         Question {index + 1}
                       </h3>
                       {selectedAnswers[index] && (
