@@ -35,7 +35,7 @@ export default function QuizSidebar({
   score,
   currentIndex,
   answeredIndices,
-  skippedIndices = new Set(),
+  skippedIndices,
   onSelectQuestion,
   onSubmit,
 }: QuizSidebarProps) {

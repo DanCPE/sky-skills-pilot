@@ -4,7 +4,7 @@ interface QuestionNavigatorProps {
   totalQuestions: number;
   currentIndex: number;
   answeredIndices: Set<number>;
-  skippedIndices: Set<number>;
+  skippedIndices?: Set<number>;
   onSelectQuestion: (index: number) => void;
 }
 
@@ -17,7 +17,7 @@ export default function QuestionNavigator({
 }: QuestionNavigatorProps) {
   const getQuestionStatus = (index: number) => {
     if (answeredIndices.has(index)) return "answered";
-    if (skippedIndices.has(index)) return "skipped";
+    if (skippedIndices?.has(index)) return "skipped";
     return "pending";
   };
 
@@ -61,10 +61,12 @@ export default function QuestionNavigator({
           <div className="h-2 w-2 rounded-full bg-[#4F12A6]"></div>
           <span>DONE</span>
         </div>
-        <div className="flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-amber-400"></div>
-          <span>SKIP</span>
-        </div>
+        {skippedIndices !== undefined && (
+          <div className="flex items-center gap-2">
+            <div className="h-2 w-2 rounded-full bg-amber-400"></div>
+            <span>SKIP</span>
+          </div>
+        )}
       </div>
     </div>
   );
