@@ -22,8 +22,8 @@
   }
 
   .dark body {
-    background: 
-      radial-gradient(circle at 20% 50%, rgba(79, 18, 166, 0.4) 0%, transparent 65%),
+    background:
+      radial-gradient(circle at 15% 35%, rgba(79, 18, 166, 0.25) 0%, transparent 65%),
       radial-gradient(circle at 80% 40%, rgba(250, 204, 21, 0.12) 0%, transparent 60%),
       #000000;
     background-attachment: fixed;
