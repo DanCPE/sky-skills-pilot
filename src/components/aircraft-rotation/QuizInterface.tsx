@@ -254,7 +254,6 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
     questions.map((q, i) => (answers[q.id] ? i : -1)).filter((i) => i !== -1),
   );
 
-  const skippedSet = new Set<number>();
 
   const handleTimeUp = () => {
     handleSubmitQuiz();
@@ -373,7 +372,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
               totalQuestions={questions.length}
               currentIndex={currentQuestionIndex}
               answeredIndices={answeredSet}
-              skippedIndices={skippedSet}
+
               onSelectQuestion={(index) => {
                 const element = document.getElementById(
                   `question-${questions[index].id}`,

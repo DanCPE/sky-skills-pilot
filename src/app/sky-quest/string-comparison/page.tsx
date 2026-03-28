@@ -11,17 +11,19 @@ export default function ScanningPracticePage() {
     null,
   );
 
+  if (quizData) {
+    return (
+      <QuizInterface quizData={quizData} onRestart={() => setQuizData(null)} />
+    );
+  }
+
   return (
     <TopicLayout
       title="String Comparison"
       description="Quickly compare alphanumeric strings and identify differences."
       fullWidth={true}
     >
-      {!quizData ? (
-        <ModeSelection onStart={setQuizData} />
-      ) : (
-        <QuizInterface quizData={quizData} onRestart={() => setQuizData(null)} />
-      )}
+      <ModeSelection onStart={setQuizData} />
     </TopicLayout>
   );
 }

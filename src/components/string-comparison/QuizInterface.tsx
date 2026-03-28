@@ -318,24 +318,25 @@ export default function QuizInterface({
                 />
               )}
 
-              <QuizFooterNav
-                onExit={() => router.back()}
-                onPrevious={() => {
-                  setShowExplanation(false);
-                  setCurrentResult(null);
-                  setCurrentQuestionIndex((prev) => Math.max(0, prev - 1));
-                }}
-                previousDisabled={currentQuestionIndex === 0}
-  
-                onNext={() => {
-                  setShowExplanation(false);
-                  setCurrentResult(null);
-                  setCurrentQuestionIndex((prev) =>
-                    Math.min(questions.length - 1, prev + 1),
-                  );
-                }}
-                nextDisabled={currentQuestionIndex === questions.length - 1}
-              />
+              <div className="pt-8">
+                <QuizFooterNav
+                  onExit={() => router.back()}
+                  onPrevious={() => {
+                    setShowExplanation(false);
+                    setCurrentResult(null);
+                    setCurrentQuestionIndex((prev) => Math.max(0, prev - 1));
+                  }}
+                  previousDisabled={currentQuestionIndex === 0}
+                  onNext={() => {
+                    setShowExplanation(false);
+                    setCurrentResult(null);
+                    setCurrentQuestionIndex((prev) =>
+                      Math.min(questions.length - 1, prev + 1),
+                    );
+                  }}
+                  nextDisabled={currentQuestionIndex === questions.length - 1}
+                />
+              </div>
             </div>
 
             {/* Right Column: Sidebar (learn mode — no timer, no submit) */}
@@ -453,7 +454,9 @@ export default function QuizInterface({
           </div>
 
           {/* Bottom Navigation Bar */}
-          <QuizFooterNav onExit={() => router.back()} />
+          <div className="mt-6">
+            <QuizFooterNav onExit={() => router.back()} />
+          </div>
         </div>
       {/* for push deployment */}
       {/* Confirmation Modal */}
