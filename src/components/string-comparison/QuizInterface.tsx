@@ -159,17 +159,6 @@ export default function QuizInterface({
     }
   };
 
-  // Move to next question (learn mode only)
-  const moveToNextQuestion = () => {
-    setShowExplanation(false);
-    setCurrentResult(null);
-
-    if (currentQuestionIndex < questions.length - 1) {
-      setCurrentQuestionIndex((prev) => prev + 1);
-    } else {
-      setQuizComplete(true);
-    }
-  };
 
   // Calculate final score (real mode only)
   const calculateScore = () => {
@@ -290,82 +279,85 @@ export default function QuizInterface({
   // LEARN MODE: Single question with explanation
   if (mode === "learn") {
     const currentQuestion = questions[currentQuestionIndex];
-    const isLastQuestion = currentQuestionIndex === questions.length - 1;
 
     return (
       <div className="bg-[#F1F5F9] dark:bg-transparent min-h-screen flex flex-col w-full">
         <div className="flex-1 w-full max-w-[1200px] mx-auto p-4 sm:p-6 pt-12 sm:pt-16 mb-20 animate-in fade-in duration-700">
-          <div className="flex flex-col gap-4">
-            {/* Top Header Panel */}
-            <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl px-10 pt-2 pb-4">
-              <div className="flex flex-col gap-1">
-                <h1 className="text-[30px] font-bold text-zinc-900 dark:text-white tracking-tight">
-                  String Comparison
-                </h1>
-                <div className="flex items-center gap-2">
-                  <span className="font-[family-name:var(--font-inter)] uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
-                    LEARN MODE
-                  </span>
+          {/* Main Content Area (Two Columns) */}
+          <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
+            {/* Left Column: Header + Question Card + Explanation + Nav */}
+            <div className="flex flex-col gap-4">
+              {/* Top Header Panel */}
+              <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl px-10 pt-2 pb-4">
+                <div className="flex flex-col gap-1">
+                  <h1 className="text-[30px] font-bold text-zinc-900 dark:text-white tracking-tight">
+                    String Comparison
+                  </h1>
+                  <div className="flex items-center gap-2">
+                    <span className="font-[family-name:var(--font-inter)] uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                      LEARN MODE
+                    </span>
+                  </div>
+                </div>
+                <div className="text-[24px] font-bold text-zinc-900 dark:text-white/90 font-[family-name:var(--font-inter)]">
+                  Question {currentQuestionIndex + 1}
                 </div>
               </div>
-              <div className="text-[24px] font-bold text-zinc-900 dark:text-white/90 font-[family-name:var(--font-inter)]">
-                Question {currentQuestionIndex + 1}
-              </div>
-            </div>
 
-            {/* Main Content Area (Two Columns) */}
-            <div className="grid grid-cols-1 lg:grid-cols-[1fr_24rem] gap-4">
-              {/* Left Column: Question Card + Explanation */}
-              <div className="flex flex-col gap-4">
-                <QuestionCard
+              <QuestionCard
+                question={currentQuestion}
+                onAnswer={handleLearnAnswer}
+                disabled={isSubmitting || showExplanation}
+                selectedAnswer={undefined}
+                showResult={false}
+              />
+              {showExplanation && currentResult && (
+                <ExplanationCard
                   question={currentQuestion}
-                  onAnswer={handleLearnAnswer}
-                  disabled={isSubmitting || showExplanation}
-                  selectedAnswer={undefined}
-                  showResult={false}
+                  result={currentResult}
                 />
-                {showExplanation && currentResult && (
-                  <ExplanationCard
-                    question={currentQuestion}
-                    result={currentResult}
-                    onNext={moveToNextQuestion}
-                    isLastQuestion={isLastQuestion}
-                  />
-                )}
-              </div>
+              )}
 
-              {/* Right Column: Sidebar (learn mode — no timer, no submit) */}
-              <QuizSidebar
-                answeredCount={currentQuestionIndex + 1}
-                totalQuestions={questions.length}
-                currentIndex={currentQuestionIndex}
-                answeredIndices={answeredQuestionIndices}
-                onSelectQuestion={(index) => {
-                  if (isSubmitting || showExplanation) return;
-                  setCurrentQuestionIndex(index);
+              <QuizFooterNav
+                onExit={() => router.back()}
+                onPrevious={() => {
+                  setShowExplanation(false);
+                  setCurrentResult(null);
+                  setCurrentQuestionIndex((prev) => Math.max(0, prev - 1));
                 }}
-                onSubmit={handleSubmitClick}
+                previousDisabled={currentQuestionIndex === 0}
+  
+                onNext={() => {
+                  setShowExplanation(false);
+                  setCurrentResult(null);
+                  setCurrentQuestionIndex((prev) =>
+                    Math.min(questions.length - 1, prev + 1),
+                  );
+                }}
+                nextDisabled={currentQuestionIndex === questions.length - 1}
               />
             </div>
 
-            {/* Bottom Navigation Bar */}
-            <QuizFooterNav
-              onExit={() => router.back()}
-              onPrevious={() =>
-                setCurrentQuestionIndex((prev) => Math.max(0, prev - 1))
-              }
-              previousDisabled={currentQuestionIndex === 0}
-              onNext={moveToNextQuestion}
-              nextDisabled={!showExplanation}
+            {/* Right Column: Sidebar (learn mode — no timer, no submit) */}
+            <QuizSidebar
+              answeredCount={answeredQuestionIndices.size}
+              totalQuestions={questions.length}
+              currentIndex={currentQuestionIndex}
+              answeredIndices={answeredQuestionIndices}
+              onSelectQuestion={(index) => {
+                if (isSubmitting || showExplanation) return;
+                setCurrentQuestionIndex(index);
+              }}
+              onSubmit={handleSubmitClick}
             />
-
-            {/* Footer Bar */}
-            <div className="w-full bg-white dark:bg-black/40 py-4 flex justify-center items-center mt-auto shrink-0">
-              <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
-                © 2026 SkySkills. All rights reserved.
-              </p>
-            </div>
           </div>
+        </div>
+
+        {/* Footer Bar */}
+        <div className="w-full bg-white dark:bg-black/40 py-4 flex justify-center items-center mt-auto shrink-0">
+          <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
+            © 2026 SkySkills. All rights reserved.
+          </p>
         </div>
       </div>
     );

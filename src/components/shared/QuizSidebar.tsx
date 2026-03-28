@@ -15,8 +15,6 @@ interface QuizSidebarProps {
   answeredCount: number;
   totalQuestions: number;
   score?: number;
-  /** Show "Progress: X% Complete  N of M" row. Defaults to true. */
-  showProgressText?: boolean;
 
   // Navigator
   currentIndex: number;
@@ -35,7 +33,6 @@ export default function QuizSidebar({
   answeredCount,
   totalQuestions,
   score,
-  showProgressText = true,
   currentIndex,
   answeredIndices,
   skippedIndices = new Set(),
@@ -73,17 +70,6 @@ export default function QuizSidebar({
             score={score}
             compact
           />
-          {showProgressText && (
-            <div className="flex justify-between text-[12px] font-black text-zinc-500 uppercase tracking-widest">
-              <span>
-                Progress: {Math.round((answeredCount / totalQuestions) * 100)}%
-                Complete
-              </span>
-              <span>
-                {answeredCount} of {totalQuestions}
-              </span>
-            </div>
-          )}
         </div>
       </div>
 

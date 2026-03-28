@@ -70,7 +70,7 @@ export default function QuestionCard({
           <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String A
           </div>
-          <div className="text-center text-zinc-900 dark:text-zinc-100 font-sans break-all text-xs">
+          <div className="text-center text-zinc-900 dark:text-zinc-100 font-sans break-all text-[20px] font-bold">
             {question.stringA}
           </div>
         </div>
@@ -80,16 +80,13 @@ export default function QuestionCard({
           <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String B
           </div>
-          <div className="text-center text-zinc-900 dark:text-zinc-100 font-sans break-all text-xs">
+          <div className="text-center text-zinc-900 dark:text-zinc-100 font-sans break-all text-[20px] font-bold">
             {question.stringB}
           </div>
         </div>
       </div>
 
       {/* Answer Buttons */}
-      <div className="text-center text-zinc-500 dark:text-zinc-400 mb-2 text-[11px]">
-        How many characters are different?
-      </div>
       <div className="flex flex-row justify-center gap-1.5 sm:gap-2">
         {[0, 1, 2, 3, 4, 5].map((option) => (
           <button
