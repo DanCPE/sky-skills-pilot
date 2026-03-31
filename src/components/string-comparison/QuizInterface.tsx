@@ -73,17 +73,11 @@ export default function QuizInterface({
 
   // Handle time up (real mode)
   const handleTimeUp = () => {
-    // Submit all unanswered questions as incorrect
-    const unansweredAnswers = questions
-      .map((q, idx) => ({ question: q, index: idx }))
-      .filter(({ index }) => !answeredQuestionIndices.has(index))
-      .map(({ question }) => ({
-        questionId: question.id,
-        answer: "",
-        isCorrect: false,
-      }));
-    setAnswers((prev) => [...prev, ...unansweredAnswers]);
-    setQuizComplete(true);
+    // Submit all selected answers through the normal submit path so that
+    // selectedAnswers (real-mode state) are scored correctly instead of being
+    // treated as unanswered. answeredQuestionIndices is only populated in
+    // learn mode and is always empty in real mode.
+    handleSubmitQuiz();
   };
 
   // Handle answer selection for real mode (all questions visible)
