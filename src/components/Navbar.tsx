@@ -5,6 +5,7 @@ import Image from "next/image";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 import { useTheme } from "@/lib/use-theme";
+import { useSession, signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/", label: "Home" },
@@ -16,6 +17,7 @@ export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { theme, toggleTheme } = useTheme();
+  const { data: session } = useSession();
 
   return (
     <>
@@ -62,18 +64,45 @@ export default function Navbar() {
             {/* Desktop Actions */}
             <div className="hidden sm:flex flex-1 justify-end items-center gap-4">
               {/* Auth Buttons */}
-              <Link
-                href="/login"
-                className="text-sm font-medium text-violet-800 hover:text-violet-600 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/signup"
-                className="text-sm font-medium px-4 py-2 rounded-lg bg-violet-700 text-white hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-500 transition-colors"
-              >
-                Sign up
-              </Link>
+              {session ? (
+                <>
+                  <div className="flex items-center gap-2">
+                    {session.user?.image && (
+                      <Image
+                        src={session.user.image}
+                        alt={session.user.name ?? "User"}
+                        width={32}
+                        height={32}
+                        className="rounded-full"
+                      />
+                    )}
+                    <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                      {session.user?.name?.split(" ")[0]}
+                    </span>
+                  </div>
+                  <button
+                    onClick={() => signOut({ callbackUrl: "/" })}
+                    className="text-sm font-medium text-zinc-500 hover:text-zinc-700 dark:text-zinc-400 dark:hover:text-zinc-200 transition-colors"
+                  >
+                    Sign out
+                  </button>
+                </>
+              ) : (
+                <>
+                  <Link
+                    href="/login"
+                    className="text-sm font-medium text-violet-800 hover:text-violet-600 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors"
+                  >
+                    Log in
+                  </Link>
+                  <Link
+                    href="/signup"
+                    className="text-sm font-medium px-4 py-2 rounded-lg bg-violet-700 text-white hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-500 transition-colors"
+                  >
+                    Sign up
+                  </Link>
+                </>
+              )}
               {/* Theme Toggle */}
               <button
                 type="button"
@@ -166,20 +195,50 @@ export default function Navbar() {
                 );
               })}
               <div className="flex gap-3 px-4 pt-2">
-                <Link
-                  href="/login"
-                  className="flex-1 text-center text-sm font-medium py-2 rounded-lg border border-violet-700 text-violet-700 dark:border-violet-500 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="flex-1 text-center text-sm font-medium py-2 rounded-lg bg-violet-700 text-white hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-500 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Sign up
-                </Link>
+                {session ? (
+                  <>
+                    <div className="flex items-center gap-2 flex-1">
+                      {session.user?.image && (
+                        <Image
+                          src={session.user.image}
+                          alt={session.user.name ?? "User"}
+                          width={28}
+                          height={28}
+                          className="rounded-full"
+                        />
+                      )}
+                      <span className="text-sm font-medium text-zinc-700 dark:text-zinc-300">
+                        {session.user?.name}
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        signOut({ callbackUrl: "/" });
+                      }}
+                      className="text-sm font-medium py-2 px-4 rounded-lg border border-zinc-300 dark:border-zinc-600 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                    >
+                      Sign out
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <Link
+                      href="/login"
+                      className="flex-1 text-center text-sm font-medium py-2 rounded-lg border border-violet-700 text-violet-700 dark:border-violet-500 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Log in
+                    </Link>
+                    <Link
+                      href="/signup"
+                      className="flex-1 text-center text-sm font-medium py-2 rounded-lg bg-violet-700 text-white hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-500 transition-colors"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      Sign up
+                    </Link>
+                  </>
+                )}
               </div>
             </div>
           )}
