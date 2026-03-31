@@ -112,6 +112,44 @@ export interface ScanningPracticeSubmitResult extends SubmitResult {
   currentScore?: number; // Running score (0-100)
 }
 
+// --- Scanning Shape specific types ---
+
+export interface ScanningShapeQuizConfig {
+  mode: "learn" | "real";
+  difficulty: "easy" | "medium" | "hard" | "mixed";
+  /** Number of section pairs (canvas + answer grid) to generate: 1–8 */
+  sectionCount: number;
+  /** Countdown seconds for Real Mode; null means no timer (Learn Mode) */
+  timeLimit: number | null;
+}
+
+export type ScanningShapeType =
+  | "circle"
+  | "square"
+  | "triangle"
+  | "hexagon";
+
+export interface ScanningShapeItem {
+  id: string;
+  shape: ScanningShapeType;
+  digits: string;
+  letter: string;
+  rotation: number;
+  x: number;
+  y: number;
+  size: number;
+}
+
+export interface ScanningShapeSection {
+  id: number;
+  shapes: ScanningShapeItem[];
+  answerShapes: ScanningShapeItem[];
+}
+
+export interface ScanningShapeQuizResponse extends ScanningShapeQuizConfig {
+  sections: ScanningShapeSection[];
+}
+
 // --- Spatial Orientation Practice Types ---
 
 export type Direction = "L" | "R";
