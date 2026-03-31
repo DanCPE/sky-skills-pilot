@@ -64,6 +64,14 @@ export const topics: Topic[] = [
     coverImage: "/images/icons/SkyQuests/string.png",
     coverImageDark: "/images/icons/SkyQuests/string dark.png",
   },
+  {
+    slug: "scanning-shape",
+    icon: "🔷",
+    title: "Scanning Shape",
+    description: "Identify hidden letters in shape displays across 8 timed visual scanning sections.",
+    category: "scanning",
+    isLocked: false,
+  },
 ];
 
 export const topicSlugs = new Set(topics.map((t) => t.slug));
