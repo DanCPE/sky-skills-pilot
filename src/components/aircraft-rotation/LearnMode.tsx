@@ -280,7 +280,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                             : "bg-white/5 text-zinc-400 hover:bg-white/10 border border-white/10"
                         } ${status !== "playing" ? "opacity-30 cursor-not-allowed" : ""}`}
                       >
-                        {angle}°
+                        {angle}
                       </button>
                     ))}
                   </div>

@@ -6,15 +6,11 @@ import type {
 interface ExplanationCardProps {
   question: ScanningPracticeQuestion;
   result: ScanningPracticeSubmitResult;
-  onNext: () => void;
-  isLastQuestion: boolean;
 }
 
 export default function ExplanationCard({
   question,
   result,
-  onNext,
-  isLastQuestion,
 }: ExplanationCardProps) {
   return (
     <div className="mt-6 rounded-2xl border-2 bg-zinc-50 p-6 dark:border-zinc-800 dark:bg-zinc-800">
@@ -70,49 +66,6 @@ export default function ExplanationCard({
         </p>
       </div>
 
-      {/* Next Button */}
-      <div className="flex justify-end">
-        <button
-          onClick={onNext}
-          className="inline-flex items-center gap-2 rounded-xl bg-violet-600 px-6 py-3 font-semibold text-white transition-colors hover:bg-violet-500 active:bg-violet-700 dark:bg-violet-600 dark:hover:bg-violet-500"
-        >
-          {isLastQuestion ? (
-            <>
-              See Results
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </>
-          ) : (
-            <>
-              Next Question
-              <svg
-                className="h-5 w-5"
-                fill="none"
-                stroke="currentColor"
-                viewBox="0 0 24 24"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M13 7l5 5m0 0l-5 5m5-5H6"
-                />
-              </svg>
-            </>
-          )}
-        </button>
-      </div>
     </div>
   );
 }

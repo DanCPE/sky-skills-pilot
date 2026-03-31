@@ -34,7 +34,7 @@ export async function GET(req: NextRequest) {
 
     // Calculate time limit for real mode
     // 3 seconds per question for pilot scanning tests
-    const timeLimit = mode === "real" ? questionCount * 3 : undefined;
+    const timeLimit = mode === "real" ? questionCount * 6 : undefined;
 
     const response: ScanningPracticeQuizResponse = {
       questions,

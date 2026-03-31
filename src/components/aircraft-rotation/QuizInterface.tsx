@@ -127,7 +127,7 @@ const QuestionRow = ({
             : "border-2 border-red-500/50 bg-red-500/10"
           : selectedAnswer
             ? "border-2 border-brand-purple/50 bg-brand-purple/10"
-            : "border-2 border-zinc-200 dark:border-white/5 bg-[#F3F3F3] dark:bg-zinc-900/60"
+            : "border-zinc-200 bg-[#F3F3F3] dark:bg-[#464543]/50"
       }`}
     >
       <div className="flex flex-col gap-5">
@@ -156,7 +156,7 @@ const QuestionRow = ({
         </div>
 
         {/* Visual Sequence Box */}
-        <div className="flex flex-1 items-center gap-4 min-w-0 bg-white dark:bg-black/40 px-4 py-3 rounded-2xl border border-zinc-200 dark:border-white/5 shadow-sm">
+        <div className="flex flex-1 items-center gap-4 min-w-0 bg-white dark:bg-zinc-900/80 px-4 py-3 rounded-2xl border border-zinc-200 dark:border-white/15 shadow-sm">
           <CompassCircle size="sm" className="shrink-0 ring-2 ring-blue-500/20">
             <AirplaneIcon angle={question.initialHeading} color="#3b82f6" />
           </CompassCircle>
@@ -167,7 +167,7 @@ const QuestionRow = ({
               return (
                 <React.Fragment key={i}>
                   <div className="flex items-center gap-1.5 shrink-0 font-bold text-sm bg-zinc-100 dark:bg-white/5 px-3 py-2 rounded-lg border border-zinc-200 dark:border-white/10 text-zinc-900 dark:text-white shadow-sm">
-                    <span>{step.angle}°</span>
+                    <span>{step.angle}</span>
                     <span
                       className={
                         step.dir === "L"
@@ -203,7 +203,7 @@ const QuestionRow = ({
               optVal === `${question.correctAngle}${question.correctDir}`;
 
             let btnStyle =
-              "bg-white dark:bg-zinc-950 dark:border-white/5 text-zinc-900 dark:text-white hover:border-zinc-400 dark:hover:border-white/20 hover:bg-zinc-50 dark:hover:bg-zinc-900";
+              "bg-white dark:bg-zinc-950 dark:border-white/15 text-zinc-900 dark:text-white hover:border-zinc-400 dark:hover:border-white/20 hover:bg-zinc-50 dark:hover:bg-zinc-900";
 
             if (isSubmitted) {
               if (isActuallyCorrect) {
@@ -214,7 +214,7 @@ const QuestionRow = ({
                   "bg-red-500 text-white shadow-lg shadow-red-500/20 border-red-400";
               } else {
                 btnStyle =
-                  "bg-white dark:bg-white/5 text-zinc-600 dark:text-zinc-600 opacity-50 border-zinc-200 dark:border-white/5";
+                  "bg-white dark:bg-white/5 text-zinc-600 dark:text-zinc-600 opacity-50 border-zinc-200 dark:border-white/15";
               }
             } else if (isSelected) {
               btnStyle =
@@ -228,7 +228,7 @@ const QuestionRow = ({
                 onClick={() => onSelect(optVal)}
                 className={`h-12 px-2 sm:px-3 rounded-xl font-black text-xs sm:text-sm transition-all tracking-tight border-2 ${btnStyle}`}
               >
-                {opt.dir === null ? "N/A" : `${opt.angle}° ${opt.dir}`}
+                {opt.dir === null ? "N/A" : `${opt.angle} ${opt.dir}`}
               </button>
             );
           })}
@@ -254,7 +254,6 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
     questions.map((q, i) => (answers[q.id] ? i : -1)).filter((i) => i !== -1),
   );
 
-  const skippedSet = new Set<number>();
 
   const handleTimeUp = () => {
     handleSubmitQuiz();
@@ -325,7 +324,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
             {/* Left Column: Header + Scrollable Questions */}
             <div className="flex flex-col gap-4">
               {/* Top Header Panel */}
-              <div className="flex justify-between items-center bg-white dark:bg-black/40 backdrop-blur-md border-2 border-zinc-200 dark:border-white/5 rounded-2xl px-10 pt-2 pb-4">
+              <div className="flex justify-between items-center bg-white dark:bg-zinc-900/80 backdrop-blur-md border-2 border-zinc-200 dark:border-white/15 rounded-2xl px-10 pt-2 pb-4">
                 <div className="flex flex-col gap-1">
                   <h1 className="text-[30px] font-bold text-zinc-900 dark:text-white tracking-tight">
                     Aircraft Rotation
@@ -340,7 +339,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
 
               {/* Scrollable Questions */}
               <div
-                className="flex flex-col bg-white dark:bg-black/20 rounded-2xl border-2 border-zinc-200 dark:border-white/5 overflow-hidden"
+                className="flex flex-col bg-white dark:bg-black/20 rounded-2xl border-2 border-zinc-200 dark:border-white/15 overflow-hidden"
                 style={{ height: "calc(100vh - 320px)", minHeight: "400px" }}
               >
                 <div className="flex-1 overflow-y-auto p-4 space-y-4 scrollbar-thin scrollbar-thumb-zinc-700 scrollbar-track-transparent">
@@ -373,7 +372,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
               totalQuestions={questions.length}
               currentIndex={currentQuestionIndex}
               answeredIndices={answeredSet}
-              skippedIndices={skippedSet}
+
               onSelectQuestion={(index) => {
                 const element = document.getElementById(
                   `question-${questions[index].id}`,
@@ -404,7 +403,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
         />
       )}
       {/* Footer Bar */}
-      <div className="w-full bg-white dark:bg-black/40 py-4 flex justify-center items-center mt-auto shrink-0">
+      <div className="w-full bg-white dark:bg-zinc-900/80 py-4 flex justify-center items-center mt-auto shrink-0">
         <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
           © 2026 SkySkills. All rights reserved.
         </p>

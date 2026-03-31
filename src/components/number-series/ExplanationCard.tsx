@@ -14,7 +14,7 @@ export default function ExplanationCard({
   isLastQuestion,
 }: ExplanationCardProps) {
   return (
-    <div className="mt-6 rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-zinc-900/60 backdrop-blur-md p-6 hover:shadow-xl transition-shadow">
+    <div className="mt-6 rounded-2xl border-2 border-zinc-200 dark:border-white/15 bg-white dark:bg-zinc-900/60 backdrop-blur-md p-6 hover:shadow-xl transition-shadow">
       <div className="mb-4 flex items-center gap-3">
         <div
           className={`flex h-10 w-10 items-center justify-center rounded-full ${
@@ -70,7 +70,7 @@ export default function ExplanationCard({
       </div>
 
       {/* Explanation */}
-      <div className="mb-6 rounded-xl bg-zinc-100 dark:bg-black/40 border border-zinc-200 dark:border-white/5 p-4 shadow-inner">
+      <div className="mb-6 rounded-xl bg-zinc-100 dark:bg-zinc-900/80 border border-zinc-200 dark:border-white/15 p-4 shadow-inner">
         <p className="text-zinc-700 dark:text-zinc-300 leading-relaxed font-medium">
           {question.explanation}
         </p>

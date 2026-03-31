@@ -402,7 +402,6 @@ export default function QuizInterface({
             answeredCount={currentQuestionIndex + 1}
             totalQuestions={questions.length}
             score={mode === "real" ? calculateScore() : undefined}
-            showProgressText={false}
             currentIndex={currentQuestionIndex}
             answeredIndices={answeredQuestionIndices}
             skippedIndices={skippedIndicesSet}
