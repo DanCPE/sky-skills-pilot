@@ -2,6 +2,8 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Timer from "@/components/shared/Timer";
+import { useTheme } from "@/lib/use-theme";
+import { getPerformanceMessage } from "@/lib/performance-copy";
 import { generateScanningShapeSections } from "@/lib/scanning-shape-generator";
 import type {
   ScanningShapeItem,
@@ -41,6 +43,10 @@ const SHAPE_CARD_BORDER: Record<ScanningShapeType, string> = {
 const MONO_SHAPE_FILL = "none";
 const MONO_SHAPE_STROKE = "#6b7280";
 const MONO_SHAPE_TEXT = "#111827";
+const DARK_SECTION_BOX = "rgba(63, 64, 66, 0.5)";
+const DARK_CANVAS = "transparent";
+const DARK_MONO_SHAPE_FILL = "rgba(142, 94, 164, 0.2)";
+const DARK_MONO_TEXT = "#ffffff";
 
 function ShapeGraphic({
   type,
@@ -51,6 +57,7 @@ function ShapeGraphic({
   rotation = 0,
   showDigitsOnly = false,
   displayMode = "color",
+  isDarkTheme = false,
 }: {
   type: ScanningShapeType;
   cx: number;
@@ -60,11 +67,23 @@ function ShapeGraphic({
   rotation?: number;
   showDigitsOnly?: boolean;
   displayMode?: LearnDisplayMode;
+  isDarkTheme?: boolean;
 }) {
-  const fill = displayMode === "mono" ? MONO_SHAPE_FILL : SHAPE_FILL[type];
+  const isDarkMono = displayMode === "mono" && isDarkTheme;
+  const fill =
+    displayMode === "mono"
+      ? isDarkMono
+        ? DARK_MONO_SHAPE_FILL
+        : MONO_SHAPE_FILL
+      : SHAPE_FILL[type];
   const stroke =
     displayMode === "mono" ? MONO_SHAPE_STROKE : SHAPE_STROKE[type];
-  const textColor = displayMode === "mono" ? MONO_SHAPE_TEXT : "white";
+  const textColor =
+    displayMode === "mono"
+      ? isDarkMono
+        ? DARK_MONO_TEXT
+        : MONO_SHAPE_TEXT
+      : "white";
   const radius = size / 2;
   const fontSize = Math.max(11, Math.round(size * 0.28));
   const displayText = showDigitsOnly ? label.slice(0, 2) : label;
@@ -141,6 +160,7 @@ function AnswerCard({
   quizEnded,
   fullWidth = false,
   displayMode = "color",
+  isDarkTheme = false,
 }: {
   shape: ScanningShapeItem;
   isLocked: boolean;
@@ -150,6 +170,7 @@ function AnswerCard({
   quizEnded: boolean;
   fullWidth?: boolean;
   displayMode?: LearnDisplayMode;
+  isDarkTheme?: boolean;
 }) {
   const isRevealed = quizEnded && !isLocked;
   const displayValue = isRevealed ? correctLetter : inputValue;
@@ -169,14 +190,18 @@ function AnswerCard({
       : isRevealed
         ? "cursor-not-allowed border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : displayMode === "mono"
-          ? "border-zinc-300 bg-zinc-50 text-zinc-800 focus:border-zinc-500 dark:border-zinc-400 dark:bg-[#f5f1e8] dark:text-zinc-700 dark:focus:border-zinc-500"
+          ? isDarkTheme
+            ? "border-zinc-400 bg-[rgba(173,173,173,0.2)] text-zinc-700 focus:border-zinc-500"
+            : "border-zinc-300 bg-zinc-50 text-zinc-800 focus:border-zinc-500"
           : "border-zinc-300 bg-zinc-50 text-zinc-950 focus:border-[#4F12A6] dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-amber-400",
   ].join(" ");
 
   const cardSize = 64;
   const cardSurfaceClass =
     displayMode === "mono"
-      ? "bg-white dark:bg-[#ece7dc]"
+      ? isDarkTheme
+        ? "bg-[rgba(173,173,173,0.2)]"
+        : "bg-white"
       : "bg-white dark:bg-zinc-800/70";
 
   return (
@@ -196,6 +221,7 @@ function AnswerCard({
           label={shape.digits}
           showDigitsOnly
           displayMode={displayMode}
+          isDarkTheme={isDarkTheme}
         />
       </svg>
       <input
@@ -239,6 +265,7 @@ function SectionPair({
   onInput,
   quizEnded,
   displayMode,
+  isDarkTheme,
 }: {
   section: ScanningShapeSection;
   numSections: number;
@@ -247,14 +274,26 @@ function SectionPair({
   onInput: (id: string, char: string) => void;
   quizEnded: boolean;
   displayMode: LearnDisplayMode;
+  isDarkTheme: boolean;
 }) {
   const panelClass =
     displayMode === "mono"
-      ? "overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700/60 dark:bg-[#d9d1c3]/30"
-      : "overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900/40 dark:backdrop-blur-md";
+      ? "overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm"
+      : "overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:backdrop-blur-md";
+
+  const panelStyle =
+    displayMode === "mono" && isDarkTheme
+      ? { background: DARK_SECTION_BOX, borderColor: "rgba(255,255,255,0.1)" }
+      : undefined;
+  const canvasBackground =
+    displayMode === "mono"
+      ? isDarkTheme
+        ? DARK_CANVAS
+        : "#ffffff"
+      : "#18181b";
 
   return (
-    <div className={panelClass}>
+    <div className={panelClass} style={panelStyle}>
       <div className="border-b border-zinc-100 px-4 py-2 dark:border-white/5">
         <span className="font-[family-name:var(--font-space-grotesk)] text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
           Section {section.id} / {numSections}
@@ -265,7 +304,7 @@ function SectionPair({
         className="relative w-full overflow-hidden"
         style={{
           height: SCANNING_SHAPE_CANVAS_HEIGHT,
-          background: displayMode === "mono" ? "#f5f1e8" : "#18181b",
+          background: canvasBackground,
         }}
       >
         <svg
@@ -287,7 +326,9 @@ function SectionPair({
                 r="1"
                 fill={
                   displayMode === "mono"
-                    ? "rgba(0,0,0,0.05)"
+                    ? isDarkTheme
+                      ? "rgba(255,255,255,0.06)"
+                      : "rgba(0,0,0,0.08)"
                     : "rgba(255,255,255,0.05)"
                 }
               />
@@ -312,13 +353,18 @@ function SectionPair({
               label={shape.digits + shape.letter}
               rotation={shape.rotation}
               displayMode={displayMode}
+              isDarkTheme={isDarkTheme}
             />
           ))}
         </svg>
 
         <div
           className={`pointer-events-none absolute left-3 top-2 select-none font-[family-name:var(--font-geist-mono)] text-[10px] font-medium tracking-wider ${
-            displayMode === "mono" ? "text-zinc-500" : "text-zinc-600"
+            displayMode === "mono"
+              ? isDarkTheme
+                ? "text-zinc-300"
+                : "text-zinc-500"
+              : "text-zinc-600"
           }`}
         >
           Section {section.id}
@@ -340,6 +386,7 @@ function SectionPair({
               quizEnded={quizEnded}
               fullWidth
               displayMode={displayMode}
+              isDarkTheme={isDarkTheme}
             />
           ))}
         </div>
@@ -369,15 +416,7 @@ function ResultModal({
 }) {
   const percentage = (score / totalAnswers) * 100;
   const percentageDisplay = Math.round(percentage * 10) / 10;
-
-  const performance =
-    percentage >= 90
-      ? "Excellent - Pilot Grade"
-      : percentage >= 70
-        ? "Good - Above Average"
-        : percentage >= 50
-          ? "Fair - Needs Improvement"
-          : "Poor - Requires Practice";
+  const [performance] = useState(() => getPerformanceMessage(percentage));
 
   const performanceColor =
     percentage >= 90
@@ -484,7 +523,9 @@ export default function QuizInterface({
   onRestart: () => void;
 }) {
   const { mode, difficulty, sectionCount, timeLimit } = quizData;
+  const { theme } = useTheme();
   const isLearnMode = mode === "learn";
+  const isDarkTheme = theme === "dark";
   const totalAnswers = sectionCount * SCANNING_SHAPE_ANSWERS_PER_SECTION;
 
   const [sections, setSections] = useState(quizData.sections);
@@ -709,6 +750,7 @@ export default function QuizInterface({
             onInput={handleInput}
             quizEnded={quizEnded}
             displayMode={displayMode}
+            isDarkTheme={isDarkTheme}
           />
         ))}
       </div>

@@ -1,6 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
+import {
+  getPerformanceMessage,
+  getPerformanceStarCount,
+} from "@/lib/performance-copy";
 
 interface ResultsScreenProps {
   totalCount: number;
@@ -12,14 +17,6 @@ interface ResultsScreenProps {
   showBackButton?: boolean;
   /** Topic-specific question review section */
   children?: React.ReactNode;
-}
-
-function getPerformance(percentage: number) {
-  if (percentage >= 90) return { text: "Excellent!", starCount: 5 };
-  if (percentage >= 75) return { text: "Great Job!", starCount: 4 };
-  if (percentage >= 60) return { text: "Good Effort!", starCount: 3 };
-  if (percentage >= 40) return { text: "Keep Practicing!", starCount: 2 };
-  return { text: "Keep Practicing!", starCount: 1 };
 }
 
 function formatTime(seconds: number) {
@@ -44,7 +41,11 @@ export default function ResultsScreen({
   const percentage = Math.round((correctCount / totalCount) * 100);
   const accuracy =
     attemptedCount > 0 ? Math.round((correctCount / attemptedCount) * 100) : 0;
-  const performance = getPerformance(percentage);
+  const [performanceText] = useState(() => getPerformanceMessage(percentage));
+  const performance = {
+    text: performanceText,
+    starCount: getPerformanceStarCount(percentage),
+  };
 
   return (
     <div className="mx-auto max-w-4xl">
