@@ -55,6 +55,7 @@ function generateSection(
   params: DifficultyParams,
 ): ScanningShapeSection {
   const shapes: ScanningShapeItem[] = [];
+  const usedClues = new Set<string>();
   const shapeTypes: ScanningShapeType[] = [
     "circle",
     "square",
@@ -86,16 +87,20 @@ function generateSection(
     for (let attempt = 0; attempt < 100; attempt += 1) {
       const x = rand(minX, maxX);
       const y = rand(minY, maxY);
+      const digits = String(rand(10, 99));
+      const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
+      const clueKey = `${type}:${digits}`;
 
-      if (!noCollision(x, y, size, shapes)) {
+      if (!noCollision(x, y, size, shapes) || usedClues.has(clueKey)) {
         continue;
       }
 
+      usedClues.add(clueKey);
       shapes.push({
         id: `s${id}_shape_${i}`,
         shape: type,
-        digits: String(rand(10, 99)),
-        letter: String.fromCharCode(65 + Math.floor(Math.random() * 26)),
+        digits,
+        letter,
         rotation: rand(0, 359),
         x,
         y,
