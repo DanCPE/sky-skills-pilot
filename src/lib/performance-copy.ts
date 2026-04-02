@@ -25,29 +25,61 @@ const LOW_SCORE_MESSAGES = [
   "Poor - The quiz was easy. Your score was creative",
 ];
 
+const FAIR_SCORE_MESSAGES = [
+  "Fair - The engine started, not the journey",
+  "Fair - Almost pilot, still mostly passenger",
+  "Fair - You are warming up, very slowly",
+  "Fair - Some answers landed, some are still circling",
+  "Fair - Not bad, not bragging material either",
+  "Fair - Your score is cautiously optimistic",
+  "Fair - The effort was there, the precision took leave",
+  "Fair - This run had potential and several wrong turns",
+  "Fair - You are flirting with competence",
+  "Fair - Half skill, half plot twist",
+  "Fair - Respectable turbulence",
+  "Fair - Enough to continue, not enough to celebrate",
+  "Fair - The brain clocked in eventually",
+  "Fair - One more practice and we stop calling this luck",
+  "Fair - Not embarrassing, not impressive, very balanced",
+];
+
+const GOOD_SCORE_MESSAGES = [
+  "Good - Calm down, captain, still room to climb",
+  "Good - Nice work, but the top score is still laughing",
+  "Good - Competent enough to be dangerous",
+  "Good - Strong effort, weak bragging rights",
+  "Good - The score smiled, not saluted",
+  "Good - You cooked, but not the full meal",
+  "Good - Almost sharp, still slightly rounded",
+  "Good - Your brain finally found second gear",
+  "Good - Solid run, modest ego only",
+  "Good - Not elite yet, but the delusion can start gently",
+  "Good - You did well, don’t make it weird",
+  "Good - Impressive, in a manageable way",
+  "Good - Close enough to flex, not enough to post",
+  "Good - The quiz respects you a little now",
+  "Good - Nice landing, still bounced once",
+];
+
 export function getPerformanceMessage(percentage: number) {
   if (percentage >= 90) {
     return "Excellent - Pilot Grade";
   }
 
-  if (percentage >= 75) {
+  if (percentage >= 85) {
     return "Great Job!";
   }
 
   if (percentage >= 70) {
-    return "Good - Above Average";
-  }
-
-  if (percentage >= 60) {
-    return "Good Effort!";
+    return GOOD_SCORE_MESSAGES[
+      Math.floor(Math.random() * GOOD_SCORE_MESSAGES.length)
+    ];
   }
 
   if (percentage >= 50) {
-    return "Fair - Needs Improvement";
-  }
-
-  if (percentage >= 40) {
-    return "Keep Practicing!";
+    return FAIR_SCORE_MESSAGES[
+      Math.floor(Math.random() * FAIR_SCORE_MESSAGES.length)
+    ];
   }
 
   return LOW_SCORE_MESSAGES[

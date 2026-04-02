@@ -45,8 +45,8 @@ const MONO_SHAPE_STROKE = "#6b7280";
 const MONO_SHAPE_TEXT = "#111827";
 const DARK_SECTION_BOX = "rgba(63, 64, 66, 0.5)";
 const DARK_CANVAS = "transparent";
-const DARK_MONO_SHAPE_FILL = "rgba(142, 94, 164, 0.2)";
-const DARK_MONO_TEXT = "#ffffff";
+const DARK_MONO_SHAPE_FILL = "#E8DDBF";
+const DARK_MONO_TEXT = "#000000d7";
 
 function ShapeGraphic({
   type,
