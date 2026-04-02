@@ -137,6 +137,7 @@ function AnswerCard({
   isLocked,
   isFlashing,
   inputValue,
+  correctLetter,
   onInput,
   quizEnded,
   fullWidth = false,
@@ -146,18 +147,24 @@ function AnswerCard({
   isLocked: boolean;
   isFlashing: boolean;
   inputValue: string;
+  correctLetter: string;
   onInput: (char: string) => void;
   quizEnded: boolean;
   fullWidth?: boolean;
   displayMode?: LearnDisplayMode;
 }) {
+  const isRevealed = quizEnded && !isLocked;
+  const displayValue = isRevealed ? correctLetter : inputValue;
+
   const cardBorderClass = isLocked
     ? "border-green-500"
     : isFlashing
       ? "border-red-500"
-      : displayMode === "mono"
-        ? "border-zinc-400 dark:border-zinc-600"
-        : SHAPE_CARD_BORDER[shape.shape];
+      : isRevealed
+        ? "border-amber-400"
+        : displayMode === "mono"
+          ? "border-zinc-400 dark:border-zinc-600"
+          : SHAPE_CARD_BORDER[shape.shape];
 
   const inputClass = [
     "h-9 w-9 rounded-lg border-2 text-center text-sm font-bold uppercase outline-none transition-all",
@@ -165,7 +172,9 @@ function AnswerCard({
       ? "cursor-not-allowed border-green-500 bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400"
       : isFlashing
         ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
-        : "border-zinc-300 bg-transparent text-zinc-900 focus:border-[#4F12A6] dark:border-zinc-600 dark:text-zinc-100 dark:focus:border-amber-400",
+        : isRevealed
+          ? "cursor-not-allowed border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
+          : "border-zinc-300 bg-transparent text-zinc-900 focus:border-[#4F12A6] dark:border-zinc-600 dark:text-zinc-100 dark:focus:border-amber-400",
   ].join(" ");
 
   const cardSize = 64;
@@ -191,7 +200,7 @@ function AnswerCard({
       </svg>
       <input
         type="text"
-        value={inputValue}
+        value={displayValue}
         readOnly={isLocked || quizEnded || isFlashing}
         maxLength={1}
         placeholder="?"
@@ -326,6 +335,7 @@ function SectionPair({
               isLocked={locked.has(shape.id)}
               isFlashing={wrongFlash.has(shape.id)}
               inputValue={answers[shape.id] ?? ""}
+              correctLetter={shape.letter}
               onInput={(char) => onInput(shape.id, char, shape.letter)}
               quizEnded={quizEnded}
               fullWidth
@@ -346,6 +356,7 @@ function ResultModal({
   isLearnMode,
   onTryAgain,
   onRestart,
+  onDismiss,
 }: {
   score: number;
   totalAnswers: number;
@@ -354,6 +365,7 @@ function ResultModal({
   isLearnMode: boolean;
   onTryAgain: () => void;
   onRestart: () => void;
+  onDismiss: () => void;
 }) {
   const percentage = (score / totalAnswers) * 100;
   const percentageDisplay = Math.round(percentage * 10) / 10;
@@ -383,11 +395,28 @@ function ResultModal({
     !isLearnMode && trigger === "timer" ? "TIME'S UP" : "QUIZ COMPLETE";
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm">
-      <div className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-zinc-900 sm:p-8">
-        <p className="mb-1 text-center font-[family-name:var(--font-space-grotesk)] text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
-          {title}
-        </p>
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4 backdrop-blur-sm"
+      onClick={onDismiss}
+    >
+      <div
+        className="w-full max-w-sm rounded-2xl border border-zinc-200 bg-white p-6 shadow-2xl dark:border-white/10 dark:bg-zinc-900 sm:p-8"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div className="mb-1 flex items-center justify-between">
+          <p className="font-[family-name:var(--font-space-grotesk)] text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+            {title}
+          </p>
+          <button
+            onClick={onDismiss}
+            className="rounded-lg p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600 dark:hover:bg-white/10 dark:hover:text-zinc-200"
+            title="Close and review answers"
+          >
+            <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
 
         <div className="mb-6 text-center">
           <div className="font-[family-name:var(--font-space-grotesk)] text-5xl font-black text-zinc-900 dark:text-zinc-100">
@@ -463,6 +492,7 @@ export default function QuizInterface({
   const [locked, setLocked] = useState<Set<string>>(new Set());
   const [wrongFlash, setWrongFlash] = useState<Set<string>>(new Set());
   const [quizEnded, setQuizEnded] = useState(false);
+  const [showModal, setShowModal] = useState(false);
   const [trigger, setTrigger] = useState<"timer" | "complete">("complete");
   const [elapsed, setElapsed] = useState(0);
   const [timerKey, setTimerKey] = useState(0);
@@ -490,6 +520,7 @@ export default function QuizInterface({
       setElapsed(elapsedSeconds);
       setTrigger(finishTrigger);
       setQuizEnded(true);
+      setShowModal(true);
     },
     [],
   );
@@ -497,6 +528,11 @@ export default function QuizInterface({
   const handleInput = useCallback(
     (id: string, char: string, correctLetter: string) => {
       setAnswers((previous) => ({ ...previous, [id]: char }));
+
+      if (!isLearnMode) {
+        // real mode: just record the answer, no immediate feedback
+        return;
+      }
 
       if (char === correctLetter) {
         setLocked((previous) => {
@@ -530,12 +566,31 @@ export default function QuizInterface({
         });
       }, 600);
     },
-    [finishQuiz, totalAnswers],
+    [isLearnMode, finishQuiz, totalAnswers],
   );
 
+  const computeLockedFromAnswers = useCallback(() => {
+    const newLocked = new Set<string>();
+    for (const section of sections) {
+      for (const shape of section.answerShapes) {
+        if (answers[shape.id] === shape.letter) {
+          newLocked.add(shape.id);
+        }
+      }
+    }
+    return newLocked;
+  }, [sections, answers]);
+
+  const handleSubmit = useCallback(() => {
+    if (endedRef.current) return;
+    setLocked(computeLockedFromAnswers());
+    finishQuiz("complete", Math.floor((Date.now() - startRef.current) / 1000));
+  }, [computeLockedFromAnswers, finishQuiz]);
+
   const handleTimeUp = useCallback(() => {
+    setLocked(computeLockedFromAnswers());
     finishQuiz("timer", timeLimit ?? 0);
-  }, [finishQuiz, timeLimit]);
+  }, [computeLockedFromAnswers, finishQuiz, timeLimit]);
 
   const handleTryAgain = useCallback(() => {
     endedRef.current = false;
@@ -544,6 +599,7 @@ export default function QuizInterface({
     setLocked(new Set());
     setWrongFlash(new Set());
     setQuizEnded(false);
+    setShowModal(false);
     setElapsed(0);
     setTrigger("complete");
     setTimerKey((current) => current + 1);
@@ -625,12 +681,30 @@ export default function QuizInterface({
               </span>
             )}
 
-            <div className="flex items-center gap-1 whitespace-nowrap font-[family-name:var(--font-space-grotesk)] text-sm font-bold">
-              <span className="text-[#4F12A6] dark:text-brand-gold">{score}</span>
-              <span className="text-zinc-300 dark:text-zinc-600">/</span>
-              <span className="text-zinc-500 dark:text-zinc-400">
-                {totalAnswers}
-              </span>
+            <div className="flex items-center gap-3">
+              {!isLearnMode && !quizEnded && (
+                <button
+                  onClick={handleSubmit}
+                  className="rounded-lg bg-[#4F12A6] px-3 py-1.5 font-[family-name:var(--font-space-grotesk)] text-xs font-bold uppercase tracking-wider text-white shadow-md shadow-[#4F12A6]/20 transition-all hover:opacity-90 active:scale-[0.98]"
+                >
+                  Submit
+                </button>
+              )}
+              {quizEnded && !showModal && (
+                <button
+                  onClick={() => setShowModal(true)}
+                  className="rounded-lg border border-[#4F12A6] px-3 py-1.5 font-[family-name:var(--font-space-grotesk)] text-xs font-bold uppercase tracking-wider text-[#4F12A6] transition-all hover:bg-[#4F12A6]/10 dark:border-brand-gold dark:text-brand-gold"
+                >
+                  Results
+                </button>
+              )}
+              <div className="flex items-center gap-1 whitespace-nowrap font-[family-name:var(--font-space-grotesk)] text-sm font-bold">
+                <span className="text-[#4F12A6] dark:text-brand-gold">{score}</span>
+                <span className="text-zinc-300 dark:text-zinc-600">/</span>
+                <span className="text-zinc-500 dark:text-zinc-400">
+                  {totalAnswers}
+                </span>
+              </div>
             </div>
           </div>
 
@@ -668,7 +742,7 @@ export default function QuizInterface({
         ))}
       </div>
 
-      {quizEnded && (
+      {quizEnded && showModal && (
         <ResultModal
           score={score}
           totalAnswers={totalAnswers}
@@ -677,6 +751,7 @@ export default function QuizInterface({
           isLearnMode={isLearnMode}
           onTryAgain={handleTryAgain}
           onRestart={onRestart}
+          onDismiss={() => setShowModal(false)}
         />
       )}
     </div>
