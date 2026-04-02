@@ -178,10 +178,12 @@ function AnswerCard({
   ].join(" ");
 
   const cardSize = 64;
+  const cardSurfaceClass =
+    displayMode === "mono" ? "bg-white dark:bg-white" : "bg-white dark:bg-black/40";
 
   return (
     <div
-      className={`flex ${fullWidth ? "w-full" : "min-w-[90px]"} flex-col items-center gap-2 rounded-xl border-2 ${cardBorderClass} bg-white p-2.5 transition-colors duration-300 dark:bg-black/40`}
+      className={`flex ${fullWidth ? "w-full" : "min-w-[90px]"} flex-col items-center gap-2 rounded-xl border-2 ${cardBorderClass} ${cardSurfaceClass} p-2.5 transition-colors duration-300`}
     >
       <svg
         width={cardSize}
