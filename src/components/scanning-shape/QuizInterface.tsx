@@ -43,10 +43,10 @@ const SHAPE_CARD_BORDER: Record<ScanningShapeType, string> = {
 const MONO_SHAPE_FILL = "none";
 const MONO_SHAPE_STROKE = "#6b7280";
 const MONO_SHAPE_TEXT = "#111827";
-const DARK_SECTION_BOX = "rgba(63, 64, 66, 0.5)";
-const DARK_CANVAS = "transparent";
+const DARK_SECTION_BOX = "rgba(0, 0, 0, 0.5)";
+const DARK_CANVAS = "#00000033";
 const DARK_MONO_SHAPE_FILL = "#E8DDBF";
-const DARK_MONO_TEXT = "#000000d7";
+const DARK_MONO_TEXT = "#000000";
 
 function ShapeGraphic({
   type,
@@ -327,7 +327,7 @@ function SectionPair({
                 fill={
                   displayMode === "mono"
                     ? isDarkTheme
-                      ? "rgba(255,255,255,0.06)"
+                      ? "rgb(83, 80, 80)"
                       : "rgba(0,0,0,0.08)"
                     : "rgba(255,255,255,0.05)"
                 }
@@ -358,17 +358,6 @@ function SectionPair({
           ))}
         </svg>
 
-        <div
-          className={`pointer-events-none absolute left-3 top-2 select-none font-[family-name:var(--font-geist-mono)] text-[10px] font-medium tracking-wider ${
-            displayMode === "mono"
-              ? isDarkTheme
-                ? "text-zinc-300"
-                : "text-zinc-500"
-              : "text-zinc-600"
-          }`}
-        >
-          Section {section.id}
-        </div>
       </div>
 
       <div className="px-4 py-3">
