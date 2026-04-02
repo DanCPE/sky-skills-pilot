@@ -71,6 +71,8 @@ export const topics: Topic[] = [
     description: "Identify hidden letters in shape displays across 8 timed visual scanning sections.",
     category: "scanning",
     isLocked: false,
+    coverImage: "/images/icons/SkyQuests/scanning.png",
+    coverImageDark: "/images/icons/SkyQuests/scanning dark.png",
   },
 ];
 
