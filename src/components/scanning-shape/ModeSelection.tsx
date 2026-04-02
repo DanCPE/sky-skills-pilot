@@ -6,16 +6,7 @@ import type { ScanningShapeQuizResponse } from "@/types";
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-/**
- * Map the shared slider range (10–50, step 10) to a section count (2–8).
- * 10→2  20→4  30→5  40→7  50→8
- */
-function countToSections(count: number): number {
-  return Math.min(8, Math.max(2, Math.ceil(count / 6.25)));
-}
-
-function formatSectionTime(count: number): string {
-  const sections = countToSections(count);
+function formatSectionTime(sections: number): string {
   const totalSecs = sections * 30; // 30 seconds per section
   const m = Math.floor(totalSecs / 60);
   const s = totalSecs % 60;
@@ -33,15 +24,19 @@ export default function ModeSelection({
   return (
     <SharedModeSelection<ScanningShapeQuizResponse>
       subtitle="Scan shape panels and identify the hidden letter inside each shape using only the 2-digit number as your clue."
-      defaultQuestionCount={40}
+      defaultQuestionCount={7}
+      sliderLabel="Number of Sections"
+      sliderHelperText={(sections) => `${sections * 8} questions total`}
+      sliderMin={1}
+      sliderMax={8}
+      sliderStep={1}
+      sliderLabels={[1, 2, 3, 4, 5, 6, 7, 8]}
       formatRealModeTime={formatSectionTime}
       learnDescription="Work through shape sections at your own pace with no time pressure. Build scanning accuracy before attempting timed runs."
-      realDescription={(count, timeDisplay) => {
-        const sections = countToSections(count);
+      realDescription={(sections, timeDisplay) => {
         return `Race against the clock across ${sections} section${sections !== 1 ? "s" : ""} — ${sections * 8} answers total. ${timeDisplay}. Your score is tracked live.`;
       }}
-      onFetch={async (mode, difficulty, count) => {
-        const sectionCount = countToSections(count);
+      onFetch={async (mode, difficulty, sectionCount) => {
         const timeLimit = mode === "real" ? sectionCount * 30 : null;
         return generateScanningShapeQuiz(
           mode,

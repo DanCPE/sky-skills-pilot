@@ -10,6 +10,9 @@ interface QuestionCountSliderProps {
   onChange: (val: number) => void;
   labels: number[];
   isLoading?: boolean;
+  title?: string;
+  helperText?: string;
+  formatLabel?: (label: number) => string;
 }
 
 export default function QuestionCountSlider({
@@ -20,14 +23,24 @@ export default function QuestionCountSlider({
   onChange,
   labels,
   isLoading,
+  title = "Number of Questions",
+  helperText,
+  formatLabel = (label) => String(label),
 }: QuestionCountSliderProps) {
   const percentage = ((value - min) / (max - min)) * 100;
 
   return (
     <div className="mb-8 rounded-2xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/40 dark:backdrop-blur-md p-6">
-      <label className="mb-6 block text-[16px] font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-inter)] text-left">
-        Number of Questions
-      </label>
+      <div className="mb-6 flex items-start justify-between gap-4">
+        <label className="block text-left font-[family-name:var(--font-inter)] text-[16px] font-bold text-zinc-900 dark:text-zinc-100">
+          {title}
+        </label>
+        {helperText ? (
+          <span className="text-right font-[family-name:var(--font-inter)] text-sm font-medium text-zinc-500 dark:text-zinc-400">
+            {helperText}
+          </span>
+        ) : null}
+      </div>
       <div className="relative h-10 flex items-center px-2">
         {/* Custom Track Background */}
         <div className="absolute left-2 right-2 h-1.5 rounded-lg bg-[#F2F1F9] dark:bg-white" />
@@ -62,7 +75,7 @@ export default function QuestionCountSlider({
               }`}
               style={{ left: `calc(8px + ${pos}% - ${pos * 0.16}px)` }}
             >
-              {label}
+              {formatLabel(label)}
             </span>
           );
         })}

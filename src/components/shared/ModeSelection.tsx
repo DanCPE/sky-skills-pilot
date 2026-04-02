@@ -56,6 +56,13 @@ interface ModeSelectionProps<T> {
   /** Short topic description shown below the heading */
   subtitle: string;
   defaultQuestionCount?: number;
+  sliderLabel?: string;
+  sliderHelperText?: (value: number) => string;
+  sliderMin?: number;
+  sliderMax?: number;
+  sliderStep?: number;
+  sliderLabels?: number[];
+  formatSliderLabel?: (value: number) => string;
   /**
    * Seconds per question — used to compute the Real Mode time display.
    * Ignored when formatRealModeTime is provided.
@@ -83,6 +90,13 @@ interface ModeSelectionProps<T> {
 export default function ModeSelection<T>({
   subtitle,
   defaultQuestionCount = 20,
+  sliderLabel = "Number of Questions",
+  sliderHelperText,
+  sliderMin = 10,
+  sliderMax = 50,
+  sliderStep = 10,
+  sliderLabels = [10, 20, 30, 40, 50],
+  formatSliderLabel,
   timePerQuestion = 0,
   formatRealModeTime,
   learnDescription = "Learn at your own pace with immediate feedback and detailed explanations after each question.",
@@ -215,12 +229,15 @@ export default function ModeSelection<T>({
 
       <QuestionCountSlider
         value={questionCount}
-        min={10}
-        max={50}
-        step={10}
+        min={sliderMin}
+        max={sliderMax}
+        step={sliderStep}
         onChange={setQuestionCount}
-        labels={[10, 20, 30, 40, 50]}
+        labels={sliderLabels}
         isLoading={isLoading}
+        title={sliderLabel}
+        helperText={sliderHelperText?.(questionCount)}
+        formatLabel={formatSliderLabel}
       />
 
       {error && (
