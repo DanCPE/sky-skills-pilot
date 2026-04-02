@@ -159,7 +159,7 @@ function AnswerCard({
     : isRevealed
       ? "border-amber-400"
       : displayMode === "mono"
-        ? "border-zinc-400 dark:border-zinc-600"
+        ? "border-zinc-400 dark:border-zinc-500"
         : SHAPE_CARD_BORDER[shape.shape];
 
   const inputClass = [
@@ -168,12 +168,16 @@ function AnswerCard({
       ? "cursor-not-allowed border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : isRevealed
         ? "cursor-not-allowed border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
-        : "border-zinc-300 bg-zinc-50 text-zinc-950 focus:border-[#4F12A6] dark:border-zinc-500 dark:bg-zinc-100 dark:text-zinc-950 dark:focus:border-amber-400",
+        : displayMode === "mono"
+          ? "border-zinc-300 bg-zinc-50 text-zinc-800 focus:border-zinc-500 dark:border-zinc-400 dark:bg-[#f5f1e8] dark:text-zinc-700 dark:focus:border-zinc-500"
+          : "border-zinc-300 bg-zinc-50 text-zinc-950 focus:border-[#4F12A6] dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-amber-400",
   ].join(" ");
 
   const cardSize = 64;
   const cardSurfaceClass =
-    displayMode === "mono" ? "bg-white dark:bg-white" : "bg-white dark:bg-black/40";
+    displayMode === "mono"
+      ? "bg-white dark:bg-[#ece7dc]"
+      : "bg-white dark:bg-zinc-800/70";
 
   return (
     <div
@@ -244,8 +248,13 @@ function SectionPair({
   quizEnded: boolean;
   displayMode: LearnDisplayMode;
 }) {
+  const panelClass =
+    displayMode === "mono"
+      ? "overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700/60 dark:bg-[#d9d1c3]/30"
+      : "overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900/40 dark:backdrop-blur-md";
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
+    <div className={panelClass}>
       <div className="border-b border-zinc-100 px-4 py-2 dark:border-white/5">
         <span className="font-[family-name:var(--font-space-grotesk)] text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
           Section {section.id} / {numSections}
@@ -256,7 +265,7 @@ function SectionPair({
         className="relative w-full overflow-hidden"
         style={{
           height: SCANNING_SHAPE_CANVAS_HEIGHT,
-          background: displayMode === "mono" ? "#ffffff" : "#000000",
+          background: displayMode === "mono" ? "#f5f1e8" : "#18181b",
         }}
       >
         <svg
@@ -278,8 +287,8 @@ function SectionPair({
                 r="1"
                 fill={
                   displayMode === "mono"
-                    ? "rgba(0,0,0,0.08)"
-                    : "rgba(255,255,255,0.07)"
+                    ? "rgba(0,0,0,0.05)"
+                    : "rgba(255,255,255,0.05)"
                 }
               />
             </pattern>
