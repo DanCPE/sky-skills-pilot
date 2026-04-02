@@ -135,7 +135,6 @@ function ShapeGraphic({
 function AnswerCard({
   shape,
   isLocked,
-  isFlashing,
   inputValue,
   correctLetter,
   onInput,
@@ -145,7 +144,6 @@ function AnswerCard({
 }: {
   shape: ScanningShapeItem;
   isLocked: boolean;
-  isFlashing: boolean;
   inputValue: string;
   correctLetter: string;
   onInput: (char: string) => void;
@@ -158,28 +156,28 @@ function AnswerCard({
 
   const cardBorderClass = isLocked
     ? "border-green-500"
-    : isFlashing
-      ? "border-red-500"
-      : isRevealed
-        ? "border-amber-400"
-        : displayMode === "mono"
-          ? "border-zinc-400 dark:border-zinc-600"
-          : SHAPE_CARD_BORDER[shape.shape];
+    : isRevealed
+      ? "border-amber-400"
+      : displayMode === "mono"
+        ? "border-zinc-400 dark:border-zinc-500"
+        : SHAPE_CARD_BORDER[shape.shape];
 
   const inputClass = [
-    "h-9 w-9 rounded-lg border-2 text-center text-sm font-bold uppercase outline-none transition-all",
+    "h-10 w-10 rounded-lg border-2 text-center text-base font-black uppercase outline-none transition-all",
     isLocked
-      ? "cursor-not-allowed border-green-500 bg-green-50 text-green-600 dark:bg-green-950 dark:text-green-400"
-      : isFlashing
-        ? "border-red-500 bg-red-50 text-red-600 dark:bg-red-950 dark:text-red-400"
-        : isRevealed
-          ? "cursor-not-allowed border-amber-400 bg-amber-50 text-amber-600 dark:bg-amber-950 dark:text-amber-400"
-          : "border-zinc-300 bg-transparent text-zinc-900 focus:border-[#4F12A6] dark:border-zinc-600 dark:text-zinc-100 dark:focus:border-amber-400",
+      ? "cursor-not-allowed border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
+      : isRevealed
+        ? "cursor-not-allowed border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
+        : displayMode === "mono"
+          ? "border-zinc-300 bg-zinc-50 text-zinc-800 focus:border-zinc-500 dark:border-zinc-400 dark:bg-[#f5f1e8] dark:text-zinc-700 dark:focus:border-zinc-500"
+          : "border-zinc-300 bg-zinc-50 text-zinc-950 focus:border-[#4F12A6] dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-amber-400",
   ].join(" ");
 
   const cardSize = 64;
   const cardSurfaceClass =
-    displayMode === "mono" ? "bg-white dark:bg-white" : "bg-white dark:bg-black/40";
+    displayMode === "mono"
+      ? "bg-white dark:bg-[#ece7dc]"
+      : "bg-white dark:bg-zinc-800/70";
 
   return (
     <div
@@ -203,12 +201,12 @@ function AnswerCard({
       <input
         type="text"
         value={displayValue}
-        readOnly={isLocked || quizEnded || isFlashing}
+        readOnly={quizEnded}
         maxLength={1}
         placeholder="?"
         className={inputClass}
         onChange={(event) => {
-          if (isLocked || quizEnded || isFlashing) {
+          if (quizEnded) {
             return;
           }
 
@@ -217,12 +215,10 @@ function AnswerCard({
             .replace(/[^A-Z]/g, "")
             .slice(-1);
 
-          if (char) {
-            onInput(char);
-          }
+          onInput(char);
         }}
         onKeyDown={(event) => {
-          if (isLocked || quizEnded || isFlashing) {
+          if (quizEnded) {
             return;
           }
 
@@ -240,7 +236,6 @@ function SectionPair({
   numSections,
   answers,
   locked,
-  wrongFlash,
   onInput,
   quizEnded,
   displayMode,
@@ -249,13 +244,17 @@ function SectionPair({
   numSections: number;
   answers: Record<string, string>;
   locked: Set<string>;
-  wrongFlash: Set<string>;
-  onInput: (id: string, char: string, correctLetter: string) => void;
+  onInput: (id: string, char: string) => void;
   quizEnded: boolean;
   displayMode: LearnDisplayMode;
 }) {
+  const panelClass =
+    displayMode === "mono"
+      ? "overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-zinc-700/60 dark:bg-[#d9d1c3]/30"
+      : "overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-900/40 dark:backdrop-blur-md";
+
   return (
-    <div className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
+    <div className={panelClass}>
       <div className="border-b border-zinc-100 px-4 py-2 dark:border-white/5">
         <span className="font-[family-name:var(--font-space-grotesk)] text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
           Section {section.id} / {numSections}
@@ -266,7 +265,7 @@ function SectionPair({
         className="relative w-full overflow-hidden"
         style={{
           height: SCANNING_SHAPE_CANVAS_HEIGHT,
-          background: displayMode === "mono" ? "#ffffff" : "#000000",
+          background: displayMode === "mono" ? "#f5f1e8" : "#18181b",
         }}
       >
         <svg
@@ -288,8 +287,8 @@ function SectionPair({
                 r="1"
                 fill={
                   displayMode === "mono"
-                    ? "rgba(0,0,0,0.08)"
-                    : "rgba(255,255,255,0.07)"
+                    ? "rgba(0,0,0,0.05)"
+                    : "rgba(255,255,255,0.05)"
                 }
               />
             </pattern>
@@ -335,10 +334,9 @@ function SectionPair({
               key={shape.id}
               shape={shape}
               isLocked={locked.has(shape.id)}
-              isFlashing={wrongFlash.has(shape.id)}
               inputValue={answers[shape.id] ?? ""}
               correctLetter={shape.letter}
-              onInput={(char) => onInput(shape.id, char, shape.letter)}
+              onInput={(char) => onInput(shape.id, char)}
               quizEnded={quizEnded}
               fullWidth
               displayMode={displayMode}
@@ -492,7 +490,6 @@ export default function QuizInterface({
   const [sections, setSections] = useState(quizData.sections);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [locked, setLocked] = useState<Set<string>>(new Set());
-  const [wrongFlash, setWrongFlash] = useState<Set<string>>(new Set());
   const [quizEnded, setQuizEnded] = useState(false);
   const [showModal, setShowModal] = useState(false);
   const [trigger, setTrigger] = useState<"timer" | "complete">("complete");
@@ -505,7 +502,20 @@ export default function QuizInterface({
   const endedRef = useRef(false);
 
   const displayMode: LearnDisplayMode = isLearnMode ? learnDisplayMode : "mono";
-  const score = locked.size;
+  const computeLockedFromAnswers = useCallback(() => {
+    const newLocked = new Set<string>();
+    for (const section of sections) {
+      for (const shape of section.answerShapes) {
+        if (answers[shape.id] === shape.letter) {
+          newLocked.add(shape.id);
+        }
+      }
+    }
+    return newLocked;
+  }, [sections, answers]);
+
+  const liveLocked = quizEnded ? locked : computeLockedFromAnswers();
+  const score = liveLocked.size;
   const progressPercent = (score / totalAnswers) * 100;
 
   useEffect(() => {
@@ -528,60 +538,21 @@ export default function QuizInterface({
   );
 
   const handleInput = useCallback(
-    (id: string, char: string, correctLetter: string) => {
-      setAnswers((previous) => ({ ...previous, [id]: char }));
+    (id: string, char: string) => {
+      setAnswers((previous) => {
+        const next = { ...previous };
 
-      if (!isLearnMode) {
-        // real mode: just record the answer, no immediate feedback
-        return;
-      }
-
-      if (char === correctLetter) {
-        setLocked((previous) => {
-          const next = new Set(previous);
-          next.add(id);
-
-          if (!endedRef.current && next.size >= totalAnswers) {
-            finishQuiz(
-              "complete",
-              Math.floor((Date.now() - startRef.current) / 1000),
-            );
-          }
-
-          return next;
-        });
-        return;
-      }
-
-      setWrongFlash((previous) => new Set([...previous, id]));
-      setTimeout(() => {
-        setWrongFlash((previous) => {
-          const next = new Set(previous);
-          next.delete(id);
-          return next;
-        });
-
-        setAnswers((previous) => {
-          const next = { ...previous };
+        if (char) {
+          next[id] = char;
+        } else {
           delete next[id];
-          return next;
-        });
-      }, 600);
-    },
-    [isLearnMode, finishQuiz, totalAnswers],
-  );
-
-  const computeLockedFromAnswers = useCallback(() => {
-    const newLocked = new Set<string>();
-    for (const section of sections) {
-      for (const shape of section.answerShapes) {
-        if (answers[shape.id] === shape.letter) {
-          newLocked.add(shape.id);
         }
-      }
-    }
-    return newLocked;
-  }, [sections, answers]);
+
+        return next;
+      });
+    },
+    [],
+  );
 
   const handleSubmit = useCallback(() => {
     if (endedRef.current) return;
@@ -599,7 +570,6 @@ export default function QuizInterface({
     setSections(generateScanningShapeSections(sectionCount, difficulty));
     setAnswers({});
     setLocked(new Set());
-    setWrongFlash(new Set());
     setQuizEnded(false);
     setShowModal(false);
     setElapsed(0);
@@ -684,12 +654,12 @@ export default function QuizInterface({
             )}
 
             <div className="flex items-center gap-3">
-              {!isLearnMode && !quizEnded && (
+              {!quizEnded && (
                 <button
                   onClick={handleSubmit}
                   className="rounded-lg bg-[#4F12A6] px-3 py-1.5 font-[family-name:var(--font-space-grotesk)] text-xs font-bold uppercase tracking-wider text-white shadow-md shadow-[#4F12A6]/20 transition-all hover:opacity-90 active:scale-[0.98]"
                 >
-                  Submit
+                  {isLearnMode ? "Check Answers" : "Submit"}
                 </button>
               )}
               {quizEnded && !showModal && (
@@ -736,7 +706,6 @@ export default function QuizInterface({
             numSections={sectionCount}
             answers={answers}
             locked={locked}
-            wrongFlash={wrongFlash}
             onInput={handleInput}
             quizEnded={quizEnded}
             displayMode={displayMode}

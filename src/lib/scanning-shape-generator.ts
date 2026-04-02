@@ -12,19 +12,30 @@ interface DifficultyParams {
   maxShapes: number;
 }
 
-export const SCANNING_SHAPE_CANVAS_WIDTH = 800;
+export const SCANNING_SHAPE_CANVAS_WIDTH = 1200;
 export const SCANNING_SHAPE_CANVAS_HEIGHT = 340;
 export const SCANNING_SHAPE_ANSWERS_PER_SECTION = 8;
 
 const DIFFICULTY_PARAMS: Record<string, DifficultyParams> = {
   easy: { minSize: 70, maxSize: 110, minShapes: 20, maxShapes: 24 },
   medium: { minSize: 55, maxSize: 100, minShapes: 24, maxShapes: 28 },
-  hard: { minSize: 50, maxSize: 85, minShapes: 28, maxShapes: 32 },
+  hard: { minSize: 50, maxSize: 85, minShapes: 40, maxShapes: 60 },
   mixed: { minSize: 30, maxSize: 110, minShapes: 32, maxShapes: 60 },
 };
 
 function rand(min: number, max: number) {
   return Math.floor(Math.random() * (max - min + 1)) + min;
+}
+
+function shuffle<T>(items: T[]): T[] {
+  const next = [...items];
+
+  for (let i = next.length - 1; i > 0; i -= 1) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [next[i], next[j]] = [next[j], next[i]];
+  }
+
+  return next;
 }
 
 function noCollision(
@@ -56,6 +67,9 @@ function generateSection(
 ): ScanningShapeSection {
   const shapes: ScanningShapeItem[] = [];
   const usedClues = new Set<string>();
+  const zoneCols = 4;
+  const zoneRows = 3;
+  const zoneUsage = Array.from({ length: zoneCols * zoneRows }, () => 0);
   const shapeTypes: ScanningShapeType[] = [
     "circle",
     "square",
@@ -84,9 +98,34 @@ function generateSection(
       continue;
     }
 
+    const zoneWidth = (maxX - minX) / zoneCols;
+    const zoneHeight = (maxY - minY) / zoneRows;
+    const orderedZones = shuffle(
+      Array.from({ length: zoneCols * zoneRows }, (_, index) => index),
+    ).sort((a, b) => zoneUsage[a] - zoneUsage[b]);
+
     for (let attempt = 0; attempt < 100; attempt += 1) {
-      const x = rand(minX, maxX);
-      const y = rand(minY, maxY);
+      const zoneIndex = orderedZones[attempt % orderedZones.length];
+      const zoneCol = zoneIndex % zoneCols;
+      const zoneRow = Math.floor(zoneIndex / zoneCols);
+      const zoneMinX = Math.max(
+        minX,
+        Math.floor(minX + zoneCol * zoneWidth),
+      );
+      const zoneMaxX = Math.min(
+        maxX,
+        Math.floor(minX + (zoneCol + 1) * zoneWidth),
+      );
+      const zoneMinY = Math.max(
+        minY,
+        Math.floor(minY + zoneRow * zoneHeight),
+      );
+      const zoneMaxY = Math.min(
+        maxY,
+        Math.floor(minY + (zoneRow + 1) * zoneHeight),
+      );
+      const x = rand(zoneMinX, Math.max(zoneMinX, zoneMaxX));
+      const y = rand(zoneMinY, Math.max(zoneMinY, zoneMaxY));
       const digits = String(rand(10, 99));
       const letter = String.fromCharCode(65 + Math.floor(Math.random() * 26));
       const clueKey = `${type}:${digits}`;
@@ -106,6 +145,7 @@ function generateSection(
         y,
         size,
       });
+      zoneUsage[zoneIndex] += 1;
       break;
     }
   }
