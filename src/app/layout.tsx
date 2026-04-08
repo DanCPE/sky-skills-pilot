@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Space_Grotesk, Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/lib/use-theme";
+import FrontendUsageTracker from "@/components/analytics/FrontendUsageTracker";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -40,6 +41,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${spaceGrotesk.variable} ${inter.variable} antialiased`}
       >
         <ThemeProvider>
+          <FrontendUsageTracker />
           <Navbar />
           {children}
         </ThemeProvider>
