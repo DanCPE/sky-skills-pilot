@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import QuestionCountSlider from "./QuestionCountSlider";
+import { trackClientEvent } from "@/lib/client-analytics";
 
 type Mode = "learn" | "real" | null;
 type Difficulty = "easy" | "medium" | "hard" | "mixed";
@@ -125,6 +126,15 @@ export default function ModeSelection<T>({
     setIsLoading(true);
     setError(null);
     try {
+      await trackClientEvent({
+        eventType: "quiz_start",
+        pathname:
+          typeof window !== "undefined" ? window.location.pathname : "/unknown",
+        mode: selectedMode,
+        difficulty: selectedDifficulty,
+        questionCount,
+      });
+
       const data = await onFetch(selectedMode, selectedDifficulty, questionCount);
       onStart(data);
     } catch (err) {
