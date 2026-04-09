@@ -51,11 +51,42 @@ function analyticsLog(message: string, meta?: Record<string, unknown>) {
 }
 
 function hasDatabaseUrl() {
-  return Boolean(process.env.DATABASE_URL);
+  return Boolean(getDatabaseConfig().url);
+}
+
+function getDatabaseConfig(): { key: string | null; url: string | null } {
+  const candidates: Array<{ key: string; value: string | undefined }> = [
+    { key: "DATABASE_URL", value: process.env.DATABASE_URL },
+    { key: "POSTGRES_URL", value: process.env.POSTGRES_URL },
+    { key: "DB_URL", value: process.env.DB_URL },
+    { key: "SUPABASE_DB_URL", value: process.env.SUPABASE_DB_URL },
+  ];
+
+  const chosen = candidates.find(
+    (candidate) => typeof candidate.value === "string" && candidate.value.length > 0,
+  );
+
+  return {
+    key: chosen?.key ?? null,
+    url: chosen?.value ?? null,
+  };
+}
+
+function logDatabaseEnvSnapshot() {
+  if (!isAnalyticsDebugEnabled()) return;
+
+  const flags = {
+    DATABASE_URL: Boolean(process.env.DATABASE_URL),
+    POSTGRES_URL: Boolean(process.env.POSTGRES_URL),
+    DB_URL: Boolean(process.env.DB_URL),
+    SUPABASE_DB_URL: Boolean(process.env.SUPABASE_DB_URL),
+  };
+
+  console.log("[analytics] DB env snapshot", flags);
 }
 
 function getMaskedDbInfo() {
-  const url = process.env.DATABASE_URL;
+  const url = getDatabaseConfig().url;
   if (!url) {
     return null;
   }
@@ -74,15 +105,32 @@ function getMaskedDbInfo() {
 }
 
 function getPool() {
-  if (!process.env.DATABASE_URL) {
-    throw new Error("DATABASE_URL is required for DB analytics storage.");
+  const dbConfig = getDatabaseConfig();
+  const dbUrl = dbConfig.url;
+  if (!dbUrl) {
+    logDatabaseEnvSnapshot();
+    throw new Error(
+      "No database URL found. Set one of DATABASE_URL, POSTGRES_URL, DB_URL, SUPABASE_DB_URL.",
+    );
   }
 
   if (!analyticsPool) {
-    console.log("DB host:", new URL(process.env.DATABASE_URL).hostname);
+    logDatabaseEnvSnapshot();
+    try {
+      console.log("[analytics] DB env key used:", dbConfig.key);
+      console.log("DB host:", new URL(dbUrl).hostname);
+    } catch (error) {
+      console.error("Invalid DATABASE_URL format", {
+        keyUsed: dbConfig.key,
+        hasValue: Boolean(dbUrl),
+        startsWith: dbUrl?.slice(0, 24) ?? null,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      throw new Error("Invalid DATABASE_URL format.");
+    }
     analyticsLog("Creating PostgreSQL connection pool");
     analyticsPool = new Pool({
-      connectionString: process.env.DATABASE_URL,
+      connectionString: dbUrl,
       ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
     });
   }
@@ -353,11 +401,13 @@ export async function readAnalyticsEvents(): Promise<AnalyticsEvent[]> {
 export async function getAnalyticsStorageHealth() {
   const dbConfigured = hasDatabaseUrl();
   const dbInfo = getMaskedDbInfo();
+  const dbConfig = getDatabaseConfig();
 
   if (!dbConfigured) {
     return {
       storage: "jsonl_fallback" as const,
       dbConfigured,
+      dbKey: dbConfig.key,
       dbInfo,
       tableExists: false,
       tableSchema: null as string | null,
@@ -405,6 +455,7 @@ export async function getAnalyticsStorageHealth() {
   return {
     storage: "postgres" as const,
     dbConfigured,
+    dbKey: dbConfig.key,
     dbInfo,
     tableExists,
     tableSchema,
