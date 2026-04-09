@@ -29,7 +29,7 @@ export default function QuestionCard({
       </div>
 
       <div className="flex min-h-[100px] items-center justify-center overflow-hidden rounded-[1rem] border-2 border-[#4F12A6] bg-white px-6 py-4 dark:border-white/90 dark:bg-zinc-900/80">
-        <span className="font-[family-name:var(--font-space-grotesk)] text-[42px] font-black tracking-tight text-zinc-900 dark:text-white md:text-[52px]">
+        <span className="font-[family-name:var(--font-space-grotesk)] text-[42px] font-black tracking-tight text-zinc-900 dark:text-white md:text-[32px]">
           {question.expression}
         </span>
       </div>
