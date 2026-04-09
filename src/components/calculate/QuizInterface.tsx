@@ -58,6 +58,15 @@ export default function QuizInterface({
   const [quizStartTime] = useState(Date.now());
 
   const isSubmittingRef = useRef(false);
+  const realConfirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingAnswerRef = useRef<string | null>(null);
+
+  const clearRealConfirmTimeout = () => {
+    if (realConfirmTimeoutRef.current) {
+      clearTimeout(realConfirmTimeoutRef.current);
+      realConfirmTimeoutRef.current = null;
+    }
+  };
 
   const getTimeRemaining = () => {
     if (!timeLimit) return 0;
@@ -72,12 +81,24 @@ export default function QuizInterface({
   }, [quizComplete, quizStartTime]);
 
   const handleTimeUp = () => {
-    const remainingAnswers = questions.slice(currentQuestionIndex).map((q) => ({
-      questionId: q.id,
-      answer: "",
-      isCorrect: false,
-    }));
-    setAnswers((prev) => [...prev, ...remainingAnswers]);
+    const answeredQuestionIds = new Set(answers.map((a) => a.questionId));
+    const currentQ = questions[currentQuestionIndex];
+
+    const pendingAnswers: QuizAnswer[] = [];
+    if (!answeredQuestionIds.has(currentQ.id) && selectedAnswer) {
+      pendingAnswers.push({
+        questionId: currentQ.id,
+        answer: selectedAnswer,
+        isCorrect: selectedAnswer === String(currentQ.correctAnswer),
+      });
+      answeredQuestionIds.add(currentQ.id);
+    }
+
+    const remainingAnswers = questions
+      .filter((q) => !answeredQuestionIds.has(q.id))
+      .map((q) => ({ questionId: q.id, answer: "", isCorrect: false }));
+
+    setAnswers((prev) => [...prev, ...pendingAnswers, ...remainingAnswers]);
     setQuizComplete(true);
   };
 
@@ -115,11 +136,20 @@ export default function QuizInterface({
   };
 
   const handleAnswer = async (answer: string) => {
-    if (isSubmitting || isSubmittingRef.current) {
+    if (isSubmitting || isSubmittingRef.current) return;
+
+    setSelectedAnswer(answer);
+
+    if (mode === "real") {
+      clearRealConfirmTimeout();
+      pendingAnswerRef.current = answer;
+      realConfirmTimeoutRef.current = setTimeout(() => {
+        handleRealConfirmWithAnswer(pendingAnswerRef.current!);
+      }, 800);
       return;
     }
 
-    setSelectedAnswer(answer);
+    // Learn mode: submit immediately after short delay
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     setIsSubmitting(true);
@@ -157,22 +187,14 @@ export default function QuizInterface({
       };
 
       setAnswers((prev) => [...prev, answerData]);
-      setAnsweredQuestionIndices(
-        (prev) => new Set([...prev, currentQuestionIndex]),
-      );
+      setAnsweredQuestionIndices((prev) => new Set([...prev, currentQuestionIndex]));
       setSkippedQuestions((prev) =>
         prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
       );
 
-      if (mode === "learn") {
-        setShowExplanation(true);
-        setIsSubmitting(false);
-        isSubmittingRef.current = false;
-      } else {
-        moveToNextQuestion();
-        setIsSubmitting(false);
-        isSubmittingRef.current = false;
-      }
+      setShowExplanation(true);
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
     } catch (error) {
       console.error("Error submitting calculation answer:", error);
       const answerData: QuizAnswer = {
@@ -181,9 +203,67 @@ export default function QuizInterface({
         isCorrect: answer === String(currentQuestion.correctAnswer),
       };
       setAnswers((prev) => [...prev, answerData]);
-      setAnsweredQuestionIndices(
-        (prev) => new Set([...prev, currentQuestionIndex]),
+      setAnsweredQuestionIndices((prev) => new Set([...prev, currentQuestionIndex]));
+      setSkippedQuestions((prev) =>
+        prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
       );
+      setShowExplanation(true);
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
+    }
+  };
+
+  // Confirm answer and advance in real mode — called by timeout or footer Next button
+  const handleRealConfirmWithAnswer = async (answer: string) => {
+    if (!answer || isSubmitting || isSubmittingRef.current) return;
+    setIsSubmitting(true);
+    isSubmittingRef.current = true;
+
+    const currentQuestion = questions[currentQuestionIndex];
+    const questionStartTime = Date.now();
+
+    try {
+      const response = await fetch("/api/calculate/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: currentQuestion.id,
+          answer,
+          mode,
+          questionIndex: currentQuestionIndex,
+          timeRemaining: getTimeRemaining(),
+          correctAnswer: currentQuestion.correctAnswer,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to submit answer");
+
+      const result: CalculationSubmitResult = await response.json();
+
+      const answerData: QuizAnswer = {
+        questionId: currentQuestion.id,
+        answer,
+        isCorrect: result.correct ?? false,
+        timeTaken: Math.floor((Date.now() - questionStartTime) / 1000),
+      };
+
+      setAnswers((prev) => [...prev, answerData]);
+      setAnsweredQuestionIndices((prev) => new Set([...prev, currentQuestionIndex]));
+      setSkippedQuestions((prev) =>
+        prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
+      );
+      moveToNextQuestion();
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
+    } catch (error) {
+      console.error("Error submitting calculation answer:", error);
+      const answerData: QuizAnswer = {
+        questionId: currentQuestion.id,
+        answer,
+        isCorrect: answer === String(currentQuestion.correctAnswer),
+      };
+      setAnswers((prev) => [...prev, answerData]);
+      setAnsweredQuestionIndices((prev) => new Set([...prev, currentQuestionIndex]));
       setSkippedQuestions((prev) =>
         prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
       );
@@ -229,20 +309,29 @@ export default function QuizInterface({
   };
 
   const handleSubmitQuiz = () => {
-    const unansweredCount = questions.length - answers.length;
-    if (unansweredCount > 0) {
-      const answeredQuestionIds = new Set(answers.map((a) => a.questionId));
-      const unansweredAnswers = questions
-        .filter((q) => !answeredQuestionIds.has(q.id))
-        .map((q) => ({
-          questionId: q.id,
-          answer: "",
-          isCorrect: false,
-          timeTaken: 0,
-        }));
-      setAnswers((prev) => [...prev, ...unansweredAnswers]);
+    const answeredQuestionIds = new Set(answers.map((a) => a.questionId));
+    const currentQ = questions[currentQuestionIndex];
+
+    const pendingAnswers: QuizAnswer[] = [];
+    if (mode === "real" && !answeredQuestionIds.has(currentQ.id) && selectedAnswer) {
+      pendingAnswers.push({
+        questionId: currentQ.id,
+        answer: selectedAnswer,
+        isCorrect: selectedAnswer === String(currentQ.correctAnswer),
+      });
+      answeredQuestionIds.add(currentQ.id);
     }
 
+    const unansweredAnswers = questions
+      .filter((q) => !answeredQuestionIds.has(q.id))
+      .map((q) => ({
+        questionId: q.id,
+        answer: "",
+        isCorrect: false,
+        timeTaken: 0,
+      }));
+
+    setAnswers((prev) => [...prev, ...pendingAnswers, ...unansweredAnswers]);
     setShowConfirmation(false);
     setQuizComplete(true);
   };
@@ -327,11 +416,7 @@ export default function QuizInterface({
               <QuestionCard
                 question={currentQuestion}
                 onAnswer={handleAnswer}
-                disabled={
-                  isSubmitting ||
-                  effShowExplanation ||
-                  (mode === "real" && effIsAnswered)
-                }
+                disabled={isSubmitting || effShowExplanation}
                 selectedAnswer={effSelectedAnswer ?? undefined}
                 showResult={mode === "real" && effResult !== null}
                 isCorrect={effResult?.correct}
@@ -359,9 +444,8 @@ export default function QuizInterface({
             answeredIndices={answeredQuestionIndices}
             skippedIndices={skippedIndicesSet}
             onSelectQuestion={(index) => {
-              if (isSubmitting || (mode === "real" && currentResult !== null)) {
-                return;
-              }
+              if (isSubmitting) return;
+              clearRealConfirmTimeout();
               setShowExplanation(false);
               setSelectedAnswer(null);
               setCurrentResult(null);
@@ -373,6 +457,7 @@ export default function QuizInterface({
           <QuizFooterNav
             onExit={() => router.back()}
             onPrevious={() => {
+              clearRealConfirmTimeout();
               setShowExplanation(false);
               setSelectedAnswer(null);
               setCurrentResult(null);
@@ -380,15 +465,23 @@ export default function QuizInterface({
             }}
             previousDisabled={currentQuestionIndex === 0}
             onSkip={handleSkip}
-            onNext={() => {
-              setShowExplanation(false);
-              setSelectedAnswer(null);
-              setCurrentResult(null);
-              setCurrentQuestionIndex((prev) =>
-                Math.min(questions.length - 1, prev + 1),
-              );
-            }}
-            nextDisabled={currentQuestionIndex === questions.length - 1}
+            onNext={
+              mode === "real" && !effIsAnswered
+                ? () => handleRealConfirmWithAnswer(selectedAnswer!)
+                : () => {
+                    setShowExplanation(false);
+                    setSelectedAnswer(null);
+                    setCurrentResult(null);
+                    setCurrentQuestionIndex((prev) =>
+                      Math.min(questions.length - 1, prev + 1),
+                    );
+                  }
+            }
+            nextDisabled={
+              mode === "real" && !effIsAnswered
+                ? !selectedAnswer || isSubmitting
+                : currentQuestionIndex === questions.length - 1
+            }
           />
         </div>
       </div>

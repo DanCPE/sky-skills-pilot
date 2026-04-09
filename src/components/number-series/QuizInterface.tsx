@@ -68,6 +68,16 @@ export default function QuizInterface({
 
   // Ref to track if submission is in progress (prevents double-clicks)
   const isSubmittingRef = useRef(false);
+  // Real mode: pending auto-confirm timeout and the answer it will submit
+  const realConfirmTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingAnswerRef = useRef<string | null>(null);
+
+  const clearRealConfirmTimeout = () => {
+    if (realConfirmTimeoutRef.current) {
+      clearTimeout(realConfirmTimeoutRef.current);
+      realConfirmTimeoutRef.current = null;
+    }
+  };
 
   // Update total time when quiz completes
   useEffect(() => {
@@ -78,26 +88,46 @@ export default function QuizInterface({
 
   // Handle time up (real mode)
   const handleTimeUp = () => {
-    // Submit remaining questions as incorrect
-    const remainingAnswers = questions.slice(currentQuestionIndex).map((q) => ({
-      questionId: q.id,
-      answer: "",
-      isCorrect: false,
-    }));
-    setAnswers((prev) => [...prev, ...remainingAnswers]);
+    const answeredQuestionIds = new Set(answers.map((a) => a.questionId));
+    const currentQ = questions[currentQuestionIndex];
+
+    // Include any pending (selected but not yet confirmed) answer
+    const pendingAnswers: QuizAnswer[] = [];
+    if (!answeredQuestionIds.has(currentQ.id) && selectedAnswer) {
+      pendingAnswers.push({
+        questionId: currentQ.id,
+        answer: selectedAnswer,
+        isCorrect: selectedAnswer === String(currentQ.correctAnswer),
+      });
+      answeredQuestionIds.add(currentQ.id);
+    }
+
+    const remainingAnswers = questions
+      .filter((q) => !answeredQuestionIds.has(q.id))
+      .map((q) => ({ questionId: q.id, answer: "", isCorrect: false }));
+
+    setAnswers((prev) => [...prev, ...pendingAnswers, ...remainingAnswers]);
     setQuizComplete(true);
   };
 
-  // Handle answer selection
+  // Handle answer selection (learn mode: auto-submit; real mode: just update selection)
   const handleAnswer = async (answer: string) => {
-    // Prevent double-clicks using both state and ref
-    if (isSubmitting || isSubmittingRef.current) {
-      return;
-    }
+    if (isSubmitting || isSubmittingRef.current) return;
 
     setSelectedAnswer(answer);
 
-    // Add 0.1s delay before proceeding with submission logic
+    // Real mode: show selection and auto-confirm after 800ms.
+    // Re-clicking a different option resets the timer, allowing answer changes.
+    if (mode === "real") {
+      clearRealConfirmTimeout();
+      pendingAnswerRef.current = answer;
+      realConfirmTimeoutRef.current = setTimeout(() => {
+        handleRealConfirmWithAnswer(pendingAnswerRef.current!);
+      }, 800);
+      return;
+    }
+
+    // Learn mode: submit immediately after short delay
     await new Promise((resolve) => setTimeout(resolve, 100));
 
     setIsSubmitting(true);
@@ -107,7 +137,6 @@ export default function QuizInterface({
     const questionStartTime = Date.now();
 
     try {
-      // Submit answer to API
       const response = await fetch("/api/number-series/submit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -129,7 +158,6 @@ export default function QuizInterface({
       const result: NumberSeriesSubmitResult = await response.json();
       setCurrentResult(result);
 
-      // Store answer
       const answerData: QuizAnswer = {
         questionId: currentQuestion.id,
         answer,
@@ -138,38 +166,85 @@ export default function QuizInterface({
       };
 
       setAnswers((prev) => [...prev, answerData]);
-      setAnsweredQuestionIndices(
-        (prev) => new Set([...prev, currentQuestionIndex]),
-      );
-
-      // Remove from skipped if it was previously skipped
+      setAnsweredQuestionIndices((prev) => new Set([...prev, currentQuestionIndex]));
       setSkippedQuestions((prev) =>
         prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
       );
 
-      // Show explanation in learn mode, or move to next question in real mode
-      if (mode === "learn") {
-        setShowExplanation(true);
-        setIsSubmitting(false);
-        isSubmittingRef.current = false;
-      } else {
-        // Real mode: move to next question immediately
-        moveToNextQuestion();
-        setIsSubmitting(false);
-        isSubmittingRef.current = false;
-      }
+      setShowExplanation(true);
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
     } catch (error) {
       console.error("Error submitting answer:", error);
-      // Fallback: mark as incorrect and continue
       const answerData: QuizAnswer = {
         questionId: currentQuestion.id,
         answer,
         isCorrect: answer === String(currentQuestion.correctAnswer),
       };
       setAnswers((prev) => [...prev, answerData]);
-      setAnsweredQuestionIndices(
-        (prev) => new Set([...prev, currentQuestionIndex]),
+      setAnsweredQuestionIndices((prev) => new Set([...prev, currentQuestionIndex]));
+      setSkippedQuestions((prev) =>
+        prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
       );
+      setShowExplanation(true);
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
+    }
+  };
+
+  // Confirm answer and advance in real mode — called by timeout or footer Next button
+  const handleRealConfirmWithAnswer = async (answer: string) => {
+    if (!answer || isSubmitting || isSubmittingRef.current) return;
+    clearRealConfirmTimeout();
+    setIsSubmitting(true);
+    isSubmittingRef.current = true;
+
+    const currentQuestion = questions[currentQuestionIndex];
+    const questionStartTime = Date.now();
+
+    try {
+      const response = await fetch("/api/number-series/submit", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          questionId: currentQuestion.id,
+          answer,
+          mode,
+          questionIndex: currentQuestionIndex,
+          timeRemaining: getTimeRemaining(),
+          correctAnswer: currentQuestion.correctAnswer,
+          patternType: currentQuestion.patternType,
+        }),
+      });
+
+      if (!response.ok) throw new Error("Failed to submit answer");
+
+      const result: NumberSeriesSubmitResult = await response.json();
+
+      const answerData: QuizAnswer = {
+        questionId: currentQuestion.id,
+        answer,
+        isCorrect: result.correct ?? false,
+        timeTaken: Math.floor((Date.now() - questionStartTime) / 1000),
+      };
+
+      setAnswers((prev) => [...prev, answerData]);
+      setAnsweredQuestionIndices((prev) => new Set([...prev, currentQuestionIndex]));
+      setSkippedQuestions((prev) =>
+        prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
+      );
+      moveToNextQuestion();
+      setIsSubmitting(false);
+      isSubmittingRef.current = false;
+    } catch (error) {
+      console.error("Error submitting answer:", error);
+      const answerData: QuizAnswer = {
+        questionId: currentQuestion.id,
+        answer,
+        isCorrect: answer === String(currentQuestion.correctAnswer),
+      };
+      setAnswers((prev) => [...prev, answerData]);
+      setAnsweredQuestionIndices((prev) => new Set([...prev, currentQuestionIndex]));
       setSkippedQuestions((prev) =>
         prev.filter((sq) => sq.questionIndex !== currentQuestionIndex),
       );
@@ -260,21 +335,30 @@ export default function QuizInterface({
 
   // Handle manual submit
   const handleSubmitQuiz = () => {
-    // Mark all unanswered/skipped questions as incorrect
-    const unansweredCount = questions.length - answers.length;
-    if (unansweredCount > 0) {
-      const answeredQuestionIds = new Set(answers.map((a) => a.questionId));
-      const unansweredAnswers = questions
-        .filter((q) => !answeredQuestionIds.has(q.id))
-        .map((q) => ({
-          questionId: q.id,
-          answer: "",
-          isCorrect: false,
-          timeTaken: 0,
-        }));
-      setAnswers((prev) => [...prev, ...unansweredAnswers]);
+    const answeredQuestionIds = new Set(answers.map((a) => a.questionId));
+    const currentQ = questions[currentQuestionIndex];
+
+    // Include any pending (selected but not confirmed) answer in real mode
+    const pendingAnswers: QuizAnswer[] = [];
+    if (mode === "real" && !answeredQuestionIds.has(currentQ.id) && selectedAnswer) {
+      pendingAnswers.push({
+        questionId: currentQ.id,
+        answer: selectedAnswer,
+        isCorrect: selectedAnswer === String(currentQ.correctAnswer),
+      });
+      answeredQuestionIds.add(currentQ.id);
     }
 
+    const unansweredAnswers = questions
+      .filter((q) => !answeredQuestionIds.has(q.id))
+      .map((q) => ({
+        questionId: q.id,
+        answer: "",
+        isCorrect: false,
+        timeTaken: 0,
+      }));
+
+    setAnswers((prev) => [...prev, ...pendingAnswers, ...unansweredAnswers]);
     setShowConfirmation(false);
     setQuizComplete(true);
   };
@@ -373,11 +457,7 @@ export default function QuizInterface({
               <QuestionCard
                 question={currentQuestion}
                 onAnswer={handleAnswer}
-                disabled={
-                  isSubmitting ||
-                  effShowExplanation ||
-                  (mode === "real" && effIsAnswered)
-                }
+                disabled={isSubmitting || effShowExplanation}
                 selectedAnswer={effSelectedAnswer ?? undefined}
                 showResult={mode === "real" && effResult !== null}
                 isCorrect={effResult?.correct}
@@ -406,8 +486,8 @@ export default function QuizInterface({
             answeredIndices={answeredQuestionIndices}
             skippedIndices={skippedIndicesSet}
             onSelectQuestion={(index) => {
-              if (isSubmitting || (mode === "real" && currentResult !== null))
-                return;
+              if (isSubmitting) return;
+              clearRealConfirmTimeout();
               setShowExplanation(false);
               setSelectedAnswer(null);
               setCurrentResult(null);
@@ -420,6 +500,7 @@ export default function QuizInterface({
           <QuizFooterNav
             onExit={() => router.back()}
             onPrevious={() => {
+              clearRealConfirmTimeout();
               setShowExplanation(false);
               setSelectedAnswer(null);
               setCurrentResult(null);
@@ -427,15 +508,23 @@ export default function QuizInterface({
             }}
             previousDisabled={currentQuestionIndex === 0}
             onSkip={handleSkip}
-            onNext={() => {
-              setShowExplanation(false);
-              setSelectedAnswer(null);
-              setCurrentResult(null);
-              setCurrentQuestionIndex((prev) =>
-                Math.min(questions.length - 1, prev + 1),
-              );
-            }}
-            nextDisabled={currentQuestionIndex === questions.length - 1}
+            onNext={
+              mode === "real" && !effIsAnswered
+                ? () => handleRealConfirmWithAnswer(selectedAnswer!)
+                : () => {
+                    setShowExplanation(false);
+                    setSelectedAnswer(null);
+                    setCurrentResult(null);
+                    setCurrentQuestionIndex((prev) =>
+                      Math.min(questions.length - 1, prev + 1),
+                    );
+                  }
+            }
+            nextDisabled={
+              mode === "real" && !effIsAnswered
+                ? !selectedAnswer || isSubmitting
+                : currentQuestionIndex === questions.length - 1
+            }
           />
         </div>
       </div>
