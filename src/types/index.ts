@@ -77,6 +77,38 @@ export interface NumberSeriesSubmitResult extends SubmitResult {
   currentScore?: number; // Running score (0-100)
 }
 
+// Calculation specific types
+export type CalculationOperator = "+" | "-" | "×" | "÷";
+
+export interface CalculationQuestion extends Question {
+  id: string;
+  prompt: string;
+  expression: string;
+  options: string[];
+  correctAnswer: number;
+  difficulty: "easy" | "medium" | "hard";
+  explanation: string;
+}
+
+export interface CalculationQuizResponse {
+  questions: CalculationQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
+export interface CalculationSubmitPayload extends SubmitPayload {
+  mode: "learn" | "real";
+  questionIndex: number;
+  timeRemaining?: number;
+  correctAnswer: number;
+}
+
+export interface CalculationSubmitResult extends SubmitResult {
+  correctAnswer?: number;
+  explanation?: string;
+  currentScore?: number;
+}
+
 // Scanning Practice specific types
 export interface ScanningPracticeQuestion extends Question {
   id: string;

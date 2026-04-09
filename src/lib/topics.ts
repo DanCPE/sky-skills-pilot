@@ -26,7 +26,9 @@ export const topics: Topic[] = [
     title: "Calculate",
     description: "Practice arithmetic and mental math.",
     category: "approximation",
-    isLocked: true,
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/cal.png",
+    coverImageDark: "/images/icons/SkyQuests/cal dark.png",
   },
   {
     slug: "pattern-recognition",
