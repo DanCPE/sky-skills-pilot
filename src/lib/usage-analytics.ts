@@ -45,6 +45,25 @@ function hasDatabaseUrl() {
   return Boolean(process.env.DATABASE_URL);
 }
 
+function getMaskedDbInfo() {
+  const url = process.env.DATABASE_URL;
+  if (!url) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(url);
+    return {
+      host: parsed.hostname,
+      port: parsed.port || "5432",
+      database: parsed.pathname.replace(/^\//, ""),
+      sslmode: parsed.searchParams.get("sslmode") ?? null,
+    };
+  } catch {
+    return { host: "invalid-url", port: null, database: null, sslmode: null };
+  }
+}
+
 function getPool() {
   if (!process.env.DATABASE_URL) {
     throw new Error("DATABASE_URL is required for DB analytics storage.");
@@ -315,6 +334,74 @@ export async function readAnalyticsEvents(): Promise<AnalyticsEvent[]> {
     ipLabel: row.ip_label,
     userAgent: row.user_agent,
   }));
+}
+
+export async function getAnalyticsStorageHealth() {
+  const dbConfigured = hasDatabaseUrl();
+  const dbInfo = getMaskedDbInfo();
+
+  if (!dbConfigured) {
+    return {
+      storage: "jsonl_fallback" as const,
+      dbConfigured,
+      dbInfo,
+      tableExists: false,
+      tableSchema: null as string | null,
+      rowCount: null as number | null,
+      currentDatabase: null as string | null,
+      currentUser: null as string | null,
+      currentSchema: null as string | null,
+      note: "DATABASE_URL is missing; using local JSONL fallback.",
+    };
+  }
+
+  await ensureAnalyticsTable();
+  const pool = getPool();
+
+  const identity = await pool.query<{
+    current_database: string;
+    current_user: string;
+    current_schema: string;
+  }>(
+    "SELECT current_database() AS current_database, current_user AS current_user, current_schema() AS current_schema;",
+  );
+
+  const tableMeta = await pool.query<{
+    table_schema: string;
+    table_name: string;
+  }>(
+    `SELECT table_schema, table_name
+     FROM information_schema.tables
+     WHERE table_name = 'analytics_events'
+     ORDER BY (table_schema = 'public') DESC, table_schema ASC
+     LIMIT 1;`,
+  );
+
+  const tableExists = (tableMeta.rowCount ?? 0) > 0;
+  const tableSchema = tableExists ? tableMeta.rows[0].table_schema : null;
+
+  let rowCount: number | null = null;
+  if (tableExists && tableSchema) {
+    const countResult = await pool.query<{ count: string }>(
+      `SELECT COUNT(*)::text AS count FROM ${tableSchema}.analytics_events;`,
+    );
+    rowCount = Number(countResult.rows[0]?.count ?? "0");
+  }
+
+  return {
+    storage: "postgres" as const,
+    dbConfigured,
+    dbInfo,
+    tableExists,
+    tableSchema,
+    rowCount,
+    currentDatabase: identity.rows[0]?.current_database ?? null,
+    currentUser: identity.rows[0]?.current_user ?? null,
+    currentSchema: identity.rows[0]?.current_schema ?? null,
+    note: tableExists
+      ? "PostgreSQL analytics table is available."
+      : "analytics_events table not found after ensure step.",
+  };
 }
 
 export function summarizeAnalytics(
