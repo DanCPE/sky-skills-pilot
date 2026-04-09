@@ -12,7 +12,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
     <SharedModeSelection<ScanningPracticeQuizResponse>
       subtitle="Practice quick visual comparison for pilot aptitude tests"
       defaultQuestionCount={40}
-      timePerQuestion={3}
+      timePerQuestion={6}
       realDescription={(_count, time) =>
         `Test your skills under time pressure. ${time}. See your score and timing at the end to track your improvement.`
       }

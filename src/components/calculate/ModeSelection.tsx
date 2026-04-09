@@ -12,7 +12,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
     <SharedModeSelection<CalculationQuizResponse>
       subtitle="Select a mode and difficulty to practice basic calculations"
       defaultQuestionCount={20}
-      formatRealModeTime={(count) => (count >= 40 ? "5 minutes" : "3 minutes")}
+      formatRealModeTime={(count) => `${(count / 10) * 5} minutes`}
       onFetch={async (mode, difficulty, count) => {
         const params = new URLSearchParams({
           mode,
