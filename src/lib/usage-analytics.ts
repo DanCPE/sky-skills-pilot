@@ -79,6 +79,7 @@ function getPool() {
   }
 
   if (!analyticsPool) {
+    console.log("DB host:", new URL(process.env.DATABASE_URL).hostname);
     analyticsLog("Creating PostgreSQL connection pool");
     analyticsPool = new Pool({
       connectionString: process.env.DATABASE_URL,
