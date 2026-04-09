@@ -21,8 +21,17 @@ export interface AnalyticsEvent {
   userAgent: string;
 }
 
-const ANALYTICS_DIR = path.join(process.cwd(), "analytics-data");
-const ANALYTICS_FILE = path.join(ANALYTICS_DIR, "usage-events.jsonl");
+function getFallbackAnalyticsDir() {
+  // Vercel/serverless runtime filesystem is read-only except /tmp.
+  if (process.env.VERCEL === "1" || process.env.NODE_ENV === "production") {
+    return path.join("/tmp", "analytics-data");
+  }
+  return path.join(process.cwd(), "analytics-data");
+}
+
+function getFallbackAnalyticsFile() {
+  return path.join(getFallbackAnalyticsDir(), "usage-events.jsonl");
+}
 
 let analyticsPool: Pool | null = null;
 let dbInitialized = false;
@@ -246,17 +255,21 @@ export async function appendAnalyticsEvent(
   }
 
   analyticsLog("DATABASE_URL missing, using local JSONL analytics fallback");
-  await fs.mkdir(ANALYTICS_DIR, { recursive: true });
-  await fs.appendFile(ANALYTICS_FILE, `${JSON.stringify(enriched)}\n`, "utf8");
+  const analyticsDir = getFallbackAnalyticsDir();
+  const analyticsFile = getFallbackAnalyticsFile();
+  await fs.mkdir(analyticsDir, { recursive: true });
+  await fs.appendFile(analyticsFile, `${JSON.stringify(enriched)}\n`, "utf8");
   analyticsLog("Analytics event appended to JSONL fallback", {
     eventId: enriched.id,
+    file: analyticsFile,
   });
   return enriched;
 }
 
 async function readAnalyticsEventsFromFile(): Promise<AnalyticsEvent[]> {
   try {
-    const content = await fs.readFile(ANALYTICS_FILE, "utf8");
+    const analyticsFile = getFallbackAnalyticsFile();
+    const content = await fs.readFile(analyticsFile, "utf8");
     return content
       .split("\n")
       .filter((line) => line.trim().length > 0)
