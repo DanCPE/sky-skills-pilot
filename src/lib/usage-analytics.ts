@@ -27,6 +27,20 @@ const ANALYTICS_FILE = path.join(ANALYTICS_DIR, "usage-events.jsonl");
 let analyticsPool: Pool | null = null;
 let dbInitialized = false;
 
+function isAnalyticsDebugEnabled() {
+  return process.env.ANALYTICS_DEBUG === "true";
+}
+
+function analyticsLog(message: string, meta?: Record<string, unknown>) {
+  if (!isAnalyticsDebugEnabled()) return;
+
+  if (meta) {
+    console.log(`[analytics] ${message}`, meta);
+  } else {
+    console.log(`[analytics] ${message}`);
+  }
+}
+
 function hasDatabaseUrl() {
   return Boolean(process.env.DATABASE_URL);
 }
@@ -37,6 +51,7 @@ function getPool() {
   }
 
   if (!analyticsPool) {
+    analyticsLog("Creating PostgreSQL connection pool");
     analyticsPool = new Pool({
       connectionString: process.env.DATABASE_URL,
       ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
@@ -52,6 +67,7 @@ async function ensureAnalyticsTable() {
   }
 
   const pool = getPool();
+  analyticsLog("Ensuring analytics table and indexes");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS analytics_events (
       id TEXT PRIMARY KEY,
@@ -80,6 +96,7 @@ async function ensureAnalyticsTable() {
   );
 
   dbInitialized = true;
+  analyticsLog("Analytics table/indexes are ready");
 }
 
 function normalizeIp(ip: string): string {
@@ -177,6 +194,15 @@ export async function appendAnalyticsEvent(
   if (hasDatabaseUrl()) {
     await ensureAnalyticsTable();
     const pool = getPool();
+    analyticsLog("Writing analytics event to PostgreSQL", {
+      eventId: enriched.id,
+      eventType: enriched.eventType,
+      pathname: enriched.pathname,
+      topicSlug: enriched.topicSlug,
+      mode: enriched.mode,
+      difficulty: enriched.difficulty,
+      hasSessionId: Boolean(enriched.sessionId),
+    });
     await pool.query(
       `INSERT INTO analytics_events
         (id, created_at, event_type, pathname, topic_slug, mode, difficulty, question_count, session_id, ip_hash, ip_label, user_agent)
@@ -196,11 +222,16 @@ export async function appendAnalyticsEvent(
         enriched.userAgent,
       ],
     );
+    analyticsLog("Analytics event inserted");
     return enriched;
   }
 
+  analyticsLog("DATABASE_URL missing, using local JSONL analytics fallback");
   await fs.mkdir(ANALYTICS_DIR, { recursive: true });
   await fs.appendFile(ANALYTICS_FILE, `${JSON.stringify(enriched)}\n`, "utf8");
+  analyticsLog("Analytics event appended to JSONL fallback", {
+    eventId: enriched.id,
+  });
   return enriched;
 }
 
@@ -229,11 +260,13 @@ async function readAnalyticsEventsFromFile(): Promise<AnalyticsEvent[]> {
 
 export async function readAnalyticsEvents(): Promise<AnalyticsEvent[]> {
   if (!hasDatabaseUrl()) {
+    analyticsLog("Reading analytics events from local JSONL fallback");
     return readAnalyticsEventsFromFile();
   }
 
   await ensureAnalyticsTable();
   const pool = getPool();
+  analyticsLog("Reading analytics events from PostgreSQL");
   const result = await pool.query<{
     id: string;
     created_at: Date;
@@ -264,6 +297,9 @@ export async function readAnalyticsEvents(): Promise<AnalyticsEvent[]> {
     FROM analytics_events
     ORDER BY created_at DESC`,
   );
+  analyticsLog("Analytics events loaded from PostgreSQL", {
+    rowCount: result.rowCount,
+  });
 
   return result.rows.map((row) => ({
     id: row.id,
