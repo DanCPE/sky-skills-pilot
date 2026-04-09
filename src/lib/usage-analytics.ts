@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { createHash } from "crypto";
 import type { NextRequest } from "next/server";
+import { Pool } from "pg";
 
 export type AnalyticsEventType = "page_view" | "quiz_start";
 
@@ -22,6 +23,64 @@ export interface AnalyticsEvent {
 
 const ANALYTICS_DIR = path.join(process.cwd(), "analytics-data");
 const ANALYTICS_FILE = path.join(ANALYTICS_DIR, "usage-events.jsonl");
+
+let analyticsPool: Pool | null = null;
+let dbInitialized = false;
+
+function hasDatabaseUrl() {
+  return Boolean(process.env.DATABASE_URL);
+}
+
+function getPool() {
+  if (!process.env.DATABASE_URL) {
+    throw new Error("DATABASE_URL is required for DB analytics storage.");
+  }
+
+  if (!analyticsPool) {
+    analyticsPool = new Pool({
+      connectionString: process.env.DATABASE_URL,
+      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+    });
+  }
+
+  return analyticsPool;
+}
+
+async function ensureAnalyticsTable() {
+  if (!hasDatabaseUrl() || dbInitialized) {
+    return;
+  }
+
+  const pool = getPool();
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS analytics_events (
+      id TEXT PRIMARY KEY,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      event_type TEXT NOT NULL,
+      pathname TEXT NOT NULL,
+      topic_slug TEXT,
+      mode TEXT,
+      difficulty TEXT,
+      question_count INT,
+      session_id TEXT,
+      ip_hash TEXT NOT NULL,
+      ip_label TEXT NOT NULL,
+      user_agent TEXT NOT NULL
+    );
+  `);
+
+  await pool.query(
+    "CREATE INDEX IF NOT EXISTS analytics_events_created_at_idx ON analytics_events (created_at DESC);",
+  );
+  await pool.query(
+    "CREATE INDEX IF NOT EXISTS analytics_events_topic_slug_idx ON analytics_events (topic_slug);",
+  );
+  await pool.query(
+    "CREATE INDEX IF NOT EXISTS analytics_events_ip_hash_idx ON analytics_events (ip_hash);",
+  );
+
+  dbInitialized = true;
+}
 
 function normalizeIp(ip: string): string {
   if (!ip) return "unknown";
@@ -115,13 +174,37 @@ export async function appendAnalyticsEvent(
     userAgent: event.userAgent,
   };
 
+  if (hasDatabaseUrl()) {
+    await ensureAnalyticsTable();
+    const pool = getPool();
+    await pool.query(
+      `INSERT INTO analytics_events
+        (id, created_at, event_type, pathname, topic_slug, mode, difficulty, question_count, session_id, ip_hash, ip_label, user_agent)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+      [
+        enriched.id,
+        enriched.timestamp,
+        enriched.eventType,
+        enriched.pathname,
+        enriched.topicSlug,
+        enriched.mode ?? null,
+        enriched.difficulty ?? null,
+        enriched.questionCount ?? null,
+        enriched.sessionId ?? null,
+        enriched.ipHash,
+        enriched.ipLabel,
+        enriched.userAgent,
+      ],
+    );
+    return enriched;
+  }
+
   await fs.mkdir(ANALYTICS_DIR, { recursive: true });
   await fs.appendFile(ANALYTICS_FILE, `${JSON.stringify(enriched)}\n`, "utf8");
-
   return enriched;
 }
 
-export async function readAnalyticsEvents(): Promise<AnalyticsEvent[]> {
+async function readAnalyticsEventsFromFile(): Promise<AnalyticsEvent[]> {
   try {
     const content = await fs.readFile(ANALYTICS_FILE, "utf8");
     return content
@@ -142,6 +225,60 @@ export async function readAnalyticsEvents(): Promise<AnalyticsEvent[]> {
     }
     throw error;
   }
+}
+
+export async function readAnalyticsEvents(): Promise<AnalyticsEvent[]> {
+  if (!hasDatabaseUrl()) {
+    return readAnalyticsEventsFromFile();
+  }
+
+  await ensureAnalyticsTable();
+  const pool = getPool();
+  const result = await pool.query<{
+    id: string;
+    created_at: Date;
+    event_type: string;
+    pathname: string;
+    topic_slug: string | null;
+    mode: string | null;
+    difficulty: string | null;
+    question_count: number | null;
+    session_id: string | null;
+    ip_hash: string;
+    ip_label: string;
+    user_agent: string;
+  }>(
+    `SELECT
+      id,
+      created_at,
+      event_type,
+      pathname,
+      topic_slug,
+      mode,
+      difficulty,
+      question_count,
+      session_id,
+      ip_hash,
+      ip_label,
+      user_agent
+    FROM analytics_events
+    ORDER BY created_at DESC`,
+  );
+
+  return result.rows.map((row) => ({
+    id: row.id,
+    timestamp: row.created_at.toISOString(),
+    eventType: row.event_type as AnalyticsEventType,
+    pathname: row.pathname,
+    topicSlug: row.topic_slug,
+    mode: (row.mode ?? undefined) as AnalyticsEvent["mode"],
+    difficulty: (row.difficulty ?? undefined) as AnalyticsEvent["difficulty"],
+    questionCount: row.question_count ?? undefined,
+    sessionId: row.session_id ?? undefined,
+    ipHash: row.ip_hash,
+    ipLabel: row.ip_label,
+    userAgent: row.user_agent,
+  }));
 }
 
 export function summarizeAnalytics(
