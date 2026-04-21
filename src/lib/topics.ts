@@ -76,6 +76,14 @@ export const topics: Topic[] = [
     coverImage: "/images/icons/SkyQuests/scanning.png",
     coverImageDark: "/images/icons/SkyQuests/scanning dark.png",
   },
+  {
+    slug: "short-term-memory",
+    icon: "🧠",
+    title: "Short-Term Memory Table",
+    description: "Memorize a grid of mixed symbols, then recreate it from memory.",
+    category: "short-term-memory",
+    isLocked: false,
+  },
 ];
 
 export const topicSlugs = new Set(topics.map((t) => t.slug));

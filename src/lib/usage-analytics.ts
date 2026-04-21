@@ -35,6 +35,7 @@ function getFallbackAnalyticsFile() {
 
 let analyticsPool: Pool | null = null;
 let dbInitialized = false;
+let dbInitPromise: Promise<void> | null = null;
 
 function isAnalyticsDebugEnabled() {
   return process.env.ANALYTICS_DEBUG === "true";
@@ -131,7 +132,11 @@ function getPool() {
     analyticsLog("Creating PostgreSQL connection pool");
     analyticsPool = new Pool({
       connectionString: dbUrl,
-      ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+      ssl: { rejectUnauthorized: false },
+    });
+
+    analyticsPool.on("error", (err) => {
+      console.error("[analytics] pg pool error:", err.message, err.stack);
     });
   }
 
@@ -143,37 +148,45 @@ async function ensureAnalyticsTable() {
     return;
   }
 
-  const pool = getPool();
-  analyticsLog("Ensuring analytics table and indexes");
-  await pool.query(`
-    CREATE TABLE IF NOT EXISTS analytics_events (
-      id TEXT PRIMARY KEY,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      event_type TEXT NOT NULL,
-      pathname TEXT NOT NULL,
-      topic_slug TEXT,
-      mode TEXT,
-      difficulty TEXT,
-      question_count INT,
-      session_id TEXT,
-      ip_hash TEXT NOT NULL,
-      ip_label TEXT NOT NULL,
-      user_agent TEXT NOT NULL
+  if (dbInitPromise) {
+    return dbInitPromise;
+  }
+
+  dbInitPromise = (async () => {
+    const pool = getPool();
+    analyticsLog("Ensuring analytics table and indexes");
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS analytics_events (
+        id TEXT PRIMARY KEY,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        event_type TEXT NOT NULL,
+        pathname TEXT NOT NULL,
+        topic_slug TEXT,
+        mode TEXT,
+        difficulty TEXT,
+        question_count INT,
+        session_id TEXT,
+        ip_hash TEXT NOT NULL,
+        ip_label TEXT NOT NULL,
+        user_agent TEXT NOT NULL
+      );
+    `);
+
+    await pool.query(
+      "CREATE INDEX IF NOT EXISTS analytics_events_created_at_idx ON analytics_events (created_at DESC);",
     );
-  `);
+    await pool.query(
+      "CREATE INDEX IF NOT EXISTS analytics_events_topic_slug_idx ON analytics_events (topic_slug);",
+    );
+    await pool.query(
+      "CREATE INDEX IF NOT EXISTS analytics_events_ip_hash_idx ON analytics_events (ip_hash);",
+    );
 
-  await pool.query(
-    "CREATE INDEX IF NOT EXISTS analytics_events_created_at_idx ON analytics_events (created_at DESC);",
-  );
-  await pool.query(
-    "CREATE INDEX IF NOT EXISTS analytics_events_topic_slug_idx ON analytics_events (topic_slug);",
-  );
-  await pool.query(
-    "CREATE INDEX IF NOT EXISTS analytics_events_ip_hash_idx ON analytics_events (ip_hash);",
-  );
+    dbInitialized = true;
+    analyticsLog("Analytics table/indexes are ready");
+  })();
 
-  dbInitialized = true;
-  analyticsLog("Analytics table/indexes are ready");
+  return dbInitPromise;
 }
 
 function normalizeIp(ip: string): string {

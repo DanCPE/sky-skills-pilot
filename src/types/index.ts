@@ -212,3 +212,40 @@ export interface SpatialOrientationSubmitResult {
   correctAngle: number;
   correctDir: Direction;
 }
+
+// --- Short-Term Memory Table Types ---
+
+export type ShortTermMemoryContentType =
+  | "alphabet"
+  | "number"
+  | "symbol"
+  | "mixed";
+
+export interface ShortTermMemoryOption {
+  id: string;
+  value: string;
+  label: string;
+  imageSrc?: string;
+}
+
+export interface ShortTermMemoryCell {
+  id: string;
+  value: string;
+  label: string;
+  contentType: Exclude<ShortTermMemoryContentType, "mixed">;
+  imageSrc?: string;
+  options?: ShortTermMemoryOption[];
+}
+
+export interface ShortTermMemoryQuizConfig {
+  mode: "learn" | "real";
+  rows: number;
+  columns: number;
+  memorizeSeconds: number;
+  charactersPerCell: number;
+  contentType: ShortTermMemoryContentType;
+}
+
+export interface ShortTermMemoryQuizResponse extends ShortTermMemoryQuizConfig {
+  grid: ShortTermMemoryCell[][];
+}
