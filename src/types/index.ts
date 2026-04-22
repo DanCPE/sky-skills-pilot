@@ -212,3 +212,21 @@ export interface SpatialOrientationSubmitResult {
   correctAngle: number;
   correctDir: Direction;
 }
+
+// --- Short-Term Memory Passage Quiz Types ---
+
+export interface ShortTermMemoryQuestion extends Question {
+  id: string;
+  prompt: string;
+  options: string[];
+  correctAnswer: string;
+  placeholder: string;
+}
+
+export interface ShortTermMemoryQuizResponse {
+  id: string;
+  templateId: string;
+  passage: string | null;
+  questions: ShortTermMemoryQuestion[];
+  readingDurationSeconds: number;
+}

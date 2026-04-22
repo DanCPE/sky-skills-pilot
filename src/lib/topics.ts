@@ -76,6 +76,15 @@ export const topics: Topic[] = [
     coverImage: "/images/icons/SkyQuests/scanning.png",
     coverImageDark: "/images/icons/SkyQuests/scanning dark.png",
   },
+  {
+    slug: "passage-recall",
+    icon: "🧠",
+    title: "Passage Recall",
+    description: "Read an aviation passage, hold the details in memory, then answer recall questions after it disappears.",
+    category: "short-term-memory",
+    isLocked: false,
+    coverBg: "bg-amber-50 dark:bg-amber-500/10",
+  },
 ];
 
 export const topicSlugs = new Set(topics.map((t) => t.slug));
