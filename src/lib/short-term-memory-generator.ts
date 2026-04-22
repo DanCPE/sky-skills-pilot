@@ -5,59 +5,20 @@ import type {
   ShortTermMemoryQuizResponse,
 } from "@/types";
 
-const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
-const NUMBERS = "0123456789";
+const ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
 const SYMBOL_ASSETS = [
-  {
-    value: "shocked",
-    label: "Shocked Face",
-    imageSrc: "/images/short-term-table/shocked_982950.png",
-  },
-  {
-    value: "smartphone",
-    label: "Smartphone",
-    imageSrc: "/images/short-term-table/smartphone_946132.png",
-  },
-  {
-    value: "recycle",
-    label: "Recycle",
-    imageSrc: "/images/short-term-table/recycle_9306518.png",
-  },
-  {
-    value: "globe",
-    label: "Globe",
-    imageSrc: "/images/short-term-table/globe_1042134.png",
-  },
-  {
-    value: "jerrycan",
-    label: "Jerrycan",
-    imageSrc: "/images/short-term-table/jerrycan_3438368.png",
-  },
-  {
-    value: "certificate",
-    label: "Certificate",
-    imageSrc: "/images/short-term-table/guarantee-certificate_2602853.png",
-  },
-  {
-    value: "train",
-    label: "Train",
-    imageSrc: "/images/short-term-table/train_1255788.png",
-  },
-  {
-    value: "shop",
-    label: "Online Shop",
-    imageSrc: "/images/short-term-table/online-shop_1078755.png",
-  },
-  {
-    value: "programming",
-    label: "Programming",
-    imageSrc: "/images/short-term-table/programing_983816.png",
-  },
-  {
-    value: "idea",
-    label: "Idea",
-    imageSrc: "/images/short-term-table/idea_929246.png",
-  },
+  "accessibility-svgrepo-com.svg",
+  "activity-svgrepo-com.svg",
+  "alarm-clock-svgrepo-com.svg",
+  "align-bottom-svgrepo-com.svg",
+  "align-right-svgrepo-com.svg",
+  "anchor-svgrepo-com.svg",
+  "angle-down-svgrepo-com.svg",
+  "angle-left-svgrepo-com.svg",
+  "angle-right-svgrepo-com.svg",
+  "angle-up-svgrepo-com.svg",
+  "aperture-svgrepo-com.svg",
+  "archive-box-svgrepo-com.svg",
 ] as const;
 
 function randomInt(max: number) {
@@ -74,19 +35,19 @@ function shuffle<T>(items: T[]) {
 }
 
 function pickContentType(): ShortTermMemoryContentType {
-  const types: ShortTermMemoryContentType[] = ["alphabet", "number", "symbol"];
+  const types: ShortTermMemoryContentType[] = ["alphanumeric", "symbol"];
   return types[randomInt(types.length)];
 }
 
-function generateTextValue(pool: string, length: number) {
-  return Array.from({ length }, () => pool[randomInt(pool.length)]).join("");
+function generateTextValue(length: number) {
+  return Array.from({ length }, () => ALPHANUMERIC[randomInt(ALPHANUMERIC.length)]).join("");
 }
 
-function generateTextDistractors(correctValue: string, pool: string, count: number) {
+function generateTextDistractors(correctValue: string, count: number) {
   const distractors = new Set<string>();
 
   while (distractors.size < count) {
-    const candidate = generateTextValue(pool, correctValue.length);
+    const candidate = generateTextValue(correctValue.length);
     if (candidate !== correctValue) {
       distractors.add(candidate);
     }
@@ -95,65 +56,64 @@ function generateTextDistractors(correctValue: string, pool: string, count: numb
   return [...distractors];
 }
 
-function buildTextCell(
-  prefix: string,
+function titleFromFilename(fileName: string) {
+  return fileName
+    .replace(/-svgrepo-com\.svg$/, "")
+    .split("-")
+    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+    .join(" ");
+}
+
+function buildAlphanumericCell(
   rowIndex: number,
   columnIndex: number,
-  pool: string,
-  charactersPerCell: number,
-  includeOptions: boolean
+  charactersPerCell: number
 ): ShortTermMemoryCell {
-  const value = generateTextValue(pool, charactersPerCell);
-  const id = `${prefix}-${rowIndex}-${columnIndex}`;
+  const value = generateTextValue(charactersPerCell);
+  const id = `alphanumeric-${rowIndex}-${columnIndex}`;
+  const distractors = generateTextDistractors(value, 3);
 
-  let options: ShortTermMemoryOption[] | undefined;
-  if (includeOptions) {
-    const distractors = generateTextDistractors(value, pool, 3);
-    options = shuffle([value, ...distractors]).map((optionValue, optionIndex) => ({
+  const options: ShortTermMemoryOption[] = shuffle([value, ...distractors]).map(
+    (optionValue, optionIndex) => ({
       id: `${id}-option-${optionIndex}`,
       value: optionValue,
       label: optionValue,
-    }));
-  }
+    })
+  );
 
   return {
     id,
     value,
     label: value,
-    contentType: prefix === "alpha" ? "alphabet" : "number",
+    contentType: "alphanumeric",
     options,
   };
 }
 
-function buildSymbolCell(
-  prefix: string,
-  rowIndex: number,
-  columnIndex: number,
-  includeOptions: boolean
-): ShortTermMemoryCell {
-  const correctAsset = SYMBOL_ASSETS[randomInt(SYMBOL_ASSETS.length)];
-  const id = `${prefix}-${rowIndex}-${columnIndex}`;
+function buildSymbolCell(rowIndex: number, columnIndex: number): ShortTermMemoryCell {
+  const correctFileName = SYMBOL_ASSETS[randomInt(SYMBOL_ASSETS.length)];
+  const correctValue = correctFileName.replace(/\.svg$/, "");
+  const id = `symbol-${rowIndex}-${columnIndex}`;
 
-  let options: ShortTermMemoryOption[] | undefined;
-  if (includeOptions) {
-    const distractors = shuffle(
-      SYMBOL_ASSETS.filter((asset) => asset.value !== correctAsset.value)
-    ).slice(0, 3);
+  const distractors = shuffle(
+    SYMBOL_ASSETS.filter((fileName) => fileName !== correctFileName)
+  ).slice(0, 3);
 
-    options = shuffle([correctAsset, ...distractors]).map((asset, optionIndex) => ({
+  const options: ShortTermMemoryOption[] = shuffle([correctFileName, ...distractors]).map(
+    (fileName, optionIndex) => ({
       id: `${id}-option-${optionIndex}`,
-      value: asset.value,
-      label: asset.label,
-      imageSrc: asset.imageSrc,
-    }));
-  }
+      value: fileName.replace(/\.svg$/, ""),
+      label: titleFromFilename(fileName),
+      imageSrc: `/images/short-term-table/${fileName}`,
+    })
+  );
 
   return {
     id,
-    value: correctAsset.value,
-    label: correctAsset.label,
+    value: correctValue,
+    label: titleFromFilename(correctFileName),
     contentType: "symbol",
-    imageSrc: correctAsset.imageSrc,
+    imageSrc: `/images/short-term-table/${correctFileName}`,
     options,
   };
 }
@@ -174,36 +134,17 @@ export function generateShortTermMemoryQuiz({
   contentType?: ShortTermMemoryContentType;
 }): ShortTermMemoryQuizResponse {
   const resolvedContentType = contentType ?? "mixed";
-  const includeOptions = mode === "real";
 
   const grid = Array.from({ length: rows }, (_, rowIndex) =>
     Array.from({ length: columns }, (_, columnIndex) => {
       const cellContentType =
         resolvedContentType === "mixed" ? pickContentType() : resolvedContentType;
 
-      if (cellContentType === "alphabet") {
-        return buildTextCell(
-          "alpha",
-          rowIndex,
-          columnIndex,
-          LETTERS,
-          charactersPerCell,
-          includeOptions
-        );
+      if (cellContentType === "symbol") {
+        return buildSymbolCell(rowIndex, columnIndex);
       }
 
-      if (cellContentType === "number") {
-        return buildTextCell(
-          "number",
-          rowIndex,
-          columnIndex,
-          NUMBERS,
-          charactersPerCell,
-          includeOptions
-        );
-      }
-
-      return buildSymbolCell("symbol", rowIndex, columnIndex, includeOptions);
+      return buildAlphanumericCell(rowIndex, columnIndex, charactersPerCell);
     })
   );
 
@@ -217,3 +158,4 @@ export function generateShortTermMemoryQuiz({
     grid,
   };
 }
+

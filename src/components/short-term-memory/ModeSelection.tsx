@@ -38,7 +38,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           Build Your Recall Challenge
         </h2>
         <p className="text-zinc-600 dark:text-zinc-400">
-          Memorize a mixed board of letters, numbers, and symbols, then recall it from memory.
+          Memorize a mixed board of alphanumeric strings and symbols, then recall it from memory.
         </p>
       </div>
 
@@ -65,7 +65,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
             </div>
           </div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Practice with a custom table size. Each cell is either letters only, numbers only, or one symbol image, but never a mixed text cell.
+            Practice with a custom table size. Learn Mode uses the same multiple-choice recall flow as Real Mode, but without a countdown.
           </p>
         </button>
 
@@ -91,7 +91,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
             </div>
           </div>
           <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            Match the assessment-style setup with a fixed 4 rows × 7 columns grid and multiple-choice recall after the memorization phase.
+            Match the assessment-style setup with a fixed 4 rows × 7 columns grid, timed memorization, and multiple-choice recall.
           </p>
         </button>
       </div>
@@ -147,17 +147,15 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           <p>
             Cell content:{" "}
             <span className="font-bold">
-              3 letters, 3 numbers, or 1 symbol image per cell
+              3-character alphanumeric strings or 1 symbol image per cell
             </span>
           </p>
           <p>
-            Memorization time: <span className="font-bold">2 minutes</span>
+            Memorization time: <span className="font-bold">{mode === "real" ? "2 minutes" : "No limit"}</span>
           </p>
           <p>
             Recall format:{" "}
-            <span className="font-bold">
-              {mode === "real" ? "Multiple choice" : "Type into each cell"}
-            </span>
+            <span className="font-bold">Multiple choice</span>
           </p>
         </div>
       </div>
