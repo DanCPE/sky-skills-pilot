@@ -4,10 +4,10 @@ import { useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
 import ModeSelection from "@/components/passage-recall/ModeSelection";
 import QuizInterface from "@/components/passage-recall/QuizInterface";
-import type { ShortTermMemoryQuizResponse } from "@/types";
+import type { PassageRecallQuizResponse } from "@/types";
 
 export default function PassageRecallPage() {
-  const [quizData, setQuizData] = useState<ShortTermMemoryQuizResponse | null>(null);
+  const [quizData, setQuizData] = useState<PassageRecallQuizResponse | null>(null);
 
   const handlePassageExpired = () => {
     setQuizData((current) =>

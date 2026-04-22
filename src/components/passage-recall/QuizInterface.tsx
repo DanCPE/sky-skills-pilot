@@ -5,7 +5,7 @@ import ProgressBar from "@/components/shared/ProgressBar";
 import ResultsScreen from "@/components/shared/ResultsScreen";
 import Timer from "@/components/shared/Timer";
 import QuestionCard from "./QuestionCard";
-import type { ShortTermMemoryQuizResponse } from "@/types";
+import type { PassageRecallQuizResponse } from "@/types";
 
 interface RecordedAnswer {
   questionId: string;
@@ -14,7 +14,7 @@ interface RecordedAnswer {
 }
 
 interface QuizInterfaceProps {
-  quizData: ShortTermMemoryQuizResponse;
+  quizData: PassageRecallQuizResponse;
   onRestart: () => void;
   onPassageExpired: () => void;
 }

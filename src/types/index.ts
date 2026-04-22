@@ -213,9 +213,45 @@ export interface SpatialOrientationSubmitResult {
   correctDir: Direction;
 }
 
-// --- Short-Term Memory Passage Quiz Types ---
+// --- Short-Term Memory Table Types ---
 
-export interface ShortTermMemoryQuestion extends Question {
+export type ShortTermMemoryContentType =
+  | "alphanumeric"
+  | "symbol"
+  | "mixed";
+
+export interface ShortTermMemoryOption {
+  id: string;
+  value: string;
+  label: string;
+  imageSrc?: string;
+}
+
+export interface ShortTermMemoryCell {
+  id: string;
+  value: string;
+  label: string;
+  contentType: Exclude<ShortTermMemoryContentType, "mixed">;
+  imageSrc?: string;
+  options?: ShortTermMemoryOption[];
+}
+
+export interface ShortTermMemoryQuizConfig {
+  mode: "learn" | "real";
+  rows: number;
+  columns: number;
+  memorizeSeconds: number;
+  charactersPerCell: number;
+  contentType: ShortTermMemoryContentType;
+}
+
+export interface ShortTermMemoryQuizResponse extends ShortTermMemoryQuizConfig {
+  grid: ShortTermMemoryCell[][];
+}
+
+// --- Passage Recall Types ---
+
+export interface PassageRecallQuestion extends Question {
   id: string;
   prompt: string;
   options: string[];
@@ -223,10 +259,10 @@ export interface ShortTermMemoryQuestion extends Question {
   placeholder: string;
 }
 
-export interface ShortTermMemoryQuizResponse {
+export interface PassageRecallQuizResponse {
   id: string;
   templateId: string;
   passage: string | null;
-  questions: ShortTermMemoryQuestion[];
+  questions: PassageRecallQuestion[];
   readingDurationSeconds: number;
 }

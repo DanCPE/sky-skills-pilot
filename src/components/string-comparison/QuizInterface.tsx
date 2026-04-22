@@ -452,7 +452,6 @@ export default function QuizInterface({
             <QuizFooterNav onExit={() => router.back()} />
           </div>
         </div>
-      {/* for push deployment */}
       {/* Confirmation Modal */}
       {showConfirmation && (
         <QuizCompleteConfirmation

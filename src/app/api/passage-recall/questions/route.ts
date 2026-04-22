@@ -1,9 +1,9 @@
 import { NextResponse } from "next/server";
-import { generateShortTermMemoryQuiz } from "@/lib/short-term-memory-generator";
+import { generatePassageRecallQuiz } from "@/lib/passage-recall-generator";
 
 export async function GET() {
   try {
-    return NextResponse.json(generateShortTermMemoryQuiz());
+    return NextResponse.json(generatePassageRecallQuiz());
   } catch (error) {
     console.error("Error generating passage recall quiz:", error);
     return NextResponse.json(

@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { ShortTermMemoryQuizResponse } from "@/types";
+import type { PassageRecallQuizResponse } from "@/types";
 
 interface ModeSelectionProps {
-  onStart: (quizData: ShortTermMemoryQuizResponse) => void;
+  onStart: (quizData: PassageRecallQuizResponse) => void;
 }
 
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
@@ -23,7 +23,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
         throw new Error(errorData.error ?? "Failed to load passage recall quiz");
       }
 
-      onStart((await response.json()) as ShortTermMemoryQuizResponse);
+      onStart((await response.json()) as PassageRecallQuizResponse);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Something went wrong");
     } finally {

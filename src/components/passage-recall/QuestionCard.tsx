@@ -1,10 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import type { ShortTermMemoryQuestion } from "@/types";
+import type { PassageRecallQuestion } from "@/types";
 
 interface QuestionCardProps {
-  question: ShortTermMemoryQuestion;
+  question: PassageRecallQuestion;
   selectedAnswer?: string;
   onAnswer: (answer: string) => void;
   disabled?: boolean;

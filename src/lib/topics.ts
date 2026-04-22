@@ -77,6 +77,14 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/scanning dark.png",
   },
   {
+    slug: "short-term-memory",
+    icon: "🧠",
+    title: "Short-Term Memory Table",
+    description: "Memorize a grid of mixed symbols, then recreate it from memory.",
+    category: "short-term-memory",
+    isLocked: false,
+  },
+  {
     slug: "passage-recall",
     icon: "🧠",
     title: "Passage Recall",
