@@ -30,13 +30,15 @@ function formatTime(seconds: number) {
 function renderCellContent(cell: ShortTermMemoryCell, compact = false) {
   if (cell.imageSrc) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center overflow-hidden">
         <Image
           src={cell.imageSrc}
           alt={cell.label}
-          width={compact ? 38 : 56}
-          height={compact ? 38 : 56}
-          className="h-auto w-auto object-contain"
+          width={compact ? 28 : 40}
+          height={compact ? 28 : 40}
+          className={`object-contain dark:invert ${
+            compact ? "max-h-7 max-w-7" : "max-h-10 max-w-10"
+          }`}
         />
       </div>
     );
@@ -56,13 +58,13 @@ function renderCellContent(cell: ShortTermMemoryCell, compact = false) {
 function renderOptionContent(option: ShortTermMemoryOption) {
   if (option.imageSrc) {
     return (
-      <div className="flex items-center justify-center">
+      <div className="flex h-full w-full items-center justify-center overflow-hidden">
         <Image
           src={option.imageSrc}
           alt={option.label}
-          width={36}
-          height={36}
-          className="h-9 w-9 object-contain"
+          width={24}
+          height={24}
+          className="max-h-6 max-w-6 object-contain dark:invert"
         />
       </div>
     );
@@ -72,7 +74,7 @@ function renderOptionContent(option: ShortTermMemoryOption) {
 }
 
 export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProps) {
-  const { grid, rows, columns, memorizeSeconds, charactersPerCell, mode } = quizData;
+  const { grid, rows, columns, memorizeSeconds, mode } = quizData;
 
   const [phase, setPhase] = useState<Phase>("ready");
   const [timeRemaining, setTimeRemaining] = useState(memorizeSeconds);
@@ -82,7 +84,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
   const tableViewportRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
-    if (phase !== "memorize") {
+    if (phase !== "memorize" || mode !== "real") {
       return;
     }
 
@@ -98,7 +100,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
     }, 1000);
 
     return () => window.clearInterval(intervalId);
-  }, [phase]);
+  }, [phase, mode]);
 
   useEffect(() => {
     if (phase === "memorize" || phase === "answer") {
@@ -138,22 +140,6 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
     setPhase("memorize");
   };
 
-  const handleTextAnswerChange = (rowIndex: number, columnIndex: number, value: string) => {
-    const cell = grid[rowIndex][columnIndex];
-    const maxLength = cell.contentType === "symbol" ? value.length : charactersPerCell;
-    const sanitized = value.slice(0, maxLength).toUpperCase();
-
-    setAnswers((previous) =>
-      previous.map((row, currentRowIndex) =>
-        currentRowIndex === rowIndex
-          ? row.map((cellValue, currentColumnIndex) =>
-              currentColumnIndex === columnIndex ? sanitized : cellValue
-            )
-          : row
-      )
-    );
-  };
-
   const handleOptionSelect = (
     rowIndex: number,
     columnIndex: number,
@@ -188,7 +174,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
     return (
       <TopicLayout
         title="Short-Term Memory Table"
-        description="Memorize a mixed board, then recreate the full grid from memory."
+        description="Memorize a mixed board of alphanumeric strings and symbols, then recall the full grid from memory."
       >
         <ResultsScreen
           totalCount={rows * columns}
@@ -266,7 +252,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
   return (
     <TopicLayout
       title="Short-Term Memory Table"
-      description="Memorize a mixed board, then recreate the full grid from memory."
+      description="Memorize a mixed board of alphanumeric strings and symbols, then recall the full grid from memory."
       fullWidth
       showBackLink={phase === "ready"}
     >
@@ -287,16 +273,14 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                 Grid size: <span className="font-bold">{columns} x {rows}</span>
               </p>
               <p>
-                Cell content: <span className="font-bold">Letters only, numbers only, or one symbol image</span>
+                Cell content: <span className="font-bold">3-character alphanumeric strings or one symbol image</span>
               </p>
               <p>
-                Memorization time: <span className="font-bold">{formatTime(memorizeSeconds)}</span>
+                Memorization time: <span className="font-bold">{mode === "real" ? formatTime(memorizeSeconds) : "No limit"}</span>
               </p>
               <p>
                 Answer format:{" "}
-                <span className="font-bold">
-                  {mode === "real" ? "Multiple choice" : "Type into each cell"}
-                </span>
+                <span className="font-bold">Multiple choice</span>
               </p>
             </div>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
@@ -330,10 +314,10 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                   </h2>
                   <p className="mt-2 text-sm font-[family-name:var(--font-inter)] text-zinc-600 dark:text-zinc-400">
                     {phase === "memorize"
-                      ? "Study each cell carefully before the grid is hidden."
-                      : mode === "real"
-                        ? "Choose the correct answer for each cell from the options below."
-                        : "Type the exact letters or numbers, and type the symbol name for image cells."}
+                      ? mode === "real"
+                        ? "Study each cell carefully before the grid is hidden."
+                        : "Study the grid for as long as you need, then continue when you are ready."
+                      : "Choose the correct answer for each cell from the options below."}
                   </p>
                 </div>
 
@@ -346,10 +330,10 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                   </button>
                   <div className="rounded-2xl bg-zinc-100 px-5 py-4 text-center dark:bg-white/5">
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
-                      {phase === "memorize" ? "Time Remaining" : "Status"}
+                      {phase === "memorize" ? (mode === "real" ? "Time Remaining" : "Mode") : "Status"}
                     </p>
                     <p className="mt-1 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-[#4F12A6] dark:text-brand-gold">
-                      {phase === "memorize" ? formatTime(timeRemaining) : "ANSWERING"}
+                      {phase === "memorize" ? (mode === "real" ? formatTime(timeRemaining) : "LEARNING") : "ANSWERING"}
                     </p>
                   </div>
                 </div>
@@ -381,7 +365,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                           <div className="flex flex-1 items-center justify-center rounded-xl bg-white px-1 dark:bg-black/30">
                             {renderCellContent(cell, true)}
                           </div>
-                        ) : mode === "real" ? (
+                        ) : (
                           <div className="grid flex-1 grid-cols-2 gap-1">
                             {cell.options?.map((option) => (
                               <button
@@ -399,25 +383,6 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                               </button>
                             ))}
                           </div>
-                        ) : cell.contentType === "symbol" ? (
-                          <input
-                            value={selectedAnswer}
-                            onChange={(event) =>
-                              handleTextAnswerChange(rowIndex, columnIndex, event.target.value)
-                            }
-                            placeholder="name"
-                            className="h-8 w-full rounded-xl border border-zinc-200 bg-white px-1 text-center text-xs font-semibold text-zinc-900 outline-none transition focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20 dark:border-white/10 dark:bg-black/30 dark:text-zinc-100"
-                          />
-                        ) : (
-                          <input
-                            value={selectedAnswer}
-                            onChange={(event) =>
-                              handleTextAnswerChange(rowIndex, columnIndex, event.target.value)
-                            }
-                            maxLength={charactersPerCell}
-                            placeholder={"-".repeat(charactersPerCell)}
-                            className="h-8 w-full rounded-xl border border-zinc-200 bg-white px-1 text-center font-mono text-sm font-bold uppercase tracking-[0.2em] text-zinc-900 outline-none transition focus:border-brand-purple focus:ring-2 focus:ring-brand-purple/20 dark:border-white/10 dark:bg-black/30 dark:text-zinc-100"
-                          />
                         )}
                       </div>
                     );
@@ -432,7 +397,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                   onClick={() => setPhase("answer")}
                   className="rounded-xl border-2 border-zinc-300 px-6 py-3 font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
                 >
-                  Continue to Answering
+                  Start Answering
                 </button>
               ) : (
                 <>

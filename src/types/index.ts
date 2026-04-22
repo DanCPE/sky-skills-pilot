@@ -216,8 +216,7 @@ export interface SpatialOrientationSubmitResult {
 // --- Short-Term Memory Table Types ---
 
 export type ShortTermMemoryContentType =
-  | "alphabet"
-  | "number"
+  | "alphanumeric"
   | "symbol"
   | "mixed";
 
