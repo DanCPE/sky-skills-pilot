@@ -133,22 +133,27 @@ type LibraryKey = keyof typeof SOURCE_LIBRARY;
 const PASSAGE_TEMPLATES = [
   {
     id: "arrival-sequence",
+    questionContext: "during the arrival sequence",
     text: "Callsign [CALLSIGNS] flight [FLIGHT_NUMBERS] is inbound to [AIRPORTS]. The crew is cleared direct [WAYPOINTS], maintain [FL_LEVELS], reduce to [SPEEDS], turn left heading [HEADINGS], contact approach on [FREQUENCIES], expect runway [RUNWAYS], and squawk [SQUAWKS].",
   },
   {
     id: "departure-clearance",
+    questionContext: "during the departure clearance",
     text: "Before departure to [AIRPORTS], [CALLSIGNS] [FLIGHT_NUMBERS] receives a clearance to climb initially [FL_LEVELS], proceed via [WAYPOINTS], fly heading [HEADINGS], maintain [SPEEDS], contact departure on [FREQUENCIES], expect runway [RUNWAYS], and set squawk [SQUAWKS].",
   },
   {
     id: "vector-to-final",
+    questionContext: "during vectors to final",
     text: "During vectors for arrival at [AIRPORTS], [CALLSIGNS] [FLIGHT_NUMBERS] is instructed to continue toward [WAYPOINTS], descend and maintain [FL_LEVELS], slow to [SPEEDS], turn heading [HEADINGS], switch to tower on [FREQUENCIES], land runway [RUNWAYS], and remain on squawk [SQUAWKS].",
   },
   {
     id: "holding-brief",
+    questionContext: "during the holding brief",
     text: "While preparing for a delay into [AIRPORTS], flight [CALLSIGNS] [FLIGHT_NUMBERS] is told to hold over [WAYPOINTS], remain at [FL_LEVELS], expect further clearance on [FREQUENCIES], keep [SPEEDS], plan for runway [RUNWAYS], maintain heading [HEADINGS], and continue squawk [SQUAWKS].",
   },
   {
     id: "handoff-sequence",
+    questionContext: "during the handoff sequence",
     text: "[CALLSIGNS] [FLIGHT_NUMBERS] is being handed off near [WAYPOINTS] en route to [AIRPORTS]. The aircraft is level at [FL_LEVELS], tracking heading [HEADINGS], maintaining [SPEEDS], changing to frequency [FREQUENCIES], expecting runway [RUNWAYS], and identified with squawk [SQUAWKS].",
   },
 ];
@@ -198,6 +203,15 @@ function buildQuestionPrompt(placeholder: LibraryKey): string {
   return `What was ${label}?`;
 }
 
+function buildSegmentQuestionPrompt(
+  placeholder: LibraryKey,
+  context: string,
+): string {
+  return `${context.charAt(0).toUpperCase()}${context.slice(1)}, ${buildQuestionPrompt(
+    placeholder,
+  ).toLowerCase()}`;
+}
+
 function buildDistractors(
   placeholder: LibraryKey,
   correctAnswer: string,
@@ -210,43 +224,60 @@ function buildDistractors(
 }
 
 export function generateShortTermMemoryQuiz(): ShortTermMemoryQuizResponse {
-  const template = sampleOne(PASSAGE_TEMPLATES);
-  const placeholderMatches = Array.from(
-    new Set(
-      [...template.text.matchAll(/\[([A-Z_]+)\]/g)].map(
-        (match) => match[1] as LibraryKey,
+  const selectedTemplates = shuffleArray(PASSAGE_TEMPLATES).slice(0, 3);
+  const passageParts: string[] = [];
+  const questions: ShortTermMemoryQuestion[] = [];
+  const transitionPhrases = [
+    "Shortly afterward,",
+    "A little later,",
+    "As the operation continues,",
+  ];
+
+  selectedTemplates.forEach((template) => {
+    const placeholderMatches = Array.from(
+      new Set(
+        [...template.text.matchAll(/\[([A-Z_]+)\]/g)].map(
+          (match) => match[1] as LibraryKey,
+        ),
       ),
-    ),
-  );
+    );
 
-  const sessionKey = placeholderMatches.reduce(
-    (accumulator, placeholder) => {
-      accumulator[placeholder] = sampleOne(SOURCE_LIBRARY[placeholder]);
-      return accumulator;
-    },
-    {} as Record<LibraryKey, string>,
-  );
+    const sessionKey = placeholderMatches.reduce(
+      (accumulator, placeholder) => {
+        accumulator[placeholder] = sampleOne(SOURCE_LIBRARY[placeholder]);
+        return accumulator;
+      },
+      {} as Record<LibraryKey, string>,
+    );
 
-  const passage = template.text.replaceAll(/\[([A-Z_]+)\]/g, (_match, key: string) => {
-    return sessionKey[key as LibraryKey];
+    const segmentPassage = template.text.replaceAll(
+      /\[([A-Z_]+)\]/g,
+      (_match, key: string) => sessionKey[key as LibraryKey],
+    );
+
+    passageParts.push(segmentPassage);
+
+    placeholderMatches.forEach((placeholder) => {
+      const correctAnswer = sessionKey[placeholder];
+      const distractors = buildDistractors(placeholder, correctAnswer);
+
+      questions.push({
+        id: generateId("stmq"),
+        prompt: buildSegmentQuestionPrompt(placeholder, template.questionContext),
+        options: shuffleArray([correctAnswer, ...distractors]),
+        correctAnswer,
+        placeholder,
+      });
+    });
   });
 
-  const questions: ShortTermMemoryQuestion[] = placeholderMatches.map((placeholder) => {
-    const correctAnswer = sessionKey[placeholder];
-    const distractors = buildDistractors(placeholder, correctAnswer);
-
-    return {
-      id: generateId("stmq"),
-      prompt: buildQuestionPrompt(placeholder),
-      options: shuffleArray([correctAnswer, ...distractors]),
-      correctAnswer,
-      placeholder,
-    };
-  });
+  const passage = passageParts
+    .map((part, index) => (index === 0 ? part : `${transitionPhrases[index - 1]} ${part.charAt(0).toLowerCase()}${part.slice(1)}`))
+    .join(" ");
 
   return {
     id: generateId("session"),
-    templateId: template.id,
+    templateId: selectedTemplates.map((template) => template.id).join("__"),
     passage,
     questions,
     readingDurationSeconds: READING_DURATION_SECONDS,
