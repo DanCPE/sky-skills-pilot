@@ -38,7 +38,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           Build Your Recall Challenge
         </h2>
         <p className="text-zinc-600 dark:text-zinc-400">
-          Memorize a mixed board of alphanumeric strings and symbols, then recall it from memory.
+          Memorize a mixed board of letters, numbers, and symbols, then recall it from memory.
         </p>
       </div>
 
@@ -147,8 +147,11 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           <p>
             Cell content:{" "}
             <span className="font-bold">
-              3-character alphanumeric strings or 1 symbol image per cell
+              3 letters, 3 numbers, or 1 symbol image per cell
             </span>
+          </p>
+          <p>
+            Distraction task: <span className="font-bold">3 scored math questions before recall</span>
           </p>
           <p>
             Memorization time: <span className="font-bold">{mode === "real" ? "2 minutes" : "No limit"}</span>

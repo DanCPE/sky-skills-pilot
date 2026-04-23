@@ -6,6 +6,7 @@ import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "@/components/shared/ResultsScreen";
 import type {
   ShortTermMemoryCell,
+  ShortTermMemoryMathQuestion,
   ShortTermMemoryOption,
   ShortTermMemoryQuizResponse,
 } from "@/types";
@@ -15,7 +16,7 @@ interface QuizInterfaceProps {
   onRestart: () => void;
 }
 
-type Phase = "ready" | "memorize" | "answer" | "results";
+type Phase = "ready" | "memorize" | "math" | "answer" | "results";
 
 function createEmptyGrid(rows: number, columns: number) {
   return Array.from({ length: rows }, () => Array.from({ length: columns }, () => ""));
@@ -73,12 +74,46 @@ function renderOptionContent(option: ShortTermMemoryOption) {
   return <span className="font-mono text-sm font-bold tracking-[0.2em]">{option.label}</span>;
 }
 
+function MathQuestionCard({
+  question,
+  selectedAnswer,
+  onAnswer,
+}: {
+  question: ShortTermMemoryMathQuestion;
+  selectedAnswer?: string;
+  onAnswer: (answer: string) => void;
+}) {
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
+      <p className="mb-4 text-center font-[family-name:var(--font-space-grotesk)] text-2xl font-black text-zinc-900 dark:text-zinc-100">
+        {question.prompt}
+      </p>
+      <div className="grid grid-cols-2 gap-3">
+        {question.options.map((option) => (
+          <button
+            key={option}
+            onClick={() => onAnswer(option)}
+            className={`rounded-xl border-2 px-4 py-3 text-lg font-bold transition ${
+              selectedAnswer === option
+                ? "border-brand-purple bg-brand-purple text-white"
+                : "border-zinc-200 bg-white text-zinc-900 hover:border-brand-purple dark:border-white/10 dark:bg-black/30 dark:text-zinc-100"
+            }`}
+          >
+            {option}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProps) {
-  const { grid, rows, columns, memorizeSeconds, mode } = quizData;
+  const { grid, rows, columns, memorizeSeconds, mode, mathQuestions } = quizData;
 
   const [phase, setPhase] = useState<Phase>("ready");
   const [timeRemaining, setTimeRemaining] = useState(memorizeSeconds);
   const [answers, setAnswers] = useState<string[][]>(() => createEmptyGrid(rows, columns));
+  const [mathAnswers, setMathAnswers] = useState<Record<string, string>>({});
   const [completedTime, setCompletedTime] = useState<number | undefined>(undefined);
   const startTimeRef = useRef<number | null>(null);
   const tableViewportRef = useRef<HTMLDivElement | null>(null);
@@ -92,7 +127,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
       setTimeRemaining((previous) => {
         if (previous <= 1) {
           window.clearInterval(intervalId);
-          setPhase("answer");
+          setPhase("math");
           return 0;
         }
         return previous - 1;
@@ -103,7 +138,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
   }, [phase, mode]);
 
   useEffect(() => {
-    if (phase === "memorize" || phase === "answer") {
+    if (phase === "memorize" || phase === "math" || phase === "answer") {
       requestAnimationFrame(() => {
         tableViewportRef.current?.scrollIntoView({
           behavior: "smooth",
@@ -134,6 +169,24 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
     [answers, grid]
   );
 
+  const mathReview = useMemo(
+    () =>
+      mathQuestions.map((question) => ({
+        answer: mathAnswers[question.id] ?? "",
+        isCorrect: mathAnswers[question.id] === question.correctAnswer,
+        question,
+      })),
+    [mathAnswers, mathQuestions]
+  );
+
+  const allReviewAnswers = useMemo(
+    () => [...flattenedReview, ...mathReview],
+    [flattenedReview, mathReview]
+  );
+
+  const answeredMathCount = mathReview.filter((answer) => answer.answer !== "").length;
+  const allMathAnswered = answeredMathCount === mathQuestions.length;
+
   const handleStartMemorizing = () => {
     startTimeRef.current = Date.now();
     setTimeRemaining(memorizeSeconds);
@@ -156,6 +209,13 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
     );
   };
 
+  const handleMathAnswer = (questionId: string, answer: string) => {
+    setMathAnswers((previous) => ({
+      ...previous,
+      [questionId]: answer,
+    }));
+  };
+
   const handleSubmit = () => {
     const startedAt = startTimeRef.current ?? Date.now();
     setCompletedTime(Math.floor((Date.now() - startedAt) / 1000));
@@ -174,16 +234,46 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
     return (
       <TopicLayout
         title="Short-Term Memory Table"
-        description="Memorize a mixed board of alphanumeric strings and symbols, then recall the full grid from memory."
+        description="Memorize a mixed board of letters, numbers, and symbols, then recall the full grid from memory."
       >
         <ResultsScreen
-          totalCount={rows * columns}
-          answers={flattenedReview}
+          totalCount={rows * columns + mathQuestions.length}
+          answers={allReviewAnswers}
           timeTaken={completedTime}
           onRestart={handleBackToModeSelection}
           restartLabel="Back to Mode Selection"
           showBackButton={false}
         >
+          <div className="mb-6 rounded-2xl border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-black/40">
+            <h3 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
+              Math Distraction Review
+            </h3>
+            <div className="grid gap-3 md:grid-cols-3">
+              {mathReview.map(({ question, answer, isCorrect }) => (
+                <div
+                  key={question.id}
+                  className={`rounded-xl border p-4 ${
+                    isCorrect
+                      ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/30"
+                      : "border-rose-200 bg-rose-50 dark:border-rose-900/60 dark:bg-rose-950/30"
+                  }`}
+                >
+                  <p className="font-bold text-zinc-900 dark:text-zinc-100">
+                    {question.prompt}
+                  </p>
+                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
+                    Your answer: <span className="font-bold">{answer || "---"}</span>
+                  </p>
+                  {!isCorrect && (
+                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
+                      Correct: <span className="font-bold">{question.correctAnswer}</span>
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
           <div className="rounded-2xl border border-zinc-200 bg-white p-6 dark:border-white/10 dark:bg-black/40">
             <h3 className="mb-4 text-xl font-bold text-zinc-900 dark:text-zinc-100">
               Answer Review
@@ -209,13 +299,13 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                   </p>
                   <div className="min-h-10">
                     {cell.answerImageSrc ? (
-                      <Image
-                        src={cell.answerImageSrc}
-                        alt={cell.answer || "Selected symbol"}
-                        width={36}
-                        height={36}
-                        className="h-9 w-9 object-contain"
-                      />
+                        <Image
+                          src={cell.answerImageSrc}
+                          alt={cell.answer || "Selected symbol"}
+                          width={36}
+                          height={36}
+                          className="h-9 w-9 object-contain dark:invert"
+                        />
                     ) : (
                       <p className="font-mono text-lg font-bold text-zinc-900 dark:text-zinc-100">
                         {cell.answer || "---"}
@@ -231,7 +321,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                           alt={cell.expected}
                           width={32}
                           height={32}
-                          className="inline-block h-8 w-8 object-contain align-middle"
+                          className="inline-block h-8 w-8 object-contain align-middle dark:invert"
                         />
                       ) : (
                         <span className="font-mono font-bold">{cell.expected}</span>
@@ -252,7 +342,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
   return (
     <TopicLayout
       title="Short-Term Memory Table"
-      description="Memorize a mixed board of alphanumeric strings and symbols, then recall the full grid from memory."
+      description="Memorize a mixed board of letters, numbers, and symbols, then recall the full grid from memory."
       fullWidth
       showBackLink={phase === "ready"}
     >
@@ -266,14 +356,17 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
               Ready to Start?
             </h2>
             <p className="mt-3 max-w-xl text-sm font-[family-name:var(--font-inter)] text-zinc-600 dark:text-zinc-400">
-              Press start when you are ready. The memory table will appear immediately and the timer will begin.
+              Press start when you are ready. The memory table will appear first, then you will solve 3 math questions before recall.
             </p>
             <div className="mt-6 grid w-full gap-3 rounded-2xl bg-zinc-50 p-4 text-left text-sm font-[family-name:var(--font-inter)] text-zinc-700 dark:bg-white/5 dark:text-zinc-300">
               <p>
                 Grid size: <span className="font-bold">{columns} x {rows}</span>
               </p>
               <p>
-                Cell content: <span className="font-bold">3-character alphanumeric strings or one symbol image</span>
+                Cell content: <span className="font-bold">3 letters, 3 numbers, or one symbol image</span>
+              </p>
+              <p>
+                Distraction task: <span className="font-bold">3 math questions before recall</span>
               </p>
               <p>
                 Memorization time: <span className="font-bold">{mode === "real" ? formatTime(memorizeSeconds) : "No limit"}</span>
@@ -310,14 +403,20 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                     {mode === "real" ? "REAL MODE" : "LEARN MODE"}
                   </p>
                   <h2 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
-                    {phase === "memorize" ? "Memorize the Grid" : "Recall the Grid"}
+                    {phase === "memorize"
+                      ? "Memorize the Grid"
+                      : phase === "math"
+                        ? "Solve the Math Questions"
+                        : "Recall the Grid"}
                   </h2>
                   <p className="mt-2 text-sm font-[family-name:var(--font-inter)] text-zinc-600 dark:text-zinc-400">
                     {phase === "memorize"
                       ? mode === "real"
                         ? "Study each cell carefully before the grid is hidden."
                         : "Study the grid for as long as you need, then continue when you are ready."
-                      : "Choose the correct answer for each cell from the options below."}
+                      : phase === "math"
+                        ? "Answer all 3 questions to distract working memory before the grid recall begins."
+                        : "Choose the correct answer for each cell from the mixed alphabet, numeric, and symbol options."}
                   </p>
                 </div>
 
@@ -333,71 +432,98 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                       {phase === "memorize" ? (mode === "real" ? "Time Remaining" : "Mode") : "Status"}
                     </p>
                     <p className="mt-1 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-[#4F12A6] dark:text-brand-gold">
-                      {phase === "memorize" ? (mode === "real" ? formatTime(timeRemaining) : "LEARNING") : "ANSWERING"}
+                      {phase === "memorize"
+                        ? (mode === "real" ? formatTime(timeRemaining) : "LEARNING")
+                        : phase === "math"
+                          ? `${answeredMathCount}/3`
+                          : "ANSWERING"}
                     </p>
                   </div>
                 </div>
               </div>
             </div>
 
-            <div
-              className="min-h-0 flex-1 rounded-3xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-black/40"
-            >
-              <div
-                className="grid h-full gap-2"
-                style={{ gridTemplateColumns: `repeat(${rows}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${columns}, minmax(0, 1fr))` }}
-              >
-                {Array.from({ length: columns }, (_, columnIndex) =>
-                  Array.from({ length: rows }, (_, rowIndex) => {
-                    const cell = grid[rowIndex][columnIndex];
-                    const selectedAnswer = answers[rowIndex][columnIndex];
-
-                    return (
-                      <div
-                        key={cell.id}
-                        className="flex flex-col rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 dark:border-white/10 dark:bg-white/5"
-                      >
-                        <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
-                          {String.fromCharCode(65 + rowIndex)}{columnIndex + 1}
-                        </p>
-
-                        {phase === "memorize" ? (
-                          <div className="flex flex-1 items-center justify-center rounded-xl bg-white px-1 dark:bg-black/30">
-                            {renderCellContent(cell, true)}
-                          </div>
-                        ) : (
-                          <div className="grid flex-1 grid-cols-2 gap-1">
-                            {cell.options?.map((option) => (
-                              <button
-                                key={option.id}
-                                onClick={() =>
-                                  handleOptionSelect(rowIndex, columnIndex, option.value)
-                                }
-                                className={`flex items-center justify-center rounded-lg border px-1 transition ${
-                                  selectedAnswer === option.value
-                                    ? "border-brand-purple bg-violet-50 text-brand-purple dark:border-brand-purple dark:bg-brand-purple/20 dark:text-white"
-                                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-black/30 dark:text-zinc-200"
-                                }`}
-                              >
-                                {renderOptionContent(option)}
-                              </button>
-                            ))}
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })
-                )}
+            {phase === "math" ? (
+              <div className="min-h-0 flex-1 rounded-3xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-black/40">
+                <div className="mx-auto grid max-w-4xl gap-4 md:grid-cols-3">
+                  {mathQuestions.map((question) => (
+                    <MathQuestionCard
+                      key={question.id}
+                      question={question}
+                      selectedAnswer={mathAnswers[question.id]}
+                      onAnswer={(answer) => handleMathAnswer(question.id, answer)}
+                    />
+                  ))}
+                </div>
               </div>
-            </div>
+            ) : (
+              <div
+                className="min-h-0 flex-1 rounded-3xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-black/40"
+              >
+                <div
+                  className="grid h-full gap-2"
+                  style={{ gridTemplateColumns: `repeat(${rows}, minmax(0, 1fr))`, gridTemplateRows: `repeat(${columns}, minmax(0, 1fr))` }}
+                >
+                  {Array.from({ length: columns }, (_, columnIndex) =>
+                    Array.from({ length: rows }, (_, rowIndex) => {
+                      const cell = grid[rowIndex][columnIndex];
+                      const selectedAnswer = answers[rowIndex][columnIndex];
+
+                      return (
+                        <div
+                          key={cell.id}
+                          className="flex flex-col rounded-2xl border border-zinc-200 bg-zinc-50 p-1.5 dark:border-white/10 dark:bg-white/5"
+                        >
+                          <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.15em] text-zinc-400">
+                            {String.fromCharCode(65 + rowIndex)}{columnIndex + 1}
+                          </p>
+
+                          {phase === "memorize" ? (
+                            <div className="flex flex-1 items-center justify-center rounded-xl bg-white px-1 dark:bg-black/30">
+                              {renderCellContent(cell, true)}
+                            </div>
+                          ) : (
+                            <div className="grid flex-1 grid-cols-2 gap-1">
+                              {cell.options?.map((option) => (
+                                <button
+                                  key={option.id}
+                                  onClick={() =>
+                                    handleOptionSelect(rowIndex, columnIndex, option.value)
+                                  }
+                                  className={`flex items-center justify-center rounded-lg border px-1 transition ${
+                                    selectedAnswer === option.value
+                                      ? "border-brand-purple bg-violet-50 text-brand-purple dark:border-brand-purple dark:bg-brand-purple/20 dark:text-white"
+                                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-black/30 dark:text-zinc-200"
+                                  }`}
+                                >
+                                  {renderOptionContent(option)}
+                                </button>
+                              ))}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })
+                  )}
+                </div>
+              </div>
+            )}
 
             <div className="mt-3 flex shrink-0 flex-col gap-3 sm:flex-row sm:justify-center">
               {phase === "memorize" ? (
                 <button
-                  onClick={() => setPhase("answer")}
+                  onClick={() => setPhase("math")}
                   className="rounded-xl border-2 border-zinc-300 px-6 py-3 font-semibold text-zinc-700 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
                 >
-                  Start Answering
+                  Continue to Math Questions
+                </button>
+              ) : phase === "math" ? (
+                <button
+                  onClick={() => setPhase("answer")}
+                  disabled={!allMathAnswered}
+                  className="rounded-xl bg-brand-purple px-6 py-3 font-bold text-white shadow-lg shadow-brand-purple/20 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  Continue to Memory Recall
                 </button>
               ) : (
                 <>

@@ -8,6 +8,7 @@ export const topics: Topic[] = [
     description: "Visualize how 2D nets fold into 3D shapes.",
     category: "spatial",
     isLocked: true,
+    coverImage: "/images/icons/SkyQuests/Jigsaw from Google Drive.png",
   },
   {
     slug: "number-series",
@@ -45,6 +46,7 @@ export const topics: Topic[] = [
     description: "Solve puzzles involving shapes and space.",
     category: "spatial",
     isLocked: true,
+    coverImage: "/images/icons/SkyQuests/Rubik from Google Drive.png",
   },
   {
     slug: "aircraft-rotation",
@@ -73,8 +75,8 @@ export const topics: Topic[] = [
     description: "Identify hidden letters in shape displays across 8 timed visual scanning sections.",
     category: "scanning",
     isLocked: false,
-    coverImage: "/images/icons/SkyQuests/scanning.png",
-    coverImageDark: "/images/icons/SkyQuests/scanning dark.png",
+    coverImage: "/images/icons/SkyQuests/shape.png",
+    coverImageDark: "/images/icons/SkyQuests/shape dark.png",
   },
   {
     slug: "short-term-memory",
@@ -83,6 +85,8 @@ export const topics: Topic[] = [
     description: "Memorize a grid of mixed symbols, then recreate it from memory.",
     category: "short-term-memory",
     isLocked: false,
+    coverImage: "/images/icons/SkyQuests/STM table.png",
+    coverImageDark: "/images/icons/SkyQuests/STM table dark.png",
   },
   {
     slug: "passage-recall",
