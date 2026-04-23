@@ -274,4 +274,5 @@ export interface PassageRecallQuizResponse {
   passage: string | null;
   questions: PassageRecallQuestion[];
   readingDurationSeconds: number;
+  mathQuestions: ShortTermMemoryMathQuestion[];
 }

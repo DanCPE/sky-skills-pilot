@@ -95,7 +95,8 @@ export const topics: Topic[] = [
     description: "Read an aviation passage, hold the details in memory, then answer recall questions after it disappears.",
     category: "short-term-memory",
     isLocked: false,
-    coverBg: "bg-amber-50 dark:bg-amber-500/10",
+    coverImage: "/images/icons/SkyQuests/STM PS.png",
+    coverImageDark: "/images/icons/SkyQuests/STM PS dark.png",
   },
 ];
 
