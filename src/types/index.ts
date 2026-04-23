@@ -109,6 +109,38 @@ export interface CalculationSubmitResult extends SubmitResult {
   currentScore?: number;
 }
 
+// Missing Operator specific types
+export interface MissingOperatorQuestion extends Question {
+  id: string;
+  prompt: string;
+  expression: string;
+  options: string[];
+  correctAnswer: string;
+  correctOperators: CalculationOperator[];
+  result: number;
+  difficulty: "easy" | "medium" | "hard";
+  explanation: string;
+}
+
+export interface MissingOperatorQuizResponse {
+  questions: MissingOperatorQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
+export interface MissingOperatorSubmitPayload extends SubmitPayload {
+  mode: "learn" | "real";
+  questionIndex: number;
+  timeRemaining?: number;
+  correctAnswer: string;
+}
+
+export interface MissingOperatorSubmitResult extends SubmitResult {
+  correctAnswer?: string;
+  explanation?: string;
+  currentScore?: number;
+}
+
 // Scanning Practice specific types
 export interface ScanningPracticeQuestion extends Question {
   id: string;
