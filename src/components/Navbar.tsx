@@ -60,20 +60,7 @@ export default function Navbar() {
             </div>
 
             {/* Desktop Actions */}
-            <div className="hidden sm:flex flex-1 justify-end items-center gap-4">
-              {/* Auth Buttons */}
-              <Link
-                href="/login"
-                className="text-sm font-medium text-violet-800 hover:text-violet-600 dark:text-zinc-300 dark:hover:text-zinc-100 transition-colors"
-              >
-                Log in
-              </Link>
-              <Link
-                href="/signup"
-                className="text-sm font-medium px-4 py-2 rounded-lg bg-violet-700 text-white hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-500 transition-colors"
-              >
-                Sign up
-              </Link>
+            <div className="hidden sm:flex flex-1 justify-end items-center gap-6">
               {/* Theme Toggle */}
               <button
                 type="button"
@@ -165,22 +152,6 @@ export default function Navbar() {
                   </Link>
                 );
               })}
-              <div className="flex gap-3 px-4 pt-2">
-                <Link
-                  href="/login"
-                  className="flex-1 text-center text-sm font-medium py-2 rounded-lg border border-violet-700 text-violet-700 dark:border-violet-500 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-900/20 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="flex-1 text-center text-sm font-medium py-2 rounded-lg bg-violet-700 text-white hover:bg-violet-600 dark:bg-violet-600 dark:hover:bg-violet-500 transition-colors"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  Sign up
-                </Link>
-              </div>
             </div>
           )}
         </div>
