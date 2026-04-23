@@ -32,6 +32,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/cal dark.png",
   },
   {
+    slug: "missing-operator",
+    icon: "🧮",
+    title: "Missing Operator",
+    description: "Practice arithmetic and mental math.",
+    category: "approximation",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/cal.png",
+    coverImageDark: "/images/icons/SkyQuests/cal dark.png",
+  },
+  {
     slug: "pattern-recognition",
     icon: "🔍",
     title: "Pattern Recognition",
