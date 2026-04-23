@@ -216,7 +216,8 @@ export interface SpatialOrientationSubmitResult {
 // --- Short-Term Memory Table Types ---
 
 export type ShortTermMemoryContentType =
-  | "alphanumeric"
+  | "alphabet"
+  | "numeric"
   | "symbol"
   | "mixed";
 
@@ -245,6 +246,14 @@ export interface ShortTermMemoryQuizConfig {
   contentType: ShortTermMemoryContentType;
 }
 
+export interface ShortTermMemoryMathQuestion {
+  id: string;
+  prompt: string;
+  options: string[];
+  correctAnswer: string;
+}
+
 export interface ShortTermMemoryQuizResponse extends ShortTermMemoryQuizConfig {
   grid: ShortTermMemoryCell[][];
+  mathQuestions: ShortTermMemoryMathQuestion[];
 }

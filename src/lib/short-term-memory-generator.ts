@@ -1,11 +1,13 @@
 import type {
   ShortTermMemoryCell,
   ShortTermMemoryContentType,
+  ShortTermMemoryMathQuestion,
   ShortTermMemoryOption,
   ShortTermMemoryQuizResponse,
 } from "@/types";
 
-const ALPHANUMERIC = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789";
+const LETTERS = "ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+const NUMBERS = "0123456789";
 const SYMBOL_ASSETS = [
   "accessibility-svgrepo-com.svg",
   "activity-svgrepo-com.svg",
@@ -21,6 +23,8 @@ const SYMBOL_ASSETS = [
   "archive-box-svgrepo-com.svg",
 ] as const;
 
+type ConcreteContentType = Exclude<ShortTermMemoryContentType, "mixed">;
+
 function randomInt(max: number) {
   return Math.floor(Math.random() * max);
 }
@@ -35,25 +39,12 @@ function shuffle<T>(items: T[]) {
 }
 
 function pickContentType(): ShortTermMemoryContentType {
-  const types: ShortTermMemoryContentType[] = ["alphanumeric", "symbol"];
+  const types: ConcreteContentType[] = ["alphabet", "numeric", "symbol"];
   return types[randomInt(types.length)];
 }
 
-function generateTextValue(length: number) {
-  return Array.from({ length }, () => ALPHANUMERIC[randomInt(ALPHANUMERIC.length)]).join("");
-}
-
-function generateTextDistractors(correctValue: string, count: number) {
-  const distractors = new Set<string>();
-
-  while (distractors.size < count) {
-    const candidate = generateTextValue(correctValue.length);
-    if (candidate !== correctValue) {
-      distractors.add(candidate);
-    }
-  }
-
-  return [...distractors];
+function generateTextValue(pool: string, length: number) {
+  return Array.from({ length }, () => pool[randomInt(pool.length)]).join("");
 }
 
 function titleFromFilename(fileName: string) {
@@ -64,57 +55,204 @@ function titleFromFilename(fileName: string) {
     .join(" ");
 }
 
-function buildAlphanumericCell(
-  rowIndex: number,
-  columnIndex: number,
-  charactersPerCell: number
-): ShortTermMemoryCell {
-  const value = generateTextValue(charactersPerCell);
-  const id = `alphanumeric-${rowIndex}-${columnIndex}`;
-  const distractors = generateTextDistractors(value, 3);
-
-  const options: ShortTermMemoryOption[] = shuffle([value, ...distractors]).map(
-    (optionValue, optionIndex) => ({
-      id: `${id}-option-${optionIndex}`,
-      value: optionValue,
-      label: optionValue,
-    })
-  );
+function buildAlphabetOption(id: string, length: number): ShortTermMemoryOption {
+  const value = generateTextValue(LETTERS, length);
 
   return {
     id,
     value,
     label: value,
-    contentType: "alphanumeric",
-    options,
   };
 }
 
-function buildSymbolCell(rowIndex: number, columnIndex: number): ShortTermMemoryCell {
-  const correctFileName = SYMBOL_ASSETS[randomInt(SYMBOL_ASSETS.length)];
-  const correctValue = correctFileName.replace(/\.svg$/, "");
-  const id = `symbol-${rowIndex}-${columnIndex}`;
-
-  const distractors = shuffle(
-    SYMBOL_ASSETS.filter((fileName) => fileName !== correctFileName)
-  ).slice(0, 3);
-
-  const options: ShortTermMemoryOption[] = shuffle([correctFileName, ...distractors]).map(
-    (fileName, optionIndex) => ({
-      id: `${id}-option-${optionIndex}`,
-      value: fileName.replace(/\.svg$/, ""),
-      label: titleFromFilename(fileName),
-      imageSrc: `/images/short-term-table/${fileName}`,
-    })
-  );
+function buildNumericOption(id: string, length: number): ShortTermMemoryOption {
+  const value = generateTextValue(NUMBERS, length);
 
   return {
     id,
+    value,
+    label: value,
+  };
+}
+
+function buildSymbolOption(id: string, excludedValue?: string): ShortTermMemoryOption {
+  const availableAssets = excludedValue
+    ? SYMBOL_ASSETS.filter((fileName) => fileName.replace(/\.svg$/, "") !== excludedValue)
+    : SYMBOL_ASSETS;
+  const fileName = availableAssets[randomInt(availableAssets.length)];
+  const value = fileName.replace(/\.svg$/, "");
+
+  return {
+    id,
+    value,
+    label: titleFromFilename(fileName),
+    imageSrc: `/images/short-term-table/${fileName}`,
+  };
+}
+
+function ensureUniqueOption(
+  options: ShortTermMemoryOption[],
+  buildOption: (id: string) => ShortTermMemoryOption,
+  id: string
+) {
+  let option = buildOption(id);
+
+  while (options.some((existingOption) => existingOption.value === option.value)) {
+    option = buildOption(id);
+  }
+
+  options.push(option);
+}
+
+function buildMixedOptions({
+  id,
+  correctOption,
+  correctType,
+  charactersPerCell,
+}: {
+  id: string;
+  correctOption: ShortTermMemoryOption;
+  correctType: ConcreteContentType;
+  charactersPerCell: number;
+}): ShortTermMemoryOption[] {
+  const options: ShortTermMemoryOption[] = [correctOption];
+  const sameTypeId = `${id}-option-same-type`;
+  const alphabetBuilder = (optionId: string) =>
+    buildAlphabetOption(optionId, charactersPerCell);
+  const numericBuilder = (optionId: string) =>
+    buildNumericOption(optionId, charactersPerCell);
+  const symbolBuilder = (optionId: string) =>
+    buildSymbolOption(optionId, correctType === "symbol" ? correctOption.value : undefined);
+
+  ensureUniqueOption(options, alphabetBuilder, `${id}-option-alphabet`);
+  ensureUniqueOption(options, numericBuilder, `${id}-option-numeric`);
+  ensureUniqueOption(options, symbolBuilder, `${id}-option-symbol`);
+
+  if (options.length < 4) {
+    const sameTypeBuilder =
+      correctType === "alphabet"
+        ? alphabetBuilder
+        : correctType === "numeric"
+          ? numericBuilder
+          : symbolBuilder;
+
+    ensureUniqueOption(options, sameTypeBuilder, sameTypeId);
+  }
+
+  return shuffle(options).map((option, optionIndex) => ({
+    ...option,
+    id: `${id}-option-${optionIndex}`,
+  }));
+}
+
+function buildAlphabetCell(
+  rowIndex: number,
+  columnIndex: number,
+  charactersPerCell: number
+): ShortTermMemoryCell {
+  const id = `alphabet-${rowIndex}-${columnIndex}`;
+  const correctOption = buildAlphabetOption(`${id}-correct`, charactersPerCell);
+
+  return {
+    id,
+    value: correctOption.value,
+    label: correctOption.label,
+    contentType: "alphabet",
+    options: buildMixedOptions({
+      id,
+      correctOption,
+      correctType: "alphabet",
+      charactersPerCell,
+    }),
+  };
+}
+
+function buildNumericCell(
+  rowIndex: number,
+  columnIndex: number,
+  charactersPerCell: number
+): ShortTermMemoryCell {
+  const id = `numeric-${rowIndex}-${columnIndex}`;
+  const correctOption = buildNumericOption(`${id}-correct`, charactersPerCell);
+
+  return {
+    id,
+    value: correctOption.value,
+    label: correctOption.label,
+    contentType: "numeric",
+    options: buildMixedOptions({
+      id,
+      correctOption,
+      correctType: "numeric",
+      charactersPerCell,
+    }),
+  };
+}
+
+function buildSymbolCell(
+  rowIndex: number,
+  columnIndex: number,
+  charactersPerCell: number
+): ShortTermMemoryCell {
+  const correctFileName = SYMBOL_ASSETS[randomInt(SYMBOL_ASSETS.length)];
+  const correctValue = correctFileName.replace(/\.svg$/, "");
+  const id = `symbol-${rowIndex}-${columnIndex}`;
+  const correctOption: ShortTermMemoryOption = {
+    id: `${id}-correct`,
     value: correctValue,
     label: titleFromFilename(correctFileName),
-    contentType: "symbol",
     imageSrc: `/images/short-term-table/${correctFileName}`,
-    options,
+  };
+
+  return {
+    id,
+    value: correctOption.value,
+    label: correctOption.label,
+    contentType: "symbol",
+    imageSrc: correctOption.imageSrc,
+    options: buildMixedOptions({
+      id,
+      correctOption,
+      correctType: "symbol",
+      charactersPerCell,
+    }),
+  };
+}
+
+function buildMathDistractors(correctAnswer: number) {
+  const distractors = new Set<number>();
+
+  while (distractors.size < 3) {
+    const offset = randomInt(15) + 1;
+    const candidate = correctAnswer + (randomInt(2) === 0 ? offset : -offset);
+    if (candidate >= 0 && candidate !== correctAnswer) {
+      distractors.add(candidate);
+    }
+  }
+
+  return [...distractors];
+}
+
+function generateMathQuestion(index: number): ShortTermMemoryMathQuestion {
+  const operators = ["+", "-", "×"] as const;
+  const operator = operators[randomInt(operators.length)];
+  const left = randomInt(18) + 7;
+  const right = operator === "×" ? randomInt(8) + 2 : randomInt(18) + 3;
+  const normalizedLeft = operator === "-" ? Math.max(left, right) : left;
+  const normalizedRight = operator === "-" ? Math.min(left, right) : right;
+
+  const correctAnswer =
+    operator === "+"
+      ? normalizedLeft + normalizedRight
+      : operator === "-"
+        ? normalizedLeft - normalizedRight
+        : normalizedLeft * normalizedRight;
+
+  return {
+    id: `math-${index}-${randomInt(100000)}`,
+    prompt: `${normalizedLeft} ${operator} ${normalizedRight} = ?`,
+    options: shuffle([correctAnswer, ...buildMathDistractors(correctAnswer)]).map(String),
+    correctAnswer: String(correctAnswer),
   };
 }
 
@@ -141,10 +279,14 @@ export function generateShortTermMemoryQuiz({
         resolvedContentType === "mixed" ? pickContentType() : resolvedContentType;
 
       if (cellContentType === "symbol") {
-        return buildSymbolCell(rowIndex, columnIndex);
+        return buildSymbolCell(rowIndex, columnIndex, charactersPerCell);
       }
 
-      return buildAlphanumericCell(rowIndex, columnIndex, charactersPerCell);
+      if (cellContentType === "numeric") {
+        return buildNumericCell(rowIndex, columnIndex, charactersPerCell);
+      }
+
+      return buildAlphabetCell(rowIndex, columnIndex, charactersPerCell);
     })
   );
 
@@ -156,6 +298,6 @@ export function generateShortTermMemoryQuiz({
     charactersPerCell,
     contentType: resolvedContentType,
     grid,
+    mathQuestions: Array.from({ length: 3 }, (_, index) => generateMathQuestion(index)),
   };
 }
-
