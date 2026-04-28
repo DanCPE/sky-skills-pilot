@@ -10,7 +10,12 @@ export interface Topic {
   coverBg?: string;
 }
 
-export type TopicCategory = "scanning" | "logical" | "spatial" | "approximation" | "short-term-memory";
+export type TopicCategory =
+  | "scanning"
+  | "logical"
+  | "spatial"
+  | "approximation"
+  | "short-term-memory";
 
 export interface Question {
   id: string;
@@ -139,6 +144,24 @@ export interface MissingOperatorSubmitResult extends SubmitResult {
   correctAnswer?: string;
   explanation?: string;
   currentScore?: number;
+}
+
+// Dern-Jood specific types
+export interface DernJoodQuestion extends Question {
+  id: string;
+  prompt: string;
+  expression: string;
+  correctAnswer: number;
+  difficulty: "easy" | "medium" | "hard";
+  bpm: number;
+  timeLimitSeconds: number;
+  explanation: string;
+}
+
+export interface DernJoodQuizResponse {
+  questions: DernJoodQuestion[];
+  mode: "learn" | "real";
+  bpm?: number;
 }
 
 // Scanning Practice specific types

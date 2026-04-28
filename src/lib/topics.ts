@@ -42,6 +42,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/cal dark.png",
   },
   {
+    slug: "dern-jood",
+    icon: "🎵",
+    title: "Dern-Jood",
+    description: "Answer mental math questions while keeping pace with a metronome.",
+    category: "approximation",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/cal.png",
+    coverImageDark: "/images/icons/SkyQuests/cal dark.png",
+  },
+  {
     slug: "pattern-recognition",
     icon: "🔍",
     title: "Pattern Recognition",
