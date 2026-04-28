@@ -64,7 +64,7 @@ export default function QuizInterface({
   onRestart,
   onPassageExpired,
 }: QuizInterfaceProps) {
-  const { questions, mathQuestions, readingDurationSeconds } = quizData;
+  const { questions, mathQuestions, readingDurationSeconds, mode } = quizData;
 
   const [phase, setPhase] = useState<Phase>("reading");
   const [timeRemaining, setTimeRemaining] = useState(readingDurationSeconds);
@@ -258,6 +258,9 @@ export default function QuizInterface({
             <div>
               <p className="mb-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
                 {phaseLabel}
+              </p>
+              <p className="mb-2 inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
+                {mode === "real" ? "REAL MODE" : "LEARN MODE"}
               </p>
               <h2 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
                 {phaseTitle}
