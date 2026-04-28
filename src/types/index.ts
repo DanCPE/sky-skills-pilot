@@ -271,6 +271,7 @@ export interface PassageRecallQuestion extends Question {
 export interface PassageRecallQuizResponse {
   id: string;
   templateId: string;
+  mode: "learn" | "real";
   passage: string | null;
   questions: PassageRecallQuestion[];
   readingDurationSeconds: number;
