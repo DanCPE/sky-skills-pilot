@@ -20,15 +20,50 @@ function roundToNearestFive(value: number): number {
   return Math.round(value / 5) * 5;
 }
 
+function generateDescentRateProblem(difficulty: Difficulty) {
+  const minutesByDifficulty = {
+    easy: [4, 5, 10],
+    medium: [3, 4, 5, 6, 8],
+    hard: [3, 4, 5, 6, 7, 8],
+  } satisfies Record<Difficulty, number[]>;
+
+  const minutes =
+    minutesByDifficulty[difficulty][
+      randomInRange(0, minutesByDifficulty[difficulty].length - 1)
+    ];
+  const descentRate =
+    difficulty === "easy"
+      ? [300, 400, 500, 600][randomInRange(0, 3)]
+      : difficulty === "medium"
+        ? [400, 500, 600, 700, 800, 900][randomInRange(0, 5)]
+        : [700, 800, 900, 1000, 1100, 1200, 1300][randomInRange(0, 6)];
+  const flightLevelDrop = (descentRate * minutes) / 100;
+  const targetFlightLevel =
+    difficulty === "easy"
+      ? randomInRange(10, 60)
+      : difficulty === "medium"
+        ? randomInRange(20, 120)
+        : randomInRange(40, 180);
+  const startFlightLevel = targetFlightLevel + flightLevelDrop;
+
+  return {
+    expression: `If an aircraft at FL${startFlightLevel} wants to descend to FL${targetFlightLevel} in ${minutes} min, what descent rate is required in ft/min?`,
+    correctAnswer: descentRate,
+    explanation: `FL${startFlightLevel} to FL${targetFlightLevel} is ${flightLevelDrop * 100} ft. ${flightLevelDrop * 100} ÷ ${minutes} = ${descentRate} ft/min.`,
+  };
+}
+
 function generateExpression(difficulty: Difficulty) {
   if (difficulty === "easy") {
     const templates = [
+      () => generateDescentRateProblem("easy"),
       () => {
         const left = randomInRange(10, 99);
         const right = randomInRange(10, 90);
         return {
           expression: `${left} + ${right}`,
           correctAnswer: left + right,
+          explanation: `${left} + ${right} = ${left + right}`,
         };
       },
       () => {
@@ -37,6 +72,7 @@ function generateExpression(difficulty: Difficulty) {
         return {
           expression: `${left} - ${right}`,
           correctAnswer: left - right,
+          explanation: `${left} - ${right} = ${left - right}`,
         };
       },
       () => {
@@ -45,6 +81,7 @@ function generateExpression(difficulty: Difficulty) {
         return {
           expression: `${left} × ${right}`,
           correctAnswer: left * right,
+          explanation: `${left} × ${right} = ${left * right}`,
         };
       },
       () => {
@@ -53,6 +90,7 @@ function generateExpression(difficulty: Difficulty) {
         return {
           expression: `${left} × ${right}`,
           correctAnswer: left * right,
+          explanation: `${left} × ${right} = ${left * right}`,
         };
       },
     ];
@@ -62,12 +100,14 @@ function generateExpression(difficulty: Difficulty) {
 
   if (difficulty === "medium") {
     const templates = [
+      () => generateDescentRateProblem("medium"),
       () => {
         const left = randomInRange(100, 999);
         const right = randomInRange(100, 999);
         return {
           expression: `${left} + ${right}`,
           correctAnswer: left + right,
+          explanation: `${left} + ${right} = ${left + right}`,
         };
       },
       () => {
@@ -76,6 +116,7 @@ function generateExpression(difficulty: Difficulty) {
         return {
           expression: `${left} - ${right}`,
           correctAnswer: left - right,
+          explanation: `${left} - ${right} = ${left - right}`,
         };
       },
       () => {
@@ -84,6 +125,7 @@ function generateExpression(difficulty: Difficulty) {
         return {
           expression: `${left} × ${right}`,
           correctAnswer: left * right,
+          explanation: `${left} × ${right} = ${left * right}`,
         };
       },
       () => {
@@ -92,6 +134,7 @@ function generateExpression(difficulty: Difficulty) {
         return {
           expression: `${quotient * divisor} ÷ ${divisor}`,
           correctAnswer: quotient,
+          explanation: `${quotient * divisor} ÷ ${divisor} = ${quotient}`,
         };
       },
     ];
@@ -100,12 +143,14 @@ function generateExpression(difficulty: Difficulty) {
   }
 
   const templates = [
+    () => generateDescentRateProblem("hard"),
     () => {
       const left = randomInRange(21, 89);
       const right = randomInRange(21, 89);
       return {
         expression: `${left} × ${right}`,
         correctAnswer: left * right,
+        explanation: `${left} × ${right} = ${left * right}`,
       };
     },
     () => {
@@ -114,6 +159,7 @@ function generateExpression(difficulty: Difficulty) {
       return {
         expression: `${left} × ${right}`,
         correctAnswer: left * right,
+        explanation: `${left} × ${right} = ${left * right}`,
       };
     },
     () => {
@@ -123,6 +169,9 @@ function generateExpression(difficulty: Difficulty) {
       return {
         expression: `${first} + ${second} - ${third}`,
         correctAnswer: first + second - third,
+        explanation: `${first} + ${second} - ${third} = ${
+          first + second - third
+        }`,
       };
     },
     () => {
@@ -131,6 +180,7 @@ function generateExpression(difficulty: Difficulty) {
       return {
         expression: `${quotient * divisor} ÷ ${divisor}`,
         correctAnswer: quotient,
+        explanation: `${quotient * divisor} ÷ ${divisor} = ${quotient}`,
       };
     },
   ];
@@ -141,6 +191,7 @@ function generateExpression(difficulty: Difficulty) {
 function estimateQuestionSeconds(expression: string, difficulty: Difficulty): number {
   const multiplicationPenalty = expression.includes("×") ? 3 : 0;
   const divisionPenalty = expression.includes("÷") ? 2 : 0;
+  const wordProblemPenalty = expression.includes("FL") ? 6 : 0;
   const chainedPenalty = expression.split(" ").length > 3 ? 2 : 0;
   const digitLoad = (expression.match(/\d/g) ?? []).length;
   const baseByDifficulty = {
@@ -156,6 +207,7 @@ function estimateQuestionSeconds(expression: string, difficulty: Difficulty): nu
       baseByDifficulty[difficulty] +
         multiplicationPenalty +
         divisionPenalty +
+        wordProblemPenalty +
         chainedPenalty +
         Math.floor(digitLoad / 3),
     ),
@@ -174,17 +226,20 @@ export function generateDernJoodQuiz(
       mode === "real"
         ? roundToNearestFive(randomInRange(50, 180))
         : Math.min(180, Math.max(50, bpm ?? 90));
-    const { expression, correctAnswer } = generateExpression(resolvedDifficulty);
+    const { expression, correctAnswer, explanation } =
+      generateExpression(resolvedDifficulty);
 
     return {
       id: generateId(),
-      prompt: "Answer with mental math",
+      prompt: expression.includes("FL")
+        ? "Calculate the descent rate"
+        : "Answer with mental math",
       expression,
       correctAnswer,
       difficulty: resolvedDifficulty,
       bpm: resolvedBpm,
       timeLimitSeconds: estimateQuestionSeconds(expression, resolvedDifficulty),
-      explanation: `${expression} = ${correctAnswer}`,
+      explanation,
     };
   });
 }
