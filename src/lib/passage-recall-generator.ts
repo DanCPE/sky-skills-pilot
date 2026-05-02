@@ -731,133 +731,6 @@ function sampleDistinctFacts(keys: LibraryKey[]): Record<LibraryKey, string> {
   return result;
 }
 
-function buildFlightRouteSegment(): PassageSegment {
-  const routeFacts = sampleDistinctFacts([
-    "INITIAL_CITIES",
-    "DESTINATION_CITIES",
-    "STOP_CITY_1",
-    "STOP_CITY_2",
-    "STOP_CITY_3",
-  ]);
-
-  const flight = {
-    callsign: sampleFact("CALLSIGNS"),
-    flightNumber: sampleFact("FLIGHT_NUMBERS"),
-    flightLevel: sampleFact("FL_LEVELS"),
-    initialCity: routeFacts.INITIAL_CITIES,
-    destinationCity: routeFacts.DESTINATION_CITIES,
-    firstStop: routeFacts.STOP_CITY_1,
-    secondStop: routeFacts.STOP_CITY_2,
-    thirdStop: routeFacts.STOP_CITY_3,
-    firstStopPassengerIn: sampleFact("STOP1_PAX_IN"),
-    firstStopPassengerOut: sampleFact("STOP1_PAX_OUT"),
-    secondStopPassengerIn: sampleFact("STOP2_PAX_IN"),
-    secondStopPassengerOut: sampleFact("STOP2_PAX_OUT"),
-    thirdStopPassengerIn: sampleFact("STOP3_PAX_IN"),
-    thirdStopPassengerOut: sampleFact("STOP3_PAX_OUT"),
-    emergencyIncident: sampleFact("EMERGENCY_INCIDENTS"),
-    summary: sampleFact("FLIGHT_SUMMARIES"),
-  };
-
-  const text = [
-    `Flight ${flight.callsign} ${flight.flightNumber} started in ${flight.initialCity} and was cleared at ${flight.flightLevel} for the cruise toward ${flight.destinationCity}.`,
-    `The planned route had three stop cities before the final destination: ${flight.firstStop}, ${flight.secondStop}, and ${flight.thirdStop}.`,
-    `At ${flight.firstStop}, ${flight.firstStopPassengerIn} passengers boarded and ${flight.firstStopPassengerOut} passengers left the aircraft.`,
-    `At ${flight.secondStop}, ${flight.secondStopPassengerIn} passengers boarded while ${flight.secondStopPassengerOut} passengers disembarked.`,
-    `At ${flight.thirdStop}, ${flight.thirdStopPassengerIn} passengers boarded and ${flight.thirdStopPassengerOut} passengers got off before the final sector.`,
-    `During the route, the crew handled ${flight.emergencyIncident}.`,
-    `The flight summary recorded that the aircraft ${flight.summary}.`,
-  ].join(" ");
-
-  const facts: RecallFact[] = [
-    {
-      key: "CALLSIGNS",
-      value: flight.callsign,
-      prompt: "In the flight route summary, what was the callsign?",
-    },
-    {
-      key: "FLIGHT_NUMBERS",
-      value: flight.flightNumber,
-      prompt: "In the flight route summary, what was the flight number?",
-    },
-    {
-      key: "FL_LEVELS",
-      value: flight.flightLevel,
-      prompt: "In the flight route summary, what flight level was assigned?",
-    },
-    {
-      key: "INITIAL_CITIES",
-      value: flight.initialCity,
-      prompt: "In the flight route summary, what was the initial city?",
-    },
-    {
-      key: "DESTINATION_CITIES",
-      value: flight.destinationCity,
-      prompt: "In the flight route summary, what was the final destination?",
-    },
-    {
-      key: "STOP_CITY_1",
-      value: flight.firstStop,
-      prompt: "In the flight route summary, what was the first stop city?",
-    },
-    {
-      key: "STOP_CITY_2",
-      value: flight.secondStop,
-      prompt: "In the flight route summary, what was the second stop city?",
-    },
-    {
-      key: "STOP_CITY_3",
-      value: flight.thirdStop,
-      prompt: "In the flight route summary, what was the third stop city?",
-    },
-    {
-      key: "STOP1_PAX_IN",
-      value: flight.firstStopPassengerIn,
-      prompt: "How many passengers boarded at the first stop?",
-    },
-    {
-      key: "STOP1_PAX_OUT",
-      value: flight.firstStopPassengerOut,
-      prompt: "How many passengers left at the first stop?",
-    },
-    {
-      key: "STOP2_PAX_IN",
-      value: flight.secondStopPassengerIn,
-      prompt: "How many passengers boarded at the second stop?",
-    },
-    {
-      key: "STOP2_PAX_OUT",
-      value: flight.secondStopPassengerOut,
-      prompt: "How many passengers left at the second stop?",
-    },
-    {
-      key: "STOP3_PAX_IN",
-      value: flight.thirdStopPassengerIn,
-      prompt: "How many passengers boarded at the third stop?",
-    },
-    {
-      key: "STOP3_PAX_OUT",
-      value: flight.thirdStopPassengerOut,
-      prompt: "How many passengers left at the third stop?",
-    },
-    {
-      key: "EMERGENCY_INCIDENTS",
-      value: flight.emergencyIncident,
-      prompt: "What emergency incident did the crew handle?",
-    },
-    {
-      key: "FLIGHT_SUMMARIES",
-      value: flight.summary,
-      prompt: "What was recorded in the final flight summary?",
-    },
-  ];
-
-  return {
-    id: "multi-stop-flight-summary",
-    text,
-    questions: facts.map(buildRecallQuestion),
-  };
-}
 
 function buildIncidentFlightSegment(): PassageSegment {
   const routeFacts = sampleDistinctFacts([
@@ -1271,6 +1144,8 @@ function joinPassageSegments(segments: PassageSegment[]): string {
     .join(" ");
 }
 
+export const PASSAGE_RECALL_QUESTION_COUNT = 20;
+
 export function generatePassageRecallQuiz({
   mode = "real",
   readingDurationSeconds = READING_DURATION_SECONDS,
@@ -1279,7 +1154,6 @@ export function generatePassageRecallQuiz({
   readingDurationSeconds?: number;
 } = {}): PassageRecallQuizResponse {
   const templateBuilders = [
-    () => buildFlightRouteSegment(),
     () => buildIncidentFlightSegment(),
     () => buildOperationalFlightSegment(),
     () => buildHeavyOperationsTemplate(),
@@ -1297,13 +1171,14 @@ export function generatePassageRecallQuiz({
     },
   ];
   const selectedTemplate = sampleOne(templateBuilders)();
+  const questions = selectedTemplate.questions.slice(0, PASSAGE_RECALL_QUESTION_COUNT);
 
   return {
     id: generateId("session"),
     templateId: selectedTemplate.id,
     mode,
     passage: selectedTemplate.text,
-    questions: selectedTemplate.questions,
+    questions,
     readingDurationSeconds,
     mathQuestions: Array.from({ length: 3 }, (_, index) => generateMathQuestion(index)),
   };
