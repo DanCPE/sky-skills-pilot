@@ -25,6 +25,134 @@ interface QuizInterfaceProps {
   onRestart: () => void;
 }
 
+interface VoiceRecognitionAlternative {
+  transcript: string;
+  confidence: number;
+}
+
+interface VoiceRecognitionResult {
+  readonly isFinal: boolean;
+  readonly length: number;
+  [index: number]: VoiceRecognitionAlternative;
+}
+
+interface VoiceRecognitionResultList {
+  readonly length: number;
+  [index: number]: VoiceRecognitionResult;
+}
+
+interface VoiceRecognitionResultEvent {
+  resultIndex: number;
+  results: VoiceRecognitionResultList;
+}
+
+interface VoiceRecognitionErrorEvent {
+  error: string;
+}
+
+interface VoiceRecognition {
+  continuous: boolean;
+  interimResults: boolean;
+  lang: string;
+  maxAlternatives: number;
+  onend: (() => void) | null;
+  onerror: ((event: VoiceRecognitionErrorEvent) => void) | null;
+  onresult: ((event: VoiceRecognitionResultEvent) => void) | null;
+  onstart: (() => void) | null;
+  processLocally?: boolean;
+  abort: () => void;
+  start: () => void;
+  stop: () => void;
+}
+
+type VoiceRecognitionConstructor = new () => VoiceRecognition;
+
+declare global {
+  interface Window {
+    SpeechRecognition?: VoiceRecognitionConstructor;
+    webkitSpeechRecognition?: VoiceRecognitionConstructor;
+  }
+}
+
+function parseSpokenNumber(transcript: string): string | null {
+  const cleaned = transcript
+    .toLowerCase()
+    .replaceAll("-", " ")
+    .replace(/[^\w\s-]/g, " ")
+    .trim();
+
+  const directNumber = cleaned.match(/-?\d+/);
+  if (directNumber) {
+    return directNumber[0];
+  }
+
+  const units: Record<string, number> = {
+    zero: 0,
+    one: 1,
+    two: 2,
+    three: 3,
+    four: 4,
+    five: 5,
+    six: 6,
+    seven: 7,
+    eight: 8,
+    nine: 9,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+    thirteen: 13,
+    fourteen: 14,
+    fifteen: 15,
+    sixteen: 16,
+    seventeen: 17,
+    eighteen: 18,
+    nineteen: 19,
+  };
+  const tens: Record<string, number> = {
+    twenty: 20,
+    thirty: 30,
+    forty: 40,
+    fourty: 40,
+    fifty: 50,
+    sixty: 60,
+    seventy: 70,
+    eighty: 80,
+    ninety: 90,
+  };
+
+  let total = 0;
+  let current = 0;
+  let foundNumberWord = false;
+  let negative = false;
+
+  for (const token of cleaned.split(/\s+/)) {
+    if (token === "minus" || token === "negative") {
+      negative = true;
+    } else if (token in units) {
+      current += units[token];
+      foundNumberWord = true;
+    } else if (token in tens) {
+      current += tens[token];
+      foundNumberWord = true;
+    } else if (token === "hundred") {
+      current = Math.max(1, current) * 100;
+      foundNumberWord = true;
+    } else if (token === "thousand") {
+      total += Math.max(1, current) * 1000;
+      current = 0;
+      foundNumberWord = true;
+    }
+  }
+
+  if (!foundNumberWord) return null;
+  const parsed = total + current;
+  return String(negative ? -parsed : parsed);
+}
+
+function isRepeatCommand(transcript: string): boolean {
+  return /\b(repeat|say again|again|one more time)\b/i.test(transcript);
+}
+
 export default function QuizInterface({
   quizData,
   onRestart,
@@ -42,8 +170,12 @@ export default function QuizInterface({
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [speechStatus, setSpeechStatus] = useState("Voice ready");
+  const [isListening, setIsListening] = useState(false);
+  const [autoMicEnabled, setAutoMicEnabled] = useState(false);
+  const [voiceInputStatus, setVoiceInputStatus] = useState("Mic ready");
   const [showQuestionPopup, setShowQuestionPopup] = useState(true);
   const [learnBpm, setLearnBpm] = useState(quizData.bpm ?? questions[0]?.bpm ?? 90);
+  const [realBpm, setRealBpm] = useState(questions[0]?.bpm ?? 90);
   const [totalTimeTaken, setTotalTimeTaken] = useState<number | undefined>();
   const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(
     new Set(),
@@ -57,10 +189,15 @@ export default function QuizInterface({
   const speechUtteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
   const lastSpokenQuestionIdRef = useRef<string | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
+  const recognitionRef = useRef<VoiceRecognition | null>(null);
+  const realBpmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const autoMicEnabledRef = useRef(false);
+  const quizStartedRef = useRef(false);
+  const quizCompleteRef = useRef(false);
+  const startVoiceRecognitionRef = useRef<(() => void) | null>(null);
 
   const currentQuestion = questions[currentQuestionIndex];
-  const effectiveBpm =
-    mode === "learn" ? learnBpm : (currentQuestion?.bpm ?? learnBpm);
+  const effectiveBpm = mode === "learn" ? learnBpm : realBpm;
   const progress = useMemo(() => {
     if (!currentQuestion) return 0;
     return Math.max(
@@ -73,6 +210,15 @@ export default function QuizInterface({
     if (metronomeTimerRef.current) {
       clearInterval(metronomeTimerRef.current);
       metronomeTimerRef.current = null;
+    }
+  };
+
+  const randomBpm = () => Math.round((Math.floor(Math.random() * 131) + 50) / 5) * 5;
+
+  const stopRealBpmTimer = () => {
+    if (realBpmTimerRef.current) {
+      clearTimeout(realBpmTimerRef.current);
+      realBpmTimerRef.current = null;
     }
   };
 
@@ -105,10 +251,26 @@ export default function QuizInterface({
 
   const formatExpressionForSpeech = (expression: string) =>
     expression
+      .replace(/\bFL(\d+)\b/g, " flight level $1 ")
+      .replaceAll("ft/min", " feet per minute ")
       .replaceAll("×", " times ")
       .replaceAll("÷", " divided by ")
       .replaceAll("+", " plus ")
       .replaceAll("-", " minus ");
+
+  const scheduleAutoMic = useCallback(() => {
+    if (
+      !autoMicEnabledRef.current ||
+      !quizStartedRef.current ||
+      quizCompleteRef.current
+    ) {
+      return;
+    }
+
+    setTimeout(() => {
+      startVoiceRecognitionRef.current?.();
+    }, 250);
+  }, []);
 
   const speakQuestion = useCallback((force = false) => {
     if (!currentQuestion || typeof window === "undefined") return false;
@@ -138,13 +300,17 @@ export default function QuizInterface({
     utterance.pitch = 1;
     utterance.volume = 1;
     utterance.onstart = () => setSpeechStatus("Speaking question");
-    utterance.onend = () => setSpeechStatus("Voice ready");
+    utterance.onend = () => {
+      setSpeechStatus("Voice ready");
+      scheduleAutoMic();
+    };
     utterance.onerror = (e) => {
       if (e.error === "canceled") {
         setSpeechStatus("Voice blocked by browser — try Edge or Chrome");
       } else {
         setSpeechStatus(`Voice error: ${e.error}`);
       }
+      scheduleAutoMic();
     };
     speechUtteranceRef.current = utterance;
 
@@ -159,7 +325,7 @@ export default function QuizInterface({
     }, 50);
 
     return true;
-  }, [currentQuestion, speechEnabled]);
+  }, [currentQuestion, scheduleAutoMic, speechEnabled]);
 
   const startQuiz = async () => {
     if (quizStarted) return;
@@ -175,6 +341,13 @@ export default function QuizInterface({
     await enableAudio();
   };
 
+  const stopVoiceRecognition = () => {
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    setIsListening(false);
+    setVoiceInputStatus(autoMicEnabledRef.current ? "Mic auto paused" : "Mic ready");
+  };
+
   const moveToNextQuestion = useCallback(() => {
     if (currentQuestionIndex >= questions.length - 1) {
       if (quizStartTimeRef.current !== null) {
@@ -188,6 +361,7 @@ export default function QuizInterface({
 
     const nextIndex = currentQuestionIndex + 1;
     const nextQuestion = questions[nextIndex];
+    recognitionRef.current?.abort();
     setAnswer("");
     setRemainingSeconds(nextQuestion.timeLimitSeconds);
     questionStartedAtRef.current = Date.now();
@@ -224,6 +398,139 @@ export default function QuizInterface({
     recordAnswer(answer);
   };
 
+  const startVoiceRecognition = useCallback(async () => {
+    if (!quizStarted || quizComplete || !currentQuestion || isListening) return;
+    if (typeof window === "undefined") return;
+
+    const Recognition =
+      window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!Recognition) {
+      setVoiceInputStatus("Voice input is not supported in this browser");
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      stream.getTracks().forEach((track) => track.stop());
+    } catch {
+      setVoiceInputStatus("Mic permission blocked");
+      return;
+    }
+
+    const createRecognition = (processLocally: boolean) => {
+      const recognition = new Recognition();
+      recognition.lang = "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 3;
+      if ("processLocally" in recognition) {
+        recognition.processLocally = processLocally;
+      }
+      return recognition;
+    };
+
+    const runRecognition = (processLocally: boolean) => {
+      window.speechSynthesis?.cancel();
+      const recognition = createRecognition(processLocally);
+
+      const fallbackToRepeat = (message: string) => {
+        recognitionRef.current?.abort();
+        recognitionRef.current = null;
+        setIsListening(false);
+        setVoiceInputStatus(message);
+        speakQuestion(true);
+      };
+
+      recognition.onstart = () => {
+        setIsListening(true);
+        setVoiceInputStatus(
+          processLocally ? "Listening locally..." : "Listening...",
+        );
+      };
+      recognition.onerror = (event) => {
+        setIsListening(false);
+
+        if (event.error === "language-not-supported" && processLocally) {
+          setVoiceInputStatus("Local voice unavailable. Trying browser voice...");
+          recognitionRef.current = null;
+          setTimeout(() => runRecognition(false), 150);
+          return;
+        }
+
+        if (event.error === "network") {
+          setVoiceInputStatus(
+            "Mic needs browser speech service. Try Chrome/Edge online, or type the answer.",
+          );
+          return;
+        }
+
+        if (event.error === "no-speech") {
+          fallbackToRepeat("No speech heard. Repeating question");
+          return;
+        }
+
+        setVoiceInputStatus(`Mic error: ${event.error}`);
+      };
+      recognition.onend = () => {
+        setIsListening(false);
+        if (recognitionRef.current === recognition) {
+          recognitionRef.current = null;
+        }
+      };
+      recognition.onresult = (event) => {
+        const result = event.results[event.resultIndex];
+        const transcript = result[0]?.transcript.trim() ?? "";
+        if (!transcript) {
+          fallbackToRepeat("Heard nothing. Repeating question");
+          return;
+        }
+
+        setVoiceInputStatus(`Heard: ${transcript}`);
+
+        if (isRepeatCommand(transcript)) {
+          recognitionRef.current?.abort();
+          recognitionRef.current = null;
+          setIsListening(false);
+          setVoiceInputStatus("Repeating question");
+          speakQuestion(true);
+          return;
+        }
+
+        const parsedAnswer = parseSpokenNumber(transcript);
+        if (!parsedAnswer) {
+          if (result.isFinal) {
+            fallbackToRepeat(`Could not answer: ${transcript}. Repeating question`);
+          }
+          return;
+        }
+
+        setAnswer(parsedAnswer);
+        setVoiceInputStatus(`Submitting: ${parsedAnswer}`);
+        recognitionRef.current?.abort();
+        recognitionRef.current = null;
+        setIsListening(false);
+        recordAnswer(parsedAnswer);
+      };
+
+      recognitionRef.current = recognition;
+      try {
+        recognition.start();
+      } catch {
+        setIsListening(false);
+        setVoiceInputStatus("Mic could not start");
+      }
+    };
+
+    runRecognition(true);
+  }, [
+    currentQuestion,
+    isListening,
+    quizComplete,
+    quizStarted,
+    recordAnswer,
+    speakQuestion,
+  ]);
+
   useEffect(() => {
     if (!currentQuestion || quizComplete || !quizStarted) return;
 
@@ -235,6 +542,8 @@ export default function QuizInterface({
     let speechTimer: ReturnType<typeof setTimeout> | null = null;
     if (speechEnabled) {
       speechTimer = setTimeout(() => speakQuestion(), 80);
+    } else if (autoMicEnabled) {
+      speechTimer = setTimeout(() => startVoiceRecognitionRef.current?.(), 250);
     }
 
     return () => {
@@ -242,7 +551,14 @@ export default function QuizInterface({
         clearTimeout(speechTimer);
       }
     };
-  }, [currentQuestion, quizComplete, quizStarted, speechEnabled, speakQuestion]);
+  }, [
+    autoMicEnabled,
+    currentQuestion,
+    quizComplete,
+    quizStarted,
+    speechEnabled,
+    speakQuestion,
+  ]);
 
   useEffect(() => {
     if (!currentQuestion || quizComplete || !quizStarted) return;
@@ -277,6 +593,26 @@ export default function QuizInterface({
   }, [currentQuestion, audioEnabled, quizComplete, quizStarted, effectiveBpm]);
 
   useEffect(() => {
+    stopRealBpmTimer();
+
+    if (mode !== "real" || quizComplete || !quizStarted) {
+      return stopRealBpmTimer;
+    }
+
+    const scheduleNextBpmChange = () => {
+      const nextDelayMs = (Math.floor(Math.random() * 9) + 8) * 1000;
+      realBpmTimerRef.current = setTimeout(() => {
+        setRealBpm(randomBpm());
+        scheduleNextBpmChange();
+      }, nextDelayMs);
+    };
+
+    scheduleNextBpmChange();
+
+    return stopRealBpmTimer;
+  }, [mode, quizComplete, quizStarted]);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const synth = window.speechSynthesis;
     const loadVoices = () => { voicesRef.current = synth.getVoices(); };
@@ -286,10 +622,30 @@ export default function QuizInterface({
   }, []);
 
   useEffect(() => {
+    autoMicEnabledRef.current = autoMicEnabled;
+  }, [autoMicEnabled]);
+
+  useEffect(() => {
+    quizStartedRef.current = quizStarted;
+  }, [quizStarted]);
+
+  useEffect(() => {
+    quizCompleteRef.current = quizComplete;
+  }, [quizComplete]);
+
+  useEffect(() => {
+    startVoiceRecognitionRef.current = () => {
+      void startVoiceRecognition();
+    };
+  }, [startVoiceRecognition]);
+
+  useEffect(() => {
     return () => {
       stopMetronome();
       audioContextRef.current?.close();
       window.speechSynthesis?.cancel();
+      recognitionRef.current?.abort();
+      stopRealBpmTimer();
       speechUtteranceRef.current = null;
     };
   }, []);
@@ -321,6 +677,11 @@ export default function QuizInterface({
       </TopicLayout>
     );
   }
+
+  const questionTextSize =
+    currentQuestion.expression.length > 80
+      ? "text-[22px] sm:text-[28px]"
+      : "text-[42px] sm:text-[56px]";
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#F1F5F9] dark:bg-transparent">
@@ -409,7 +770,9 @@ export default function QuizInterface({
 
             {showQuestionPopup ? (
               <div className="mb-8 flex min-h-[160px] items-center justify-center rounded-2xl border-2 border-[#4F12A6] bg-white px-4 py-6 dark:border-white/90 dark:bg-zinc-900/80">
-                <span className="break-words text-center font-[family-name:var(--font-space-grotesk)] text-[42px] font-black text-zinc-900 dark:text-white sm:text-[56px]">
+                <span
+                  className={`break-words text-center font-[family-name:var(--font-space-grotesk)] font-black text-zinc-900 dark:text-white ${questionTextSize}`}
+                >
                   {currentQuestion.expression}
                 </span>
               </div>
@@ -442,10 +805,45 @@ export default function QuizInterface({
               >
                 Answer
               </button>
+              <button
+                type="button"
+                onClick={() => {
+                  if (autoMicEnabled) {
+                    autoMicEnabledRef.current = false;
+                    setAutoMicEnabled(false);
+                    stopVoiceRecognition();
+                    setVoiceInputStatus("Mic auto off");
+                    return;
+                  }
+
+                  autoMicEnabledRef.current = true;
+                  setAutoMicEnabled(true);
+                  setVoiceInputStatus("Mic auto on");
+                  if (
+                    !speechEnabled ||
+                    typeof window === "undefined" ||
+                    !window.speechSynthesis?.speaking
+                  ) {
+                    void startVoiceRecognition();
+                  }
+                }}
+                disabled={!quizStarted}
+                className={`min-h-12 rounded-xl px-6 text-lg font-bold shadow-lg transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white disabled:shadow-none ${
+                  autoMicEnabled
+                    ? "bg-red-600 text-white shadow-red-600/20 hover:bg-red-500"
+                    : "bg-zinc-900 text-white shadow-zinc-900/10 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+                }`}
+              >
+                {autoMicEnabled
+                  ? isListening
+                    ? "Mic Listening"
+                    : "Mic Auto On"
+                  : "Mic Answer"}
+              </button>
             </form>
 
             <p className="mt-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              {speechStatus}
+              {speechStatus} · {voiceInputStatus}
             </p>
 
             {!quizStarted && (
