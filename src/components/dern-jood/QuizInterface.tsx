@@ -92,6 +92,8 @@ function parseSpokenNumber(transcript: string): string | null {
     two: 2,
     three: 3,
     four: 4,
+    for: 4,
+    full: 4,
     five: 5,
     six: 6,
     seven: 7,
@@ -147,6 +149,41 @@ function parseSpokenNumber(transcript: string): string | null {
   if (!foundNumberWord) return null;
   const parsed = total + current;
   return String(negative ? -parsed : parsed);
+}
+
+function parseSpokenDigitSequence(transcript: string): string | null {
+  const digitWords: Record<string, string> = {
+    zero: "0",
+    oh: "0",
+    o: "0",
+    one: "1",
+    two: "2",
+    to: "2",
+    too: "2",
+    three: "3",
+    four: "4",
+    for: "4",
+    full: "4",
+    five: "5",
+    six: "6",
+    seven: "7",
+    eight: "8",
+    ate: "8",
+    nine: "9",
+  };
+  const cleaned = transcript
+    .toLowerCase()
+    .replaceAll("-", " ")
+    .replace(/[^\w\s]/g, " ")
+    .trim();
+  const digits = cleaned
+    .split(/\s+/)
+    .flatMap((token) => {
+      if (/^\d+$/.test(token)) return token.split("");
+      return digitWords[token] ? [digitWords[token]] : [];
+    });
+
+  return digits.length > 0 ? digits.join("") : null;
 }
 
 function isRepeatCommand(transcript: string): boolean {
@@ -286,10 +323,13 @@ export default function QuizInterface({
     }
 
     lastSpokenQuestionIdRef.current = currentQuestion.id;
+    const questionSpeechText = currentQuestion.expression.startsWith(
+      "Say these numbers backward",
+    )
+      ? currentQuestion.expression
+      : `What is ${formatExpressionForSpeech(currentQuestion.expression)}?`;
 
-    const utterance = new SpeechSynthesisUtterance(
-      `What is ${formatExpressionForSpeech(currentQuestion.expression)}?`,
-    );
+    const utterance = new SpeechSynthesisUtterance(questionSpeechText);
     const voices = voicesRef.current.length > 0 ? voicesRef.current : synth.getVoices();
     const englishVoice = voices.find((voice) => voice.lang.toLowerCase().startsWith("en")) ?? voices[0];
     if (englishVoice) {
@@ -434,7 +474,7 @@ export default function QuizInterface({
       const recognition = createRecognition(processLocally);
 
       const fallbackToRepeat = (message: string) => {
-        recognitionRef.current?.abort();
+        recognition.abort();
         recognitionRef.current = null;
         setIsListening(false);
         setVoiceInputStatus(message);
@@ -496,17 +536,18 @@ export default function QuizInterface({
           return;
         }
 
-        const parsedAnswer = parseSpokenNumber(transcript);
+        const parsedAnswer =
+          currentQuestion.prompt === "Read back the numbers"
+            ? parseSpokenDigitSequence(transcript)
+            : parseSpokenNumber(transcript);
         if (!parsedAnswer) {
-          if (result.isFinal) {
-            fallbackToRepeat(`Could not answer: ${transcript}. Repeating question`);
-          }
+          fallbackToRepeat(`Could not answer: ${transcript}. Repeating question`);
           return;
         }
 
         setAnswer(parsedAnswer);
         setVoiceInputStatus(`Submitting: ${parsedAnswer}`);
-        recognitionRef.current?.abort();
+        recognition.abort();
         recognitionRef.current = null;
         setIsListening(false);
         recordAnswer(parsedAnswer);

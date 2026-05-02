@@ -53,10 +53,31 @@ function generateDescentRateProblem(difficulty: Difficulty) {
   };
 }
 
+function generateNumberReadbackProblem(difficulty: Difficulty) {
+  const digitCount =
+    difficulty === "easy"
+      ? randomInRange(5, 6)
+      : difficulty === "medium"
+        ? randomInRange(6, 7)
+        : randomInRange(7, 8);
+  const digits = Array.from({ length: digitCount }, () =>
+    String(randomInRange(1, 9)),
+  );
+  const reversedDigits = [...digits].reverse();
+  const correctAnswer = Number(reversedDigits.join(""));
+
+  return {
+    expression: `Say these numbers backward: ${digits.join(" ")}`,
+    correctAnswer,
+    explanation: `${digits.join(" ")} backward is ${reversedDigits.join(" ")}.`,
+  };
+}
+
 function generateExpression(difficulty: Difficulty) {
   if (difficulty === "easy") {
     const templates = [
       () => generateDescentRateProblem("easy"),
+      () => generateNumberReadbackProblem("easy"),
       () => {
         const left = randomInRange(10, 99);
         const right = randomInRange(10, 90);
@@ -101,6 +122,7 @@ function generateExpression(difficulty: Difficulty) {
   if (difficulty === "medium") {
     const templates = [
       () => generateDescentRateProblem("medium"),
+      () => generateNumberReadbackProblem("medium"),
       () => {
         const left = randomInRange(100, 999);
         const right = randomInRange(100, 999);
@@ -144,6 +166,7 @@ function generateExpression(difficulty: Difficulty) {
 
   const templates = [
     () => generateDescentRateProblem("hard"),
+    () => generateNumberReadbackProblem("hard"),
     () => {
       const left = randomInRange(21, 89);
       const right = randomInRange(21, 89);
@@ -192,6 +215,9 @@ function estimateQuestionSeconds(expression: string, difficulty: Difficulty): nu
   const multiplicationPenalty = expression.includes("×") ? 3 : 0;
   const divisionPenalty = expression.includes("÷") ? 2 : 0;
   const wordProblemPenalty = expression.includes("FL") ? 6 : 0;
+  const readbackPenalty = expression.startsWith("Say these numbers backward")
+    ? 5
+    : 0;
   const chainedPenalty = expression.split(" ").length > 3 ? 2 : 0;
   const digitLoad = (expression.match(/\d/g) ?? []).length;
   const baseByDifficulty = {
@@ -200,7 +226,7 @@ function estimateQuestionSeconds(expression: string, difficulty: Difficulty): nu
     hard: 16,
   } satisfies Record<Difficulty, number>;
 
-  return Math.min(
+  const estimatedSeconds = Math.min(
     30,
     Math.max(
       6,
@@ -208,10 +234,13 @@ function estimateQuestionSeconds(expression: string, difficulty: Difficulty): nu
         multiplicationPenalty +
         divisionPenalty +
         wordProblemPenalty +
+        readbackPenalty +
         chainedPenalty +
         Math.floor(digitLoad / 3),
     ),
   );
+
+  return estimatedSeconds * 2;
 }
 
 export function generateDernJoodQuiz(
@@ -233,7 +262,9 @@ export function generateDernJoodQuiz(
       id: generateId(),
       prompt: expression.includes("FL")
         ? "Calculate the descent rate"
-        : "Answer with mental math",
+        : expression.startsWith("Say these numbers backward")
+          ? "Read back the numbers"
+          : "Answer with mental math",
       expression,
       correctAnswer,
       difficulty: resolvedDifficulty,
