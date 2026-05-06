@@ -194,20 +194,62 @@ export default function QuizInterface({
             <div className="space-y-3">
               {questions.map((question, index) => {
                 const answer = answers[question.id];
+                const isCorrect = answer?.isCorrect ?? false;
+
                 return (
                   <div
                     key={question.id}
-                    className="rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5"
+                    className={`rounded-xl border px-4 py-3 ${
+                      isCorrect
+                        ? "border-emerald-200 bg-emerald-50 dark:border-emerald-900/60 dark:bg-emerald-950/30"
+                        : "border-rose-200 bg-rose-50 dark:border-rose-900/60 dark:bg-rose-950/30"
+                    }`}
                   >
+                    <div className="mb-2 flex items-center gap-2">
+                      <span className="text-sm font-medium text-zinc-500 dark:text-zinc-400">
+                        Question {index + 1}
+                      </span>
+                      {isCorrect ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-green-100 px-2 py-1 text-xs font-semibold text-green-700 dark:bg-green-900 dark:text-green-300">
+                          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
+                          </svg>
+                          Correct
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-red-100 px-2 py-1 text-xs font-semibold text-red-700 dark:bg-red-900 dark:text-red-300">
+                          <svg className="h-3 w-3" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" />
+                          </svg>
+                          Incorrect
+                        </span>
+                      )}
+                    </div>
                     <p className="font-semibold text-zinc-900 dark:text-zinc-100">
-                      {index + 1}. {question.prompt}
+                      {question.prompt}
                     </p>
-                    <p className="mt-1 text-sm text-zinc-600 dark:text-zinc-400">
-                      Your answer: {answer?.answer ?? "Not answered"}
+                    <p className="mt-2 text-sm">
+                      <span className="font-medium text-zinc-700 dark:text-zinc-300">
+                        Your answer:{" "}
+                      </span>
+                      <span
+                        className={`font-bold font-[family-name:var(--font-space-grotesk)] ${
+                          isCorrect
+                            ? "text-green-700 dark:text-green-300"
+                            : "text-red-700 dark:text-red-300"
+                        }`}
+                      >
+                        {answer?.answer ?? "Not answered"}
+                      </span>
                     </p>
-                    <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
-                      Correct answer: {question.correctAnswer}
-                    </p>
+                    {!isCorrect && (
+                      <p className="mt-1 text-sm text-zinc-700 dark:text-zinc-300">
+                        <span className="font-medium">Correct answer: </span>
+                        <span className="font-bold text-green-700 dark:text-green-300">
+                          {question.correctAnswer}
+                        </span>
+                      </p>
+                    )}
                   </div>
                 );
               })}
