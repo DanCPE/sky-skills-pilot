@@ -72,6 +72,8 @@ function shuffleArray<T>(array: T[]): T[] {
   return shuffled;
 }
 
+const MISSING_NUMBER_PROMPT = "What number is missing in the series?";
+
 // Helper: Generate explanation
 function generateExplanation(
   patternType: NumberSeriesPatternType,
@@ -112,9 +114,16 @@ function generateExplanation(
       const even = sequence.filter((_, i) => i % 2 === 1);
       const oddDiff = odd[1] - odd[0];
       const evenDiff = even[1] - even[0];
+      const missingIndex = sequence.length;
+      const missingFollowsOddPositions = missingIndex % 2 === 0;
+      const activeSequence = missingFollowsOddPositions ? odd : even;
+      const activeDiff = missingFollowsOddPositions ? oddDiff : evenDiff;
+      const activePositionLabel = missingFollowsOddPositions
+        ? "odd positions"
+        : "even positions";
       return `This is an alternating sequence with two interleaved patterns: Odd positions: ${odd.join(
         ", "
-      )} (increasing by ${oddDiff}), Even positions: ${even.join(", ")} (increasing by ${evenDiff}). The next number follows the odd pattern: ${odd[odd.length - 1]} + ${oddDiff} = ${correctAnswer}.`;
+      )} (increasing by ${oddDiff}), Even positions: ${even.join(", ")} (increasing by ${evenDiff}). The missing number follows the ${activePositionLabel}: ${activeSequence[activeSequence.length - 1]} + ${activeDiff} = ${correctAnswer}.`;
     }
     case "mixed_operation": {
       // Detect pattern: +2, ×3, +2, ×3 style
@@ -163,16 +172,18 @@ function generateArithmetic(
   }
 
   const correctAnswer = sequence[sequence.length - 1] + diff;
+  const nextNumberAfterAnswer = correctAnswer + diff;
   const distractors = generateDistractors(correctAnswer, "arithmetic");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "arithmetic",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("arithmetic", sequence, correctAnswer),
   };
@@ -205,16 +216,18 @@ function generateGeometric(
   }
 
   const correctAnswer = sequence[sequence.length - 1] * ratio;
+  const nextNumberAfterAnswer = correctAnswer * ratio;
   const distractors = generateDistractors(correctAnswer, "geometric");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "geometric",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("geometric", sequence, correctAnswer),
   };
@@ -247,16 +260,18 @@ function generateFibonacci(
   }
 
   const correctAnswer = sequence[length - 1] + sequence[length - 2];
+  const nextNumberAfterAnswer = correctAnswer + sequence[length - 1];
   const distractors = generateDistractors(correctAnswer, "fibonacci");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "fibonacci",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("fibonacci", sequence, correctAnswer),
   };
@@ -286,16 +301,18 @@ function generateSquare(
 
   const nextN = start + length;
   const correctAnswer = nextN * nextN;
+  const nextNumberAfterAnswer = (nextN + 1) * (nextN + 1);
   const distractors = generateDistractors(correctAnswer, "square");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "square",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("square", sequence, correctAnswer),
   };
@@ -325,16 +342,18 @@ function generateCube(
 
   const nextN = start + length;
   const correctAnswer = nextN * nextN * nextN;
+  const nextNumberAfterAnswer = (nextN + 1) * (nextN + 1) * (nextN + 1);
   const distractors = generateDistractors(correctAnswer, "cube");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "cube",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("cube", sequence, correctAnswer),
   };
@@ -364,16 +383,18 @@ function generatePowersOfTwo(
 
   const nextExp = start + length;
   const correctAnswer = Math.pow(2, nextExp);
+  const nextNumberAfterAnswer = Math.pow(2, nextExp + 1);
   const distractors = generateDistractors(correctAnswer, "powers_of_two");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "powers_of_two",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("powers_of_two", sequence, correctAnswer),
   };
@@ -413,16 +434,18 @@ function generatePrime(
 
   const sequence = primes.slice(startIndex, startIndex + length);
   const correctAnswer = primes[startIndex + length];
+  const nextNumberAfterAnswer = primes[startIndex + length + 1];
   const distractors = generateDistractors(correctAnswer, "prime");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "prime",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("prime", sequence, correctAnswer),
   };
@@ -458,27 +481,29 @@ function generateAlternating(
     length = 6;
   }
 
+  const getValueAt = (index: number) =>
+    index % 2 === 0
+      ? oddStart + (index / 2) * oddDiff
+      : evenStart + Math.floor(index / 2) * evenDiff;
+
   const sequence: number[] = [];
   for (let i = 0; i < length; i++) {
-    if (i % 2 === 0) {
-      sequence.push(oddStart + (i / 2) * oddDiff);
-    } else {
-      sequence.push(evenStart + Math.floor(i / 2) * evenDiff);
-    }
+    sequence.push(getValueAt(i));
   }
 
-  // Next number follows the odd pattern
-  const correctAnswer = oddStart + Math.ceil(length / 2) * oddDiff;
+  const correctAnswer = getValueAt(length);
+  const nextNumberAfterAnswer = getValueAt(length + 1);
   const distractors = generateDistractors(correctAnswer, "alternating");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "alternating",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("alternating", sequence, correctAnswer),
   };
@@ -498,16 +523,19 @@ function generateMixedOperation(
   } else if (difficulty === "medium") {
     const addValue = randomInRange(2, 8);
     const multValue = randomInRange(2, 4);
+    const subtractValue = randomInRange(1, 3);
     operations.push((n) => n + addValue);
     operations.push((n) => n * multValue);
-    operations.push((n) => n - randomInRange(1, 3));
+    operations.push((n) => n - subtractValue);
   } else {
     const addValue = randomInRange(3, 12);
     const multValue = randomInRange(2, 5);
+    const subtractValue = randomInRange(2, 5);
+    const finalAddValue = randomInRange(5, 10);
     operations.push((n) => n + addValue);
     operations.push((n) => n * multValue);
-    operations.push((n) => n - randomInRange(2, 5));
-    operations.push((n) => n + randomInRange(5, 10));
+    operations.push((n) => n - subtractValue);
+    operations.push((n) => n + finalAddValue);
   }
 
   const length = difficulty === "easy" ? 4 : difficulty === "medium" ? 5 : 6;
@@ -521,16 +549,18 @@ function generateMixedOperation(
 
   const nextOpIndex = (length - 1) % operations.length;
   const correctAnswer = operations[nextOpIndex](sequence[length - 1]);
+  const nextNumberAfterAnswer = operations[length % operations.length](correctAnswer);
   const distractors = generateDistractors(correctAnswer, "mixed_operation");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
 
   return {
     id: generateId(),
-    prompt: "What number comes next in the series?",
+    prompt: MISSING_NUMBER_PROMPT,
     options,
     patternType: "mixed_operation",
     sequence,
     correctAnswer,
+    nextNumberAfterAnswer,
     difficulty,
     explanation: generateExplanation("mixed_operation", sequence, correctAnswer),
   };

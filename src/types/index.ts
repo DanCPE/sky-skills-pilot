@@ -52,6 +52,7 @@ export interface NumberSeriesQuestion extends Question {
   patternType: NumberSeriesPatternType;
   sequence: number[]; // The visible sequence (e.g., [2,4,6,8])
   correctAnswer: number; // The missing number
+  nextNumberAfterAnswer: number; // The visible number after the missing value
   difficulty: "easy" | "medium" | "hard";
   explanation: string; // Pattern explanation
 }
