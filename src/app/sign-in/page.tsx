@@ -1,3 +1,6 @@
+import Image from "next/image";
+import Link from "next/link";
+
 export const dynamic = "force-dynamic";
 
 export default async function SignInPage({
@@ -12,34 +15,107 @@ export default async function SignInPage({
   )}`;
 
   return (
-    <main className="min-h-screen bg-[#fafafa] px-6 py-16 text-zinc-900 dark:bg-black dark:text-zinc-100">
-      <div className="mx-auto max-w-md rounded-lg border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-white/5">
-        <p className="text-sm font-bold uppercase tracking-widest text-violet-700 dark:text-amber-300">
-          SkySkills account
-        </p>
-        <h1 className="mt-3 text-3xl font-bold font-[family-name:var(--font-space-grotesk)]">
-          Sign in with Google
-        </h1>
-        <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-          Accounts use Google login only. Your score history, future rankings,
-          and subscription status will stay attached to this Google account.
-        </p>
+    <main className="min-h-screen bg-white text-zinc-950">
+      <div className="grid min-h-screen lg:grid-cols-2">
+        <section className="relative min-h-[46rem] overflow-hidden bg-black text-white lg:min-h-screen">
+          <Image
+            src="/images/signin/Background.png"
+            alt=""
+            fill
+            priority
+            sizes="(min-width: 1024px) 50vw, 100vw"
+            className="object-cover"
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/35 via-violet-950/20 to-black/50" />
 
-        {params.error ? (
-          <div className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-200">
-            {params.error}
+          <div className="relative z-10 flex min-h-[46rem] flex-col px-8 py-8 sm:px-14 lg:min-h-screen lg:px-20">
+            <Link href="/" className="flex items-center gap-3">
+              <Image
+                src="/images/icons/Logo from Google Drive.png"
+                alt="SkySkills"
+                width={58}
+                height={58}
+                className="h-12 w-12 object-contain"
+                priority
+              />
+              <span className="text-2xl font-black tracking-tight text-white font-[family-name:var(--font-space-grotesk)]">
+                SkySkills
+              </span>
+            </Link>
+
+            <div className="mt-52 max-w-xl pb-16">
+              <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-white/20 bg-white/10 px-4 py-2 text-[12px] font-bold text-amber-400 shadow-sm backdrop-blur">
+                <span className="flex h-5 w-5 items-center justify-center rounded-full border border-amber-300/40 text-[10px]">
+                  ✦
+                </span>
+                One platform. 15+ aptitude tests.
+              </div>
+
+              <h1 className="text-[48px] font-bold leading-[1.08] tracking-tight  font-[family-name:var(--font-inter)]">
+                Ready for
+                <br />
+                Takeoff?
+              </h1>
+
+              <ul className="mt-10 space-y-5 text-[16px] font-medium text-white/90  font-[family-name:var(--font-inter)]">
+                {[
+                  "Unlimited practice exams",
+                  "Real-time performance analytics",
+                  "Compare your skills with all users.",
+                ].map((item) => (
+                  <li key={item} className="flex items-center gap-4">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm font-black text-zinc-950">
+                      ✓
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <footer className="relative z-10 mt-auto flex flex-wrap gap-5 pb-6 text-sm font-medium text-white/60">
+              <span>© 2026 SkySkills Inc.</span>
+              <span>•</span>
+              <Link href="/" className="transition hover:text-white">
+                Privacy
+              </Link>
+              <span>•</span>
+              <Link href="/" className="transition hover:text-white">
+                Terms
+              </Link>
+            </footer>
           </div>
-        ) : null}
+        </section>
 
-        <a
-          href={signInHref}
-          className="mt-6 flex w-full items-center justify-center gap-3 rounded-lg bg-violet-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-violet-600"
-        >
-          <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs font-black text-violet-700">
-            G
-          </span>
-          Continue with Google
-        </a>
+        <section className="flex min-h-screen items-center justify-center bg-white px-6 py-16">
+          <div className="w-full max-w-lg text-center">
+            <h2 className="text-[30px] font-bold tracking-tight text-zinc-950 font-[family-name:var(--font-inter)]">
+              SkySkills Account
+            </h2>
+            <p className="mt-4 text-lg font-medium text-zinc-500">
+              Start your journey to the cockpit today.
+            </p>
+
+            {params.error ? (
+              <div className="mt-8 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+                {params.error}
+              </div>
+            ) : null}
+
+            <a
+              href={signInHref}
+              className="mt-10 flex min-h-14 w-full items-center justify-center gap-4 rounded-xl border border-zinc-200 bg-white px-5 py-4 text-base font-bold text-zinc-800 shadow-sm transition hover:border-zinc-300 hover:bg-zinc-50"
+            >
+              <Image src="/images/icons/google.svg" alt="Google" width={20} height={20} className="h-5 w-5" />
+              Continue with Gmail
+            </a>
+
+            <p className="mt-10 text-center text-base font-medium text-zinc-500">
+                            Accounts use Google login only.
+
+            </p>
+          </div>
+        </section>
       </div>
     </main>
   );

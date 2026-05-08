@@ -44,6 +44,10 @@ export default function Navbar() {
     };
   }, []);
 
+  if (pathname === "/sign-in") {
+    return null;
+  }
+
   return (
     <>
       <nav className="border-b border-zinc-200 bg-white dark:border-white/10 dark:bg-black sticky top-0 z-50 transition-colors">
