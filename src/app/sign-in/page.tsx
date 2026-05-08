@@ -1,5 +1,3 @@
-import Link from "next/link";
-
 export const dynamic = "force-dynamic";
 
 export default async function SignInPage({
@@ -33,7 +31,7 @@ export default async function SignInPage({
           </div>
         ) : null}
 
-        <Link
+        <a
           href={signInHref}
           className="mt-6 flex w-full items-center justify-center gap-3 rounded-lg bg-violet-700 px-4 py-3 text-sm font-bold text-white transition-colors hover:bg-violet-600"
         >
@@ -41,7 +39,7 @@ export default async function SignInPage({
             G
           </span>
           Continue with Google
-        </Link>
+        </a>
       </div>
     </main>
   );

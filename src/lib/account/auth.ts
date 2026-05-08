@@ -23,8 +23,22 @@ export function getAppBaseUrl(requestOrigin?: string) {
 }
 
 export function getGoogleRedirectUri(requestOrigin?: string) {
-  return (
-    process.env.GOOGLE_REDIRECT_URI ||
-    `${getAppBaseUrl(requestOrigin)}/api/auth/google/callback`
+  const fallback = `${getAppBaseUrl(requestOrigin)}/api/auth/google/callback`;
+  const configured = process.env.GOOGLE_REDIRECT_URI;
+
+  if (!configured) return fallback;
+
+  try {
+    const configuredUrl = new URL(configured);
+    if (configuredUrl.pathname === "/api/auth/google/callback") {
+      return configured;
+    }
+  } catch {
+    return fallback;
+  }
+
+  console.warn(
+    "Ignoring GOOGLE_REDIRECT_URI because it does not point to /api/auth/google/callback.",
   );
+  return fallback;
 }
