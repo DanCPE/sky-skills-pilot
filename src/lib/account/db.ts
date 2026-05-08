@@ -91,15 +91,7 @@ function getPool() {
 }
 
 export function hasAccountDatabase() {
-  const url = getDatabaseUrl();
-  console.log("[hasAccountDatabase]", {
-    DATABASE_URL: process.env.DATABASE_URL ? "set" : "missing",
-    POSTGRES_URL: process.env.POSTGRES_URL ? "set" : "missing",
-    DB_URL: process.env.DB_URL ? "set" : "missing",
-    SUPABASE_DB_URL: process.env.SUPABASE_DB_URL ? "set" : "missing",
-    resolved: url ? `set (starts with: ${url.slice(0, 20)}...)` : "null",
-  });
-  return Boolean(url);
+  return Boolean(getDatabaseUrl());
 }
 
 export function getSessionCookieName() {
