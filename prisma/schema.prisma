@@ -12,3 +12,87 @@ generator client {
 datasource db {
   provider = "postgresql"
 }
+
+model AccountUser {
+  id            String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  googleSub     String                @unique @map("google_sub")
+  email         String                @unique
+  name          String
+  imageUrl      String?               @map("image_url")
+  emailVerified Boolean               @default(false) @map("email_verified")
+  createdAt     DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime              @default(now()) @map("updated_at") @db.Timestamptz(6)
+  sessions      AccountSession[]
+  scores        AccountScoreHistory[]
+  subscriptions AccountSubscription[]
+  payments      AccountPaymentIntent[]
+
+  @@map("account_users")
+}
+
+model AccountSession {
+  id        String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String      @map("user_id") @db.Uuid
+  tokenHash String      @unique @map("token_hash")
+  expiresAt DateTime    @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  user      AccountUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@map("account_sessions")
+}
+
+model AccountScoreHistory {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String      @map("user_id") @db.Uuid
+  topicSlug        String      @map("topic_slug")
+  topicTitle       String      @map("topic_title")
+  skillDomain      String      @map("skill_domain")
+  score            Decimal     @db.Decimal(8, 2)
+  maxScore         Decimal     @map("max_score") @db.Decimal(8, 2)
+  percentage       Decimal     @db.Decimal(5, 2)
+  rankLabel        String      @map("rank_label")
+  mode             String?
+  difficulty       String?
+  questionCount    Int?        @map("question_count")
+  timeTakenSeconds Int?        @map("time_taken_seconds")
+  metadata         Json        @default("{}")
+  completedAt      DateTime    @default(now()) @map("completed_at") @db.Timestamptz(6)
+  user             AccountUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, completedAt])
+  @@index([skillDomain])
+  @@map("account_score_history")
+}
+
+model AccountSubscription {
+  id                     String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                 String      @map("user_id") @db.Uuid
+  provider               String?
+  providerCustomerId     String?     @map("provider_customer_id")
+  providerSubscriptionId String?     @map("provider_subscription_id")
+  status                 String      @default("not_started")
+  currentPeriodEnd       DateTime?   @map("current_period_end") @db.Timestamptz(6)
+  createdAt              DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime    @default(now()) @map("updated_at") @db.Timestamptz(6)
+  user                   AccountUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("account_subscriptions")
+}
+
+model AccountPaymentIntent {
+  id                String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId            String?      @map("user_id") @db.Uuid
+  provider          String
+  providerReference String?      @map("provider_reference")
+  status            String       @default("created")
+  amountCents       Int?         @map("amount_cents")
+  currency          String?
+  metadata          Json         @default("{}")
+  createdAt         DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime     @default(now()) @map("updated_at") @db.Timestamptz(6)
+  user              AccountUser? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@map("account_payment_intents")
+}

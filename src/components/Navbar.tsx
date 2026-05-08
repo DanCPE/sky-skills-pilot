@@ -3,7 +3,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTheme } from "@/lib/use-theme";
 
 const navItems = [
@@ -15,7 +15,27 @@ const navItems = [
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountName, setAccountName] = useState<string | null>(null);
   const { theme, toggleTheme } = useTheme();
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/account/me", { cache: "no-store" })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data) => {
+        if (!cancelled && data?.user?.name) {
+          setAccountName(data.user.name);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setAccountName(null);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
@@ -61,6 +81,13 @@ export default function Navbar() {
 
             {/* Desktop Actions */}
             <div className="hidden sm:flex flex-1 justify-end items-center gap-6">
+              <Link
+                href={accountName ? "/account" : "/sign-in"}
+                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-bold text-violet-800 transition-colors hover:bg-zinc-100 hover:text-violet-600 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+              >
+                {accountName ? "Account" : "Sign in"}
+              </Link>
+
               {/* Theme Toggle */}
               <button
                 type="button"
@@ -152,6 +179,13 @@ export default function Navbar() {
                   </Link>
                 );
               })}
+              <Link
+                href={accountName ? "/account" : "/sign-in"}
+                className="block px-4 py-2 rounded-lg text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                {accountName ? "Account" : "Sign in"}
+              </Link>
             </div>
           )}
         </div>
