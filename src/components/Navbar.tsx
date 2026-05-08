@@ -9,6 +9,7 @@ import { useTheme } from "@/lib/use-theme";
 const navItems = [
   { href: "/", label: "Home" },
   { href: "/sky-quest", label: "Sky Quests" },
+  { href: "/dashboard", label: "Dashboard" },
   { href: "/news", label: "News" },
 ];
 

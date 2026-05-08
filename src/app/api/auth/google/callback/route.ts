@@ -7,8 +7,8 @@ import {
 import {
   createRawSessionToken,
   createSession,
-  getSessionCookieMaxAge,
   getSessionCookieName,
+  getSessionCookieOptions,
   hasAccountDatabase,
   upsertGoogleUser,
 } from "@/lib/account/db";
@@ -107,13 +107,11 @@ export async function GET(request: NextRequest) {
   const redirectUrl = new URL(callbackUrl, getAppBaseUrl(request.nextUrl.origin));
   const response = NextResponse.redirect(redirectUrl);
 
-  response.cookies.set(getSessionCookieName(), rawSessionToken, {
-    httpOnly: true,
-    sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
-    maxAge: getSessionCookieMaxAge(),
-    path: "/",
-  });
+  response.cookies.set(
+    getSessionCookieName(),
+    rawSessionToken,
+    getSessionCookieOptions(),
+  );
   response.cookies.delete(GOOGLE_OAUTH_STATE_COOKIE_NAME);
   response.cookies.delete("sky_auth_callback");
 

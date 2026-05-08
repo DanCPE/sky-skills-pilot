@@ -7,7 +7,7 @@ export type AccountSkillDomainSlug =
   | "visual-scanning"
   | "numerical-agility"
   | "short-term-memory"
-  | "aviation-recall";
+  | "multitasking";
 
 export interface AccountSkillDomain {
   slug: AccountSkillDomainSlug;
@@ -42,9 +42,9 @@ export const accountSkillDomains: AccountSkillDomain[] = [
     description: "Holding and reconstructing information under pressure.",
   },
   {
-    slug: "aviation-recall",
-    label: "Aviation Recall",
-    description: "Reading comprehension and aviation detail retention.",
+    slug: "multitasking",
+    label: "Multitasking",
+    description: "Coordinating timing, audio, calculations, and responses under pressure.",
   },
 ];
 
@@ -54,11 +54,10 @@ const categoryDomainMap: Record<TopicCategory, AccountSkillDomainSlug> = {
   scanning: "visual-scanning",
   approximation: "numerical-agility",
   "short-term-memory": "short-term-memory",
+  multitasking: "multitasking",
 };
 
-const topicDomainOverrides: Record<string, AccountSkillDomainSlug> = {
-  "passage-recall": "aviation-recall",
-};
+const topicDomainOverrides: Record<string, AccountSkillDomainSlug> = {};
 
 export function getAccountSkillDomainForTopic(
   topicSlug: string,

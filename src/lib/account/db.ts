@@ -102,6 +102,32 @@ export function getSessionCookieMaxAge() {
   return SESSION_DURATION_DAYS * 24 * 60 * 60;
 }
 
+export function getSessionCookieExpiresAt() {
+  return new Date(Date.now() + getSessionCookieMaxAge() * 1000);
+}
+
+export function getSessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: getSessionCookieMaxAge(),
+    expires: getSessionCookieExpiresAt(),
+    path: "/",
+  };
+}
+
+export function getExpiredSessionCookieOptions() {
+  return {
+    httpOnly: true,
+    sameSite: "lax" as const,
+    secure: process.env.NODE_ENV === "production",
+    maxAge: 0,
+    expires: new Date(0),
+    path: "/",
+  };
+}
+
 export function createRawSessionToken() {
   return randomBytes(32).toString("base64url");
 }
@@ -284,9 +310,7 @@ export async function upsertGoogleUser(profile: GoogleProfile) {
 export async function createSession(userId: string, rawToken: string) {
   await ensureAccountSchema();
   const pool = getPool();
-  const expiresAt = new Date(
-    Date.now() + getSessionCookieMaxAge() * 1000,
-  ).toISOString();
+  const expiresAt = getSessionCookieExpiresAt().toISOString();
 
   await pool.query(
     `

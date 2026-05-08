@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import {
   deleteSession,
+  getExpiredSessionCookieOptions,
   getSessionCookieName,
 } from "@/lib/account/db";
 
@@ -11,6 +12,10 @@ export async function POST(request: NextRequest) {
   }
 
   const response = NextResponse.redirect(new URL("/", request.nextUrl.origin));
-  response.cookies.delete(getSessionCookieName());
+  response.cookies.set(
+    getSessionCookieName(),
+    "",
+    getExpiredSessionCookieOptions(),
+  );
   return response;
 }

@@ -15,7 +15,8 @@ export type TopicCategory =
   | "logical"
   | "spatial"
   | "approximation"
-  | "short-term-memory";
+  | "short-term-memory"
+  | "multitasking";
 
 export interface Question {
   id: string;
