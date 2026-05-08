@@ -44,12 +44,15 @@ function estimatedRank(average: number, attempts: number) {
 function HexRadar({ points }: { points: RadarPoint[] }) {
   const center = 160;
   const maxRadius = 102;
-  const angleStep = (Math.PI * 2) / points.length;
-  const chartPoints = points.map((point, index) => {
+  const safePoints = points.length > 0 ? points : [];
+  const angleStep = safePoints.length > 0 ? (Math.PI * 2) / safePoints.length : 0;
+  const chartPoints = safePoints.map((point, index) => {
     const angle = -Math.PI / 2 + index * angleStep;
-    const radius = (point.value / 100) * maxRadius;
+    const safeValue = Number.isFinite(point.value) ? point.value : 0;
+    const radius = (safeValue / 100) * maxRadius;
     return {
       ...point,
+      value: safeValue,
       shortLabel: domainShortLabels[point.slug] ?? point.label,
       x: center + Math.cos(angle) * radius,
       y: center + Math.sin(angle) * radius,
@@ -279,7 +282,8 @@ function PriorityCard({ weakest }: { weakest: RadarPoint }) {
 
 function BenchmarkCard({ point }: { point: RadarPoint }) {
   const bars = [18, 28, 48, 68, 54, 38, 24];
-  const rank = point.attempts === 0 ? "--" : `${Math.max(1, 420 - point.value * 4)}th`;
+  const value = Number.isFinite(point.value) ? point.value : 0;
+  const rank = point.attempts === 0 ? "--" : `${Math.max(1, 420 - value * 4)}th`;
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-950">
@@ -289,7 +293,7 @@ function BenchmarkCard({ point }: { point: RadarPoint }) {
             domainAccent[point.slug] ?? domainAccent.multitasking
           }`}
         >
-          {point.value}
+          {value}
         </div>
         <p className="text-sm font-black text-zinc-600 dark:text-zinc-300">
           {domainShortLabels[point.slug] ?? point.label}
@@ -390,10 +394,57 @@ export default async function DashboardPage() {
     );
   }
 
-  const user = await getCurrentAccountUser();
+  let user;
+  try {
+    user = await getCurrentAccountUser();
+  } catch (error) {
+    console.error("[dashboard] failed to read current account user", error);
+    return (
+      <main className="min-h-screen bg-[#f4f6f8] px-5 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+          <h1 className="text-3xl font-black font-[family-name:var(--font-space-grotesk)]">
+            Dashboard unavailable
+          </h1>
+          <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+            We could not verify your account session. Please sign in again.
+          </p>
+          <Link
+            href="/sign-in?callbackUrl=/dashboard"
+            className="mt-6 inline-flex rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-600"
+          >
+            Sign in
+          </Link>
+        </div>
+      </main>
+    );
+  }
   if (!user) redirect("/sign-in");
 
-  const overview = await getAccountOverview(user.id);
+  let overview;
+  try {
+    overview = await getAccountOverview(user.id);
+  } catch (error) {
+    console.error("[dashboard] failed to load account overview", error);
+    return (
+      <main className="min-h-screen bg-[#f4f6f8] px-5 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
+        <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+          <h1 className="text-3xl font-black font-[family-name:var(--font-space-grotesk)]">
+            Dashboard unavailable
+          </h1>
+          <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+            Your account loaded, but the score dashboard data could not be read.
+            Try again after the latest staging deployment finishes.
+          </p>
+          <Link
+            href="/account"
+            className="mt-6 inline-flex rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-600"
+          >
+            Account settings
+          </Link>
+        </div>
+      </main>
+    );
+  }
   const totalAttempts = overview.radar.reduce(
     (total, point) => total + point.attempts,
     0,

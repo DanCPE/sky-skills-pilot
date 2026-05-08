@@ -413,10 +413,21 @@ export async function getAccountOverview(userId: string): Promise<AccountOvervie
       ),
       pool.query(
         `
-          SELECT skill_domain, AVG(percentage)::float AS value, COUNT(*)::int AS attempts
-          FROM account_score_history
-          WHERE user_id = $1
-          GROUP BY skill_domain;
+          SELECT normalized_skill_domain AS skill_domain,
+                 AVG(percentage)::float AS value,
+                 COUNT(*)::int AS attempts
+          FROM (
+            SELECT
+              CASE
+                WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+                WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
+                ELSE skill_domain
+              END AS normalized_skill_domain,
+              percentage
+            FROM account_score_history
+            WHERE user_id = $1
+          ) normalized_scores
+          GROUP BY normalized_skill_domain;
         `,
         [userId],
       ),
