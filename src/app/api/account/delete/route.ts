@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getCurrentAccountUser } from "@/lib/account/auth";
 import {
   deleteAccount,
+  getExpiredSessionCookieOptions,
   getSessionCookieName,
   hasAccountDatabase,
 } from "@/lib/account/db";
@@ -22,6 +23,10 @@ export async function DELETE() {
   await deleteAccount(user.id);
 
   const response = NextResponse.json({ deleted: true });
-  response.cookies.delete(getSessionCookieName());
+  response.cookies.set(
+    getSessionCookieName(),
+    "",
+    getExpiredSessionCookieOptions(),
+  );
   return response;
 }

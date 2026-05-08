@@ -13,6 +13,7 @@ const categories: { value: TopicCategory | "all"; label: string }[] = [
   { value: "spatial", label: "Spatial Orientation" },
   { value: "approximation", label: "Approximation" },
   { value: "short-term-memory", label: "Short Term Memory" },
+  { value: "multitasking", label: "Multitasking" },
 ];
 
 export default function SkyQuestPage() {
