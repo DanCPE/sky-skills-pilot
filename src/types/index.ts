@@ -52,6 +52,7 @@ export interface NumberSeriesQuestion extends Question {
   patternType: NumberSeriesPatternType;
   sequence: number[]; // The visible sequence (e.g., [2,4,6,8])
   correctAnswer: number; // The missing number
+  nextNumberAfterAnswer: number; // The visible number after the missing value
   difficulty: "easy" | "medium" | "hard";
   explanation: string; // Pattern explanation
 }
@@ -114,6 +115,24 @@ export interface CalculationSubmitResult extends SubmitResult {
   currentScore?: number;
 }
 
+// Dern-Jood specific types
+export interface DernJoodQuestion extends Question {
+  id: string;
+  prompt: string;
+  expression: string;
+  correctAnswer: number;
+  difficulty: "easy" | "medium" | "hard";
+  bpm: number;
+  timeLimitSeconds: number;
+  explanation: string;
+}
+
+export interface DernJoodQuizResponse {
+  questions: DernJoodQuestion[];
+  mode: "learn" | "real";
+  bpm?: number;
+}
+
 // Missing Operator specific types
 export interface MissingOperatorQuestion extends Question {
   id: string;
@@ -144,24 +163,6 @@ export interface MissingOperatorSubmitResult extends SubmitResult {
   correctAnswer?: string;
   explanation?: string;
   currentScore?: number;
-}
-
-// Dern-Jood specific types
-export interface DernJoodQuestion extends Question {
-  id: string;
-  prompt: string;
-  expression: string;
-  correctAnswer: number;
-  difficulty: "easy" | "medium" | "hard";
-  bpm: number;
-  timeLimitSeconds: number;
-  explanation: string;
-}
-
-export interface DernJoodQuizResponse {
-  questions: DernJoodQuestion[];
-  mode: "learn" | "real";
-  bpm?: number;
 }
 
 // Scanning Practice specific types

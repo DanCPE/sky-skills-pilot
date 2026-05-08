@@ -15,7 +15,6 @@ export default function SkippedQuestionsScreen({
   skippedIndices,
   answeredIndices,
   onSelectQuestion,
-  onFinishSkipped,
 }: SkippedQuestionsScreenProps) {
   // Filter out skipped questions that have been answered
   const remainingSkipped = skippedIndices.filter(idx => !answeredIndices.has(idx));
@@ -79,6 +78,9 @@ export default function SkippedQuestionsScreen({
                       {i < 3 && <span className="mx-0.5 text-zinc-300">·</span>}
                     </span>
                   ))}
+                  <span className="text-xs font-mono text-zinc-500 dark:text-zinc-400">
+                    ?
+                  </span>
                   <span className="text-xs text-zinc-400">...</span>
                 </div>
               </button>

@@ -191,7 +191,7 @@ function AnswerCard({
         ? "cursor-not-allowed border-amber-400 bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300"
         : displayMode === "mono"
           ? isDarkTheme
-            ? "border-zinc-400 bg-[rgba(173,173,173,0.2)] text-zinc-700 focus:border-zinc-500"
+            ? "border-zinc-400 bg-zinc-950 text-brand-gold placeholder:text-zinc-500 focus:border-brand-gold"
             : "border-zinc-300 bg-zinc-50 text-zinc-800 focus:border-zinc-500"
           : "border-zinc-300 bg-zinc-50 text-zinc-950 focus:border-[#4F12A6] dark:border-zinc-600 dark:bg-zinc-800 dark:text-zinc-100 dark:focus:border-amber-400",
   ].join(" ");

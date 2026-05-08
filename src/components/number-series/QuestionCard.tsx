@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React from "react";
 import type { NumberSeriesQuestion } from "@/types";
 
 interface QuestionCardProps {
@@ -17,25 +17,7 @@ export default function QuestionCard({
   onAnswer,
   disabled = false,
   selectedAnswer,
-  showResult = false,
-  isCorrect,
 }: QuestionCardProps) {
-  const [hoveredOption, setHoveredOption] = useState<string | null>(null);
-
-  const getOptionStyle = (option: string) => {
-    const isSelected = selectedAnswer === option;
-
-    if (isSelected) {
-      return "border-[#4F12A6] bg-violet-50 dark:bg-[#4F12A6] text-white shadow-md shadow-[#4F12A6]/20";
-    }
-
-    if (hoveredOption === option && !disabled) {
-      return "border-[#4F12A6] bg-violet-50 dark:border-[#4F12A6] dark:bg-violet-950";
-    }
-
-    return "border-zinc-200 bg-white hover:border-zinc-300 dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700";
-  };
-
   return (
     <div className="flex flex-col gap-10 py-6 px-4 bg-white dark:bg-black/20 rounded-2xl border-2 border-[#E2EAF0] dark:border-white/5 hover:shadow-xl transition-shadow">
       {/* Question Prompt */}
@@ -61,6 +43,12 @@ export default function QuestionCard({
           <span className="text-[40px] md:text-[36px] font-semibold text-zinc-900 dark:text-white font-[family-name:var(--font-inter)] tracking-tighter">
             ?
           </span>
+          <span className="text-[40px] md:text-[36px] font-semibold text-black dark:text-zinc-600">
+            ,
+          </span>
+          <span className="text-[40px] md:text-[36px] font-bold text-zinc-900 dark:text-white font-[family-name:var(--font-inter)] tracking-tighter">
+            {question.nextNumberAfterAnswer}
+          </span>
         </div>
       </div>
 
@@ -79,8 +67,6 @@ export default function QuestionCard({
                 <button
                   disabled={disabled}
                   onClick={() => onAnswer(option)}
-                  onMouseEnter={() => setHoveredOption(option)}
-                  onMouseLeave={() => setHoveredOption(null)}
                   className={`w-full h-10 md:h-12 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center text-[14px] md:text-[16px] font-black ${
                     isSelected
                       ? "bg-[#4F12A6] border-[#4F12A6] text-white scale-105 z-10"

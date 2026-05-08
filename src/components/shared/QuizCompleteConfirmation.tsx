@@ -85,13 +85,13 @@ export default function QuizCompleteConfirmation({
         <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
           <button
             onClick={onBackToQuestions}
-            className="rounded-xl border-2 border-amber-600 bg-amber-600 px-6 py-3 font-semibold text-white transition-all hover:bg-amber-700 active:scale-95 dark:border-amber-500 dark:bg-amber-500 dark:hover:bg-amber-600"
+            className="rounded-xl border-2 border-zinc-300 bg-white px-6 py-3 font-semibold text-zinc-700 transition-all hover:bg-zinc-50 active:scale-95 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             Go Back to Questions
           </button>
           <button
             onClick={onFinishQuiz}
-            className="rounded-xl border-2 border-zinc-300 bg-white px-6 py-3 font-semibold text-zinc-700 transition-all hover:bg-zinc-50 active:scale-95 dark:border-zinc-700 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="rounded-xl border-2 border-amber-600 bg-amber-600 px-6 py-3 font-semibold text-white transition-all hover:bg-amber-700 active:scale-95 dark:border-amber-500 dark:bg-amber-500 dark:hover:bg-amber-600"
           >
             Finish Quiz
           </button>

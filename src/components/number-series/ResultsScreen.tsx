@@ -107,7 +107,7 @@ export default function ResultsScreen({
                       <div className="mb-2 text-sm">
                         <span className="font-medium text-zinc-700 dark:text-zinc-300">Sequence: </span>
                         <span className="font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
-                          {question.sequence.join(", ")}, ?
+                          {question.sequence.join(", ")}, ?, {question.nextNumberAfterAnswer}
                         </span>
                       </div>
                       <div className="mb-2 text-sm">
