@@ -53,7 +53,7 @@ export default function SkyQuestPage() {
                 <button
                   key={category.value}
                   onClick={() => setSelectedCategory(category.value)}
-                  className={`flex-1 min-w-[110px] md:min-w-0 rounded-lg md:rounded-xl px-4 py-2 text-[14px] font-bold font-[family-name:var(--font-space-grotesk)] transition-all ${
+                  className={`flex-1 min-w-fit whitespace-nowrap rounded-lg md:rounded-xl px-4 py-2 text-[14px] font-bold font-[family-name:var(--font-space-grotesk)] transition-all ${
                     isSelected
                       ? "bg-violet-700 text-white shadow"
                       : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"

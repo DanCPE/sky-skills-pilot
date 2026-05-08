@@ -29,8 +29,8 @@ export const topics: Topic[] = [
     description: "Practice arithmetic and mental math.",
     category: "approximation",
     isLocked: false,
-    coverImage: "/images/icons/SkyQuests/cal.png",
-    coverImageDark: "/images/icons/SkyQuests/cal dark.png",
+    coverImage: "/images/icons/SkyQuests/calculate.png",
+    coverImageDark: "/images/icons/SkyQuests/calculate dark.png",
   },
   {
     slug: "missing-operator",
