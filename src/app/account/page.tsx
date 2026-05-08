@@ -44,8 +44,8 @@ function estimatedRank(average: number, attempts: number) {
 }
 
 function HexRadar({ points }: { points: RadarPoint[] }) {
-  const center = 190;
-  const maxRadius = 118;
+  const center = 160;
+  const maxRadius = 102;
   const angleStep = (Math.PI * 2) / points.length;
   const chartPoints = points.map((point, index) => {
     const angle = -Math.PI / 2 + index * angleStep;
@@ -57,8 +57,8 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
       y: center + Math.sin(angle) * radius,
       axisX: center + Math.cos(angle) * maxRadius,
       axisY: center + Math.sin(angle) * maxRadius,
-      labelX: center + Math.cos(angle) * (maxRadius + 58),
-      labelY: center + Math.sin(angle) * (maxRadius + 34),
+      labelX: center + Math.cos(angle) * (maxRadius + 30),
+      labelY: center + Math.sin(angle) * (maxRadius + 22),
     };
   });
   const polygon = chartPoints.map((point) => `${point.x},${point.y}`).join(" ");
@@ -67,7 +67,7 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
     .join(" ");
 
   return (
-    <div className="min-h-[620px] rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+    <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
       <div className="mb-3 flex items-center justify-between border-b border-zinc-200 pb-4 dark:border-white/10">
         <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
           Skill Distribution
@@ -78,9 +78,23 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
       </div>
 
       <svg
-        viewBox="0 0 380 380"
-        className="mx-auto mt-10 aspect-square w-full max-w-[560px]"
+        viewBox="0 0 320 320"
+        className="mx-auto mt-8 aspect-square w-full max-w-[500px]"
       >
+        <defs>
+          <radialGradient id="skillSpikeFill" cx="50%" cy="50%" r="65%">
+            <stop offset="0%" stopColor="rgb(250 204 21)" stopOpacity="0.42" />
+            <stop offset="55%" stopColor="rgb(124 58 237)" stopOpacity="0.24" />
+            <stop offset="100%" stopColor="rgb(124 58 237)" stopOpacity="0.1" />
+          </radialGradient>
+          <filter id="skillSpikeGlow" x="-30%" y="-30%" width="160%" height="160%">
+            <feGaussianBlur stdDeviation="5" result="blur" />
+            <feMerge>
+              <feMergeNode in="blur" />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
         {[0.25, 0.5, 0.75, 1].map((scale) => (
           <polygon
             key={scale}
@@ -92,7 +106,7 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
                 }`;
               })
               .join(" ")}
-            fill={scale === 1 ? "rgb(250 204 21 / 0.08)" : "none"}
+            fill="none"
             stroke="currentColor"
             strokeWidth="1"
             className="text-zinc-200 dark:text-zinc-800"
@@ -101,9 +115,9 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
         <polygon
           points={outer}
           fill="none"
-          stroke="rgb(250 204 21)"
-          strokeWidth="2"
-          opacity="0.75"
+          stroke="currentColor"
+          strokeWidth="1.5"
+          className="text-zinc-300 dark:text-zinc-700"
         />
         {chartPoints.map((point) => (
           <line
@@ -119,35 +133,56 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
         ))}
         <polygon
           points={polygon}
-          fill="rgb(124 58 237 / 0.24)"
+          fill="url(#skillSpikeFill)"
           stroke="rgb(124 58 237)"
-          strokeWidth="3"
+          strokeWidth="2.5"
+          strokeLinejoin="round"
+          filter="url(#skillSpikeGlow)"
+        />
+        <polygon
+          points={polygon}
+          fill="none"
+          stroke="rgb(250 204 21)"
+          strokeWidth="1.2"
+          strokeLinejoin="round"
+          opacity="0.78"
         />
         {chartPoints.map((point) => (
           <g key={point.slug}>
-            <circle
-              cx={point.axisX}
-              cy={point.axisY}
-              r="16"
-              fill="white"
-              stroke="currentColor"
-              strokeWidth="2"
-              className="text-violet-400 dark:fill-zinc-950 dark:text-violet-300"
-            />
-            <circle cx={point.x} cy={point.y} r="4" fill="rgb(250 204 21)" />
-            <foreignObject
-              x={point.labelX - 44}
-              y={point.labelY - 14}
-              width="88"
-              height="28"
+            <text
+              x={point.labelX}
+              y={point.labelY}
+              textAnchor={
+                point.labelX < center - 8
+                  ? "end"
+                  : point.labelX > center + 8
+                    ? "start"
+                    : "middle"
+              }
+              dominantBaseline="middle"
+              className="fill-zinc-600 text-[8px] font-black dark:fill-zinc-300"
             >
-              <div className="flex h-7 items-center justify-center rounded-lg bg-yellow-300 px-2 text-[10px] font-black text-zinc-900">
-                {point.shortLabel}
-              </div>
-            </foreignObject>
+              {point.shortLabel}
+            </text>
           </g>
         ))}
       </svg>
+
+      <div className="mt-5 grid grid-cols-1 gap-2 sm:grid-cols-2">
+        {points.map((point) => (
+          <div
+            key={point.slug}
+            className="flex items-center justify-between rounded-lg bg-zinc-50 px-3 py-2 text-xs dark:bg-white/5"
+          >
+            <span className="font-bold text-zinc-700 dark:text-zinc-200">
+              {domainShortLabels[point.slug] ?? point.label}
+            </span>
+            <span className="font-black text-violet-700 dark:text-violet-300">
+              {point.value}%
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
