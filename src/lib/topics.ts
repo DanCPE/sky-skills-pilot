@@ -8,7 +8,8 @@ export const topics: Topic[] = [
     description: "Visualize how 2D nets fold into 3D shapes.",
     category: "spatial",
     isLocked: true,
-    coverImage: "/images/icons/SkyQuests/Jigsaw from Google Drive.png",
+    coverImage: "/images/icons/SkyQuests/box.png",
+    coverImageDark: "/images/icons/SkyQuests/box dark.png",
   },
   {
     slug: "number-series",
@@ -58,6 +59,8 @@ export const topics: Topic[] = [
     description: "Identify rules and predict what comes next.",
     category: "logical",
     isLocked: true,
+    coverImage: "/images/icons/SkyQuests/pattern.png",
+    coverImageDark: "/images/icons/SkyQuests/pattern dark.png",
   },
   {
     slug: "spatial-reasoning",
@@ -66,7 +69,8 @@ export const topics: Topic[] = [
     description: "Solve puzzles involving shapes and space.",
     category: "spatial",
     isLocked: true,
-    coverImage: "/images/icons/SkyQuests/Rubik from Google Drive.png",
+    coverImage: "/images/icons/SkyQuests/rubik.png",
+    coverImageDark: "/images/icons/SkyQuests/rubik dark.png",
   },
   {
     slug: "aircraft-rotation",
