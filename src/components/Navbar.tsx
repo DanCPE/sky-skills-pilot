@@ -15,7 +15,10 @@ const navItems = [
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
-  const [accountName, setAccountName] = useState<string | null>(null);
+  const [account, setAccount] = useState<{
+    name: string;
+    imageUrl: string | null;
+  } | null>(null);
   const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
@@ -25,11 +28,14 @@ export default function Navbar() {
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (!cancelled && data?.user?.name) {
-          setAccountName(data.user.name);
+          setAccount({
+            name: data.user.name,
+            imageUrl: data.user.imageUrl ?? null,
+          });
         }
       })
       .catch(() => {
-        if (!cancelled) setAccountName(null);
+        if (!cancelled) setAccount(null);
       });
 
     return () => {
@@ -81,12 +87,32 @@ export default function Navbar() {
 
             {/* Desktop Actions */}
             <div className="hidden sm:flex flex-1 justify-end items-center gap-6">
-              <Link
-                href={accountName ? "/account" : "/sign-in"}
-                className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-bold text-violet-800 transition-colors hover:bg-zinc-100 hover:text-violet-600 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
-              >
-                {accountName ? "Account" : "Sign in"}
-              </Link>
+              {account ? (
+                <Link
+                  href="/account"
+                  className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-violet-700 text-sm font-bold text-white transition-colors hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 dark:border-white/10 dark:focus:ring-offset-black"
+                  aria-label={`Open account for ${account.name}`}
+                  title={account.name}
+                >
+                  {account.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={account.imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    account.name.slice(0, 1).toUpperCase()
+                  )}
+                </Link>
+              ) : (
+                <Link
+                  href="/sign-in"
+                  className="rounded-lg border border-zinc-200 px-3 py-2 text-sm font-bold text-violet-800 transition-colors hover:bg-zinc-100 hover:text-violet-600 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-zinc-100"
+                >
+                  Sign in
+                </Link>
+              )}
 
               {/* Theme Toggle */}
               <button
@@ -180,11 +206,29 @@ export default function Navbar() {
                 );
               })}
               <Link
-                href={accountName ? "/account" : "/sign-in"}
-                className="block px-4 py-2 rounded-lg text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                href={account ? "/account" : "/sign-in"}
+                className="flex items-center gap-3 px-4 py-2 rounded-lg text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {accountName ? "Account" : "Sign in"}
+                {account ? (
+                  <>
+                    <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xs font-bold text-white">
+                      {account.imageUrl ? (
+                        // eslint-disable-next-line @next/next/no-img-element
+                        <img
+                          src={account.imageUrl}
+                          alt=""
+                          className="h-full w-full object-cover"
+                        />
+                      ) : (
+                        account.name.slice(0, 1).toUpperCase()
+                      )}
+                    </span>
+                    Account
+                  </>
+                ) : (
+                  "Sign in"
+                )}
               </Link>
             </div>
           )}

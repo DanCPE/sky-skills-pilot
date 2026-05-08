@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import DeleteAccountSection from "@/components/account/DeleteAccountSection";
+import ProfileEditor from "@/components/account/ProfileEditor";
 import { getCurrentAccountUser } from "@/lib/account/auth";
 import { getAccountOverview, hasAccountDatabase } from "@/lib/account/db";
 
@@ -172,6 +174,11 @@ export default async function AccountPage() {
           </form>
         </section>
 
+        <ProfileEditor
+          initialName={overview.user.name}
+          initialImageUrl={overview.user.imageUrl}
+        />
+
         <section className="mt-8 grid gap-6 lg:grid-cols-[1.1fr_0.9fr]">
           <div>
             <div className="mb-4 flex items-center justify-between">
@@ -276,6 +283,8 @@ export default async function AccountPage() {
             )}
           </div>
         </section>
+
+        <DeleteAccountSection />
       </div>
     </main>
   );

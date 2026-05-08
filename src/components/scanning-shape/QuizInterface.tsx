@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Timer from "@/components/shared/Timer";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import { useTheme } from "@/lib/use-theme";
 import { getPerformanceMessage } from "@/lib/performance-copy";
 import { generateScanningShapeSections } from "@/lib/scanning-shape-generator";
@@ -547,6 +548,19 @@ export default function QuizInterface({
   const liveLocked = quizEnded ? locked : computeLockedFromAnswers();
   const score = liveLocked.size;
   const progressPercent = (score / totalAnswers) * 100;
+
+  useRecordRealModeScore({
+    completed: quizEnded,
+    mode,
+    topicSlug: "scanning-shape",
+    topicTitle: "Scanning Shape",
+    score,
+    maxScore: totalAnswers,
+    questionCount: totalAnswers,
+    timeTakenSeconds: elapsed,
+    difficulty,
+    metadata: { sectionCount, trigger },
+  });
 
   useEffect(() => {
     startRef.current = Date.now();
