@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "@/components/shared/ResultsScreen";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type {
   ShortTermMemoryCell,
   ShortTermMemoryMathQuestion,
@@ -186,6 +187,19 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
 
   const answeredMathCount = mathReview.filter((answer) => answer.answer !== "").length;
   const allMathAnswered = answeredMathCount === mathQuestions.length;
+  const correctCount = allReviewAnswers.filter((answerData) => answerData.isCorrect).length;
+
+  useRecordRealModeScore({
+    completed: phase === "results",
+    mode,
+    topicSlug: "short-term-memory",
+    topicTitle: "Short-Term Memory Table",
+    score: correctCount,
+    maxScore: rows * columns + mathQuestions.length,
+    questionCount: rows * columns + mathQuestions.length,
+    timeTakenSeconds: completedTime,
+    metadata: { rows, columns },
+  });
 
   const handleStartMemorizing = () => {
     startTimeRef.current = Date.now();

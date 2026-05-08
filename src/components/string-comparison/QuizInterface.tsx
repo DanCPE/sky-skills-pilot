@@ -8,6 +8,7 @@ import ResultsScreen from "./ResultsScreen";
 import QuizCompleteConfirmation from "@/components/number-series/QuizCompleteConfirmation";
 import QuizSidebar from "@/components/shared/QuizSidebar";
 import QuizFooterNav from "@/components/shared/QuizFooterNav";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type {
   ScanningPracticeQuizResponse,
   ScanningPracticeSubmitResult,
@@ -160,6 +161,18 @@ export default function QuizInterface({
     const correct = answers.filter((a) => a.isCorrect).length;
     return Math.round((correct / questions.length) * 100);
   };
+
+  const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
+  useRecordRealModeScore({
+    completed: quizComplete,
+    mode,
+    topicSlug: "string-comparison",
+    topicTitle: "String Comparison",
+    score: correctCount,
+    maxScore: questions.length,
+    questionCount: questions.length,
+    timeTakenSeconds: totalTimeTaken || undefined,
+  });
 
   // Handle submit quiz (real mode)
   const handleSubmitQuiz = async () => {

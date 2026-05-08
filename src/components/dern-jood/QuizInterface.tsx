@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "./ResultsScreen";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type { DernJoodQuizResponse } from "@/types";
 
 interface QuizAnswer {
@@ -679,6 +680,19 @@ export default function QuizInterface({
       void startVoiceRecognition();
     };
   }, [startVoiceRecognition]);
+
+  const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
+  useRecordRealModeScore({
+    completed: quizComplete,
+    mode,
+    topicSlug: "dern-jood",
+    topicTitle: "Dern-Jood",
+    score: correctCount,
+    maxScore: questions.length,
+    questionCount: questions.length,
+    timeTakenSeconds: totalTimeTaken,
+    metadata: { bpm: mode === "real" ? realBpm : learnBpm },
+  });
 
   useEffect(() => {
     return () => {

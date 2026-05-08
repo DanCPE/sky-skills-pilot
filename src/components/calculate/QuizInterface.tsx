@@ -9,6 +9,7 @@ import TopicLayout from "@/components/TopicLayout";
 import QuizCompleteConfirmation from "./QuizCompleteConfirmation";
 import QuizSidebar from "@/components/shared/QuizSidebar";
 import QuizFooterNav from "@/components/shared/QuizFooterNav";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type {
   CalculationQuizResponse,
   CalculationSubmitResult,
@@ -297,6 +298,18 @@ export default function QuizInterface({
     const correct = answers.filter((a) => a.isCorrect).length;
     return Math.round((correct / questions.length) * 100);
   };
+
+  const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
+  useRecordRealModeScore({
+    completed: quizComplete,
+    mode,
+    topicSlug: "calculate",
+    topicTitle: "Calculate",
+    score: correctCount,
+    maxScore: questions.length,
+    questionCount: questions.length,
+    timeTakenSeconds: totalTimeTaken || undefined,
+  });
 
   const handleSubmitClick = () => {
     const answeredCount = new Set(answers.map((a) => a.questionId)).size;

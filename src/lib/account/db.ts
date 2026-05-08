@@ -305,6 +305,52 @@ export async function deleteSession(rawToken: string) {
   ]);
 }
 
+export async function deleteAccount(userId: string) {
+  await ensureAccountSchema();
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM account_payment_intents WHERE user_id = $1;", [
+      userId,
+    ]);
+    await client.query("DELETE FROM account_users WHERE id = $1;", [userId]);
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function updateAccountProfile(input: {
+  userId: string;
+  name: string;
+  imageUrl: string | null;
+}) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      UPDATE account_users
+      SET name = $2,
+          image_url = $3,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `,
+    [input.userId, input.name, input.imageUrl],
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("Account user not found.");
+  }
+
+  return mapUser(result.rows[0]);
+}
+
 export async function getUserBySessionToken(rawToken: string | undefined) {
   if (!rawToken || !hasAccountDatabase()) return null;
   await ensureAccountSchema();

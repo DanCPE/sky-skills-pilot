@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "@/components/shared/ResultsScreen";
 import QuestionCard from "./QuestionCard";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type { PassageRecallQuizResponse, ShortTermMemoryMathQuestion } from "@/types";
 
 type Phase = "reading" | "math" | "evaluation" | "results";
@@ -116,6 +117,30 @@ export default function QuizInterface({
       })),
     [mathAnswers, mathQuestions]
   );
+  const scoreReview = useMemo(
+    () => [
+      ...answerEntries,
+      ...mathReview.map((mathAnswer) => ({
+        questionId: mathAnswer.question.id,
+        answer: mathAnswer.answer,
+        isCorrect: mathAnswer.isCorrect,
+      })),
+    ],
+    [answerEntries, mathReview],
+  );
+  const correctCount = scoreReview.filter((answerData) => answerData.isCorrect).length;
+
+  useRecordRealModeScore({
+    completed: phase === "results",
+    mode,
+    topicSlug: "passage-recall",
+    topicTitle: "Passage Recall",
+    score: correctCount,
+    maxScore: questions.length + mathQuestions.length,
+    questionCount: questions.length + mathQuestions.length,
+    timeTakenSeconds: completedTime,
+    metadata: { readingDurationSeconds },
+  });
 
   const handleAnswerNow = () => {
     onPassageExpired();
@@ -150,10 +175,7 @@ export default function QuizInterface({
       >
         <ResultsScreen
           totalCount={questions.length + mathQuestions.length}
-          answers={[
-            ...answerEntries,
-            ...mathReview.map((m) => ({ questionId: m.question.id, answer: m.answer, isCorrect: m.isCorrect })),
-          ]}
+          answers={scoreReview}
           timeTaken={completedTime}
           onRestart={onRestart}
           restartLabel="Back to Mode Selection"

@@ -8,6 +8,7 @@ import TopicLayout from "@/components/TopicLayout";
 import SharedResultsScreen from "@/components/shared/ResultsScreen";
 import QuizSidebar from "@/components/shared/QuizSidebar";
 import QuizFooterNav from "@/components/shared/QuizFooterNav";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import {
   SpatialOrientationQuizResponse,
   SpatialOrientationQuestion,
@@ -244,15 +245,29 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [isSubmitted, setIsSubmitted] = useState(false);
   const [showConfirmation, setShowConfirmation] = useState(false);
-  const [quizStartTime] = useState(Date.now());
+  const [quizStartTime] = useState(() => Date.now());
   const [totalTimeTaken, setTotalTimeTaken] = useState(0);
   const [currentQuestionIndex, setCurrentQuestionIndex] = useState(0);
 
   const answeredCount = Object.keys(answers).length;
+  const correctCount = questions.filter(
+    (question) => answers[question.id] === `${question.correctAngle}${question.correctDir}`,
+  ).length;
 
   const answeredSet = new Set(
     questions.map((q, i) => (answers[q.id] ? i : -1)).filter((i) => i !== -1),
   );
+
+  useRecordRealModeScore({
+    completed: isSubmitted,
+    mode: quizData.mode,
+    topicSlug: "aircraft-rotation",
+    topicTitle: "Aircraft Rotation",
+    score: correctCount,
+    maxScore: questions.length,
+    questionCount: questions.length,
+    timeTakenSeconds: totalTimeTaken,
+  });
 
 
   const handleTimeUp = () => {
