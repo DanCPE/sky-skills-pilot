@@ -15,6 +15,6 @@ export async function GET() {
     return NextResponse.json({ user: null, configured: true }, { status: 200 });
   }
 
-  const overview = await getAccountOverview(user.id);
+  const overview = await getAccountOverview(user.profileId);
   return NextResponse.json({ ...overview, configured: true });
 }

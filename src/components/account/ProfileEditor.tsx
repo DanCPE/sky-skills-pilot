@@ -113,7 +113,7 @@ export default function ProfileEditor({
             htmlFor="profile-name"
             className="block text-sm font-bold text-zinc-700 dark:text-zinc-200"
           >
-            Username
+            Call sign
           </label>
           <input
             id="profile-name"

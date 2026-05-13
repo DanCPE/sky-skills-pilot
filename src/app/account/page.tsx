@@ -2,6 +2,7 @@ import Link from "next/link";
 import { redirect } from "next/navigation";
 import DeleteAccountSection from "@/components/account/DeleteAccountSection";
 import ProfileEditor from "@/components/account/ProfileEditor";
+import ProfileManager from "@/components/account/ProfileManager";
 import { getCurrentAccountUser } from "@/lib/account/auth";
 import { getAccountOverview, hasAccountDatabase } from "@/lib/account/db";
 
@@ -27,7 +28,7 @@ export default async function AccountPage() {
   const user = await getCurrentAccountUser();
   if (!user) redirect("/sign-in");
 
-  const overview = await getAccountOverview(user.id);
+  const overview = await getAccountOverview(user.profileId);
 
   return (
     <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">
@@ -77,10 +78,16 @@ export default async function AccountPage() {
         </header>
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
-          <ProfileEditor
-            initialName={overview.user.name}
-            initialImageUrl={overview.user.imageUrl}
-          />
+          <div className="space-y-6">
+            <ProfileEditor
+              initialName={overview.user.name}
+              initialImageUrl={overview.user.imageUrl}
+            />
+            <ProfileManager
+              profiles={overview.profiles}
+              activeProfileId={overview.user.profileId}
+            />
+          </div>
 
           <aside className="space-y-6">
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">

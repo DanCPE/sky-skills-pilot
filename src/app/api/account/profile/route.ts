@@ -44,7 +44,7 @@ export async function PATCH(request: NextRequest) {
 
   if (name.length < 2 || name.length > 80) {
     return NextResponse.json(
-      { error: "Username must be between 2 and 80 characters." },
+      { error: "Call sign must be between 2 and 80 characters." },
       { status: 400 },
     );
   }
@@ -70,7 +70,7 @@ export async function PATCH(request: NextRequest) {
   }
 
   const updatedUser = await updateAccountProfile({
-    userId: user.id,
+    profileId: user.profileId,
     name,
     imageUrl,
   });

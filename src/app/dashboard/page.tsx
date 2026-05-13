@@ -422,7 +422,7 @@ export default async function DashboardPage() {
 
   let overview;
   try {
-    overview = await getAccountOverview(user.id);
+    overview = await getAccountOverview(user.profileId);
   } catch (error) {
     console.error("[dashboard] failed to load account overview", error);
     return (

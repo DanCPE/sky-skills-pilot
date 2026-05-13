@@ -20,7 +20,7 @@ export async function DELETE() {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
 
-  await deleteAccount(user.id);
+  await deleteAccount(user.fleetId);
 
   const response = NextResponse.json({ deleted: true });
   response.cookies.set(

@@ -33,7 +33,7 @@ export async function GET() {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
 
-  const overview = await getAccountOverview(user.id);
+  const overview = await getAccountOverview(user.profileId);
   return NextResponse.json({
     scoreHistory: overview.scoreHistory,
     radar: overview.radar,
@@ -76,7 +76,7 @@ export async function POST(request: NextRequest) {
   }
 
   const entry = await recordScore({
-    userId: user.id,
+    userId: user.profileId,
     topicSlug: body.topicSlug,
     topicTitle: body.topicTitle || getTopicTitle(body.topicSlug),
     score: body.score,

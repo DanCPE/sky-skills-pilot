@@ -4,6 +4,8 @@ import { accountSkillDomains, getAccountSkillDomainForTopic } from "./topics";
 
 const SESSION_COOKIE_NAME = "sky_session";
 const SESSION_DURATION_DAYS = 30;
+const MAX_PROFILES_PER_FLEET = 3;
+const MAX_ACTIVE_SESSIONS_PER_FLEET = 4;
 
 let accountPool: Pool | null = null;
 let schemaReady = false;
@@ -11,11 +13,23 @@ let schemaPromise: Promise<void> | null = null;
 
 export interface AccountUser {
   id: string;
+  fleetId: string;
+  profileId: string;
   googleSub: string;
   email: string;
   name: string;
   imageUrl: string | null;
   emailVerified: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AccountProfile {
+  id: string;
+  fleetId: string;
+  callSign: string;
+  imageUrl: string | null;
+  isDefault: boolean;
   createdAt: string;
   updatedAt: string;
 }
@@ -45,6 +59,7 @@ export interface RadarPoint {
 
 export interface AccountOverview {
   user: AccountUser;
+  profiles: AccountProfile[];
   scoreHistory: ScoreHistoryEntry[];
   radar: RadarPoint[];
   subscription: {
@@ -136,6 +151,11 @@ export function hashSessionToken(token: string) {
   return createHash("sha256").update(token).digest("hex");
 }
 
+export function hashSessionIp(ip: string) {
+  const salt = process.env.ACCOUNT_IP_SALT || process.env.ANALYTICS_IP_SALT || "sky-skills";
+  return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+}
+
 export function rankScore(percentage: number) {
   if (percentage >= 90) return "Captain";
   if (percentage >= 75) return "First Officer";
@@ -170,6 +190,8 @@ export async function ensureAccountSchema() {
       CREATE TABLE IF NOT EXISTS account_sessions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+        active_profile_id UUID,
+        ip_hash TEXT,
         token_hash TEXT NOT NULL UNIQUE,
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -177,9 +199,22 @@ export async function ensureAccountSchema() {
     `);
 
     await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_profiles (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+        call_sign TEXT NOT NULL,
+        image_url TEXT,
+        is_default BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await pool.query(`
       CREATE TABLE IF NOT EXISTS account_score_history (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+        profile_id UUID,
         topic_slug TEXT NOT NULL,
         topic_title TEXT NOT NULL,
         skill_domain TEXT NOT NULL,
@@ -194,6 +229,37 @@ export async function ensureAccountSchema() {
         metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
+    `);
+
+    await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS active_profile_id UUID;");
+    await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS ip_hash TEXT;");
+    await pool.query("ALTER TABLE account_score_history ADD COLUMN IF NOT EXISTS profile_id UUID;");
+
+    await pool.query(`
+      INSERT INTO account_profiles (user_id, call_sign, image_url, is_default)
+      SELECT u.id, u.name, u.image_url, TRUE
+      FROM account_users u
+      WHERE NOT EXISTS (
+        SELECT 1 FROM account_profiles p WHERE p.user_id = u.id
+      );
+    `);
+
+    await pool.query(`
+      UPDATE account_sessions s
+      SET active_profile_id = p.id
+      FROM account_profiles p
+      WHERE s.user_id = p.user_id
+        AND p.is_default = TRUE
+        AND s.active_profile_id IS NULL;
+    `);
+
+    await pool.query(`
+      UPDATE account_score_history h
+      SET profile_id = p.id
+      FROM account_profiles p
+      WHERE h.user_id = p.user_id
+        AND p.is_default = TRUE
+        AND h.profile_id IS NULL;
     `);
 
     await pool.query(`
@@ -232,7 +298,16 @@ export async function ensureAccountSchema() {
       "CREATE INDEX IF NOT EXISTS account_sessions_expires_at_idx ON account_sessions(expires_at);",
     );
     await pool.query(
+      "CREATE INDEX IF NOT EXISTS account_sessions_user_expires_idx ON account_sessions(user_id, expires_at);",
+    );
+    await pool.query(
+      "CREATE INDEX IF NOT EXISTS account_profiles_user_idx ON account_profiles(user_id);",
+    );
+    await pool.query(
       "CREATE INDEX IF NOT EXISTS account_score_history_user_completed_idx ON account_score_history(user_id, completed_at DESC);",
+    );
+    await pool.query(
+      "CREATE INDEX IF NOT EXISTS account_score_history_profile_completed_idx ON account_score_history(profile_id, completed_at DESC);",
     );
     await pool.query(
       "CREATE INDEX IF NOT EXISTS account_score_history_domain_idx ON account_score_history(skill_domain);",
@@ -247,13 +322,33 @@ export async function ensureAccountSchema() {
   return schemaPromise;
 }
 
-function mapUser(row: Record<string, unknown>): AccountUser {
+function mapProfile(row: Record<string, unknown>): AccountProfile {
   return {
     id: String(row.id),
+    fleetId: String(row.user_id),
+    callSign: String(row.call_sign),
+    imageUrl: row.image_url ? String(row.image_url) : null,
+    isDefault: Boolean(row.is_default),
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
+function mapUser(row: Record<string, unknown>): AccountUser {
+  const profileId = String(row.profile_id ?? row.id);
+  const fleetId = String(row.fleet_id ?? row.user_id ?? row.id);
+  return {
+    id: profileId,
+    profileId,
+    fleetId,
     googleSub: String(row.google_sub),
     email: String(row.email),
-    name: String(row.name),
-    imageUrl: row.image_url ? String(row.image_url) : null,
+    name: String(row.call_sign ?? row.name),
+    imageUrl: row.profile_image_url
+      ? String(row.profile_image_url)
+      : row.image_url
+        ? String(row.image_url)
+        : null,
     emailVerified: Boolean(row.email_verified),
     createdAt: new Date(String(row.created_at)).toISOString(),
     updatedAt: new Date(String(row.updated_at)).toISOString(),
@@ -304,20 +399,84 @@ export async function upsertGoogleUser(profile: GoogleProfile) {
     ],
   );
 
-  return mapUser(result.rows[0]);
+  const userRow = result.rows[0];
+  await pool.query(
+    `
+      INSERT INTO account_profiles (user_id, call_sign, image_url, is_default)
+      SELECT $1, $2, $3, TRUE
+      WHERE NOT EXISTS (
+        SELECT 1 FROM account_profiles WHERE user_id = $1
+      );
+    `,
+    [userRow.id, userRow.name, userRow.image_url],
+  );
+
+  return mapUser({
+    ...userRow,
+    profile_id: userRow.id,
+    fleet_id: userRow.id,
+    call_sign: userRow.name,
+    profile_image_url: userRow.image_url,
+  });
 }
 
-export async function createSession(userId: string, rawToken: string) {
+export async function getDefaultProfileForFleet(fleetId: string) {
+  await ensureAccountSchema();
+  const result = await getPool().query(
+    `
+      SELECT *
+      FROM account_profiles
+      WHERE user_id = $1
+      ORDER BY is_default DESC, created_at ASC
+      LIMIT 1;
+    `,
+    [fleetId],
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("No profile found for fleet.");
+  }
+
+  return mapProfile(result.rows[0]);
+}
+
+export async function createSession(input: {
+  fleetId: string;
+  profileId: string;
+  rawToken: string;
+  ipHash?: string;
+}) {
   await ensureAccountSchema();
   const pool = getPool();
   const expiresAt = getSessionCookieExpiresAt().toISOString();
 
+  await pool.query("DELETE FROM account_sessions WHERE expires_at <= NOW();");
+  const sessionCount = await pool.query(
+    `
+      SELECT COUNT(*)::int AS count
+      FROM account_sessions
+      WHERE user_id = $1
+        AND expires_at > NOW();
+    `,
+    [input.fleetId],
+  );
+
+  if (Number(sessionCount.rows[0]?.count ?? 0) >= MAX_ACTIVE_SESSIONS_PER_FLEET) {
+    throw new Error("Fleet session limit reached. Sign out on another device first.");
+  }
+
   await pool.query(
     `
-      INSERT INTO account_sessions (user_id, token_hash, expires_at)
-      VALUES ($1, $2, $3);
+      INSERT INTO account_sessions (user_id, active_profile_id, ip_hash, token_hash, expires_at)
+      VALUES ($1, $2, $3, $4, $5);
     `,
-    [userId, hashSessionToken(rawToken), expiresAt],
+    [
+      input.fleetId,
+      input.profileId,
+      input.ipHash ?? null,
+      hashSessionToken(input.rawToken),
+      expiresAt,
+    ],
   );
 }
 
@@ -349,8 +508,93 @@ export async function deleteAccount(userId: string) {
   }
 }
 
+export async function createAccountProfile(input: {
+  fleetId: string;
+  callSign: string;
+  imageUrl?: string | null;
+}) {
+  await ensureAccountSchema();
+  const pool = getPool();
+
+  const countResult = await pool.query(
+    "SELECT COUNT(*)::int AS count FROM account_profiles WHERE user_id = $1;",
+    [input.fleetId],
+  );
+
+  if (Number(countResult.rows[0]?.count ?? 0) >= MAX_PROFILES_PER_FLEET) {
+    throw new Error("A fleet can have a maximum of 3 accounts.");
+  }
+
+  const result = await pool.query(
+    `
+      INSERT INTO account_profiles (user_id, call_sign, image_url, is_default)
+      VALUES ($1, $2, $3, FALSE)
+      RETURNING *;
+    `,
+    [input.fleetId, input.callSign, input.imageUrl ?? null],
+  );
+
+  return mapProfile(result.rows[0]);
+}
+
+export async function deleteAccountProfile(input: {
+  fleetId: string;
+  profileId: string;
+}) {
+  await ensureAccountSchema();
+  const pool = getPool();
+
+  const countResult = await pool.query(
+    "SELECT COUNT(*)::int AS count FROM account_profiles WHERE user_id = $1;",
+    [input.fleetId],
+  );
+
+  if (Number(countResult.rows[0]?.count ?? 0) <= 1) {
+    throw new Error("A fleet must keep at least one account.");
+  }
+
+  await pool.query(
+    `
+      DELETE FROM account_profiles
+      WHERE id = $1
+        AND user_id = $2
+        AND is_default = FALSE;
+    `,
+    [input.profileId, input.fleetId],
+  );
+}
+
+export async function switchSessionProfile(input: {
+  rawToken: string;
+  fleetId: string;
+  profileId: string;
+}) {
+  await ensureAccountSchema();
+  const pool = getPool();
+
+  const profileResult = await pool.query(
+    "SELECT id FROM account_profiles WHERE id = $1 AND user_id = $2 LIMIT 1;",
+    [input.profileId, input.fleetId],
+  );
+
+  if (profileResult.rowCount === 0) {
+    throw new Error("Profile not found in this fleet.");
+  }
+
+  await pool.query(
+    `
+      UPDATE account_sessions
+      SET active_profile_id = $1
+      WHERE token_hash = $2
+        AND user_id = $3
+        AND expires_at > NOW();
+    `,
+    [input.profileId, hashSessionToken(input.rawToken), input.fleetId],
+  );
+}
+
 export async function updateAccountProfile(input: {
-  userId: string;
+  profileId: string;
   name: string;
   imageUrl: string | null;
 }) {
@@ -358,21 +602,21 @@ export async function updateAccountProfile(input: {
 
   const result = await getPool().query(
     `
-      UPDATE account_users
-      SET name = $2,
+      UPDATE account_profiles
+      SET call_sign = $2,
           image_url = $3,
           updated_at = NOW()
       WHERE id = $1
       RETURNING *;
     `,
-    [input.userId, input.name, input.imageUrl],
+    [input.profileId, input.name, input.imageUrl],
   );
 
   if (result.rowCount === 0) {
     throw new Error("Account user not found.");
   }
 
-  return mapUser(result.rows[0]);
+  return mapProfile(result.rows[0]);
 }
 
 export async function getUserBySessionToken(rawToken: string | undefined) {
@@ -380,9 +624,28 @@ export async function getUserBySessionToken(rawToken: string | undefined) {
   await ensureAccountSchema();
   const result = await getPool().query(
     `
-      SELECT u.*
+      SELECT
+        u.id AS fleet_id,
+        p.id AS profile_id,
+        u.google_sub,
+        u.email,
+        p.call_sign,
+        p.image_url AS profile_image_url,
+        u.email_verified,
+        p.created_at,
+        p.updated_at
       FROM account_sessions s
       JOIN account_users u ON u.id = s.user_id
+      JOIN account_profiles p ON p.id = COALESCE(
+        s.active_profile_id,
+        (
+          SELECT p2.id
+          FROM account_profiles p2
+          WHERE p2.user_id = u.id
+          ORDER BY p2.is_default DESC, p2.created_at ASC
+          LIMIT 1
+        )
+      )
       WHERE s.token_hash = $1
         AND s.expires_at > NOW()
       LIMIT 1;
@@ -394,22 +657,53 @@ export async function getUserBySessionToken(rawToken: string | undefined) {
   return mapUser(result.rows[0]);
 }
 
-export async function getAccountOverview(userId: string): Promise<AccountOverview> {
+export async function getAccountOverview(profileId: string): Promise<AccountOverview> {
   await ensureAccountSchema();
   const pool = getPool();
 
-  const [userResult, scoreResult, radarResult, subscriptionResult] =
+  const profileResult = await pool.query(
+    `
+      SELECT
+        p.*,
+        u.id AS fleet_id,
+        u.google_sub,
+        u.email,
+        u.email_verified
+      FROM account_profiles p
+      JOIN account_users u ON u.id = p.user_id
+      WHERE p.id = $1
+      LIMIT 1;
+    `,
+    [profileId],
+  );
+
+  if (profileResult.rowCount === 0) {
+    throw new Error("Account profile not found.");
+  }
+
+  const activeProfile = profileResult.rows[0];
+  const fleetId = String(activeProfile.fleet_id);
+
+  const [profilesResult, scoreResult, radarResult, subscriptionResult] =
     await Promise.all([
-      pool.query("SELECT * FROM account_users WHERE id = $1 LIMIT 1;", [userId]),
+      pool.query(
+        `
+          SELECT *
+          FROM account_profiles
+          WHERE user_id = $1
+          ORDER BY is_default DESC, created_at ASC;
+        `,
+        [fleetId],
+      ),
       pool.query(
         `
           SELECT *
           FROM account_score_history
-          WHERE user_id = $1
+          WHERE profile_id = $1
           ORDER BY completed_at DESC
           LIMIT 25;
         `,
-        [userId],
+        [profileId],
       ),
       pool.query(
         `
@@ -425,11 +719,11 @@ export async function getAccountOverview(userId: string): Promise<AccountOvervie
               END AS normalized_skill_domain,
               percentage
             FROM account_score_history
-            WHERE user_id = $1
+            WHERE profile_id = $1
           ) normalized_scores
           GROUP BY normalized_skill_domain;
         `,
-        [userId],
+        [profileId],
       ),
       pool.query(
         `
@@ -439,13 +733,9 @@ export async function getAccountOverview(userId: string): Promise<AccountOvervie
           ORDER BY created_at DESC
           LIMIT 1;
         `,
-        [userId],
+        [fleetId],
       ),
     ]);
-
-  if (userResult.rowCount === 0) {
-    throw new Error("Account user not found.");
-  }
 
   const radarByDomain = new Map(
     radarResult.rows.map((row) => [
@@ -470,7 +760,12 @@ export async function getAccountOverview(userId: string): Promise<AccountOvervie
   const subscriptionRow = subscriptionResult.rows[0];
 
   return {
-    user: mapUser(userResult.rows[0]),
+    user: mapUser({
+      ...activeProfile,
+      profile_id: activeProfile.id,
+      profile_image_url: activeProfile.image_url,
+    }),
+    profiles: profilesResult.rows.map(mapProfile),
     scoreHistory: scoreResult.rows.map(mapScore),
     radar,
     subscription: subscriptionRow
@@ -500,20 +795,33 @@ export async function recordScore(input: {
   metadata?: Record<string, unknown>;
 }) {
   await ensureAccountSchema();
+  const pool = getPool();
 
   if (input.maxScore <= 0) {
     throw new Error("maxScore must be greater than zero.");
   }
+
+  const profileResult = await pool.query(
+    "SELECT user_id FROM account_profiles WHERE id = $1 LIMIT 1;",
+    [input.userId],
+  );
+
+  if (profileResult.rowCount === 0) {
+    throw new Error("Account profile not found.");
+  }
+
+  const fleetId = String(profileResult.rows[0].user_id);
 
   const percentage = Math.max(
     0,
     Math.min(100, (input.score / input.maxScore) * 100),
   );
 
-  const result = await getPool().query(
+  const result = await pool.query(
     `
       INSERT INTO account_score_history (
         user_id,
+        profile_id,
         topic_slug,
         topic_title,
         skill_domain,
@@ -527,10 +835,11 @@ export async function recordScore(input: {
         time_taken_seconds,
         metadata
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
       RETURNING *;
     `,
     [
+      fleetId,
       input.userId,
       input.topicSlug,
       input.topicTitle,

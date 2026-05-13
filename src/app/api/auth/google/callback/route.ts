@@ -7,8 +7,10 @@ import {
 import {
   createRawSessionToken,
   createSession,
+  getDefaultProfileForFleet,
   getSessionCookieName,
   getSessionCookieOptions,
+  hashSessionIp,
   hasAccountDatabase,
   upsertGoogleUser,
 } from "@/lib/account/db";
@@ -34,6 +36,16 @@ function redirectWithError(request: NextRequest, error: string) {
   const url = new URL("/sign-in", getAppBaseUrl(request.nextUrl.origin));
   url.searchParams.set("error", error);
   return NextResponse.redirect(url);
+}
+
+function getClientIp(request: NextRequest) {
+  const forwarded = request.headers.get("x-forwarded-for");
+  if (forwarded) return forwarded.split(",")[0]?.trim() || "unknown";
+  return (
+    request.headers.get("x-real-ip") ||
+    request.headers.get("cf-connecting-ip") ||
+    "unknown"
+  );
 }
 
 export async function GET(request: NextRequest) {
@@ -101,7 +113,20 @@ export async function GET(request: NextRequest) {
     picture: profile.picture,
   });
   const rawSessionToken = createRawSessionToken();
-  await createSession(user.id, rawSessionToken);
+  const defaultProfile = await getDefaultProfileForFleet(user.fleetId);
+  try {
+    await createSession({
+      fleetId: user.fleetId,
+      profileId: defaultProfile.id,
+      rawToken: rawSessionToken,
+      ipHash: hashSessionIp(getClientIp(request)),
+    });
+  } catch (error) {
+    return redirectWithError(
+      request,
+      error instanceof Error ? error.message : "Could not create account session.",
+    );
+  }
 
   const callbackUrl = request.cookies.get("sky_auth_callback")?.value || "/account";
   const redirectUrl = new URL(callbackUrl, getAppBaseUrl(request.nextUrl.origin));
