@@ -556,36 +556,70 @@ export async function createSession(input: {
 }) {
   await ensureAccountSchema();
   const pool = getPool();
+  const client = await pool.connect();
   const expiresAt = getSessionCookieExpiresAt().toISOString();
+  const startedAt = Date.now();
 
-  await pool.query("DELETE FROM account_sessions WHERE expires_at <= NOW();");
-  const sessionCount = await pool.query(
-    `
-      SELECT COUNT(*)::int AS count
-      FROM account_sessions
-      WHERE user_id = $1
-        AND expires_at > NOW();
-    `,
-    [input.fleetId],
-  );
+  try {
+    await client.query("BEGIN");
+    await client.query("DELETE FROM account_sessions WHERE expires_at <= NOW();");
 
-  if (Number(sessionCount.rows[0]?.count ?? 0) >= MAX_ACTIVE_SESSIONS_PER_FLEET) {
-    throw new Error("Fleet session limit reached. Sign out on another device first.");
+    const insertResult = await client.query(
+      `
+        INSERT INTO account_sessions (
+          user_id,
+          active_profile_id,
+          ip_hash,
+          token_hash,
+          expires_at
+        )
+        VALUES ($1, $2, $3, $4, $5)
+        RETURNING id;
+      `,
+      [
+        input.fleetId,
+        input.profileId,
+        input.ipHash ?? null,
+        hashSessionToken(input.rawToken),
+        expiresAt,
+      ],
+    );
+
+    const insertedSessionId = String(insertResult.rows[0].id);
+    const pruneResult = await client.query(
+      `
+        DELETE FROM account_sessions
+        WHERE id IN (
+          SELECT id
+          FROM account_sessions
+          WHERE user_id = $1
+            AND expires_at > NOW()
+            AND id <> $2
+          ORDER BY created_at ASC
+          OFFSET $3
+        );
+      `,
+      [input.fleetId, insertedSessionId, MAX_ACTIVE_SESSIONS_PER_FLEET - 1],
+    );
+
+    await client.query("COMMIT");
+    accountDebug("session created", {
+      fleetId: input.fleetId,
+      profileId: input.profileId,
+      prunedOldSessions: pruneResult.rowCount,
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    accountError("session create failed", error, {
+      fleetId: input.fleetId,
+      profileId: input.profileId,
+      durationMs: Date.now() - startedAt,
+    });
+    throw error;
+  } finally {
+    client.release();
   }
-
-  await pool.query(
-    `
-      INSERT INTO account_sessions (user_id, active_profile_id, ip_hash, token_hash, expires_at)
-      VALUES ($1, $2, $3, $4, $5);
-    `,
-    [
-      input.fleetId,
-      input.profileId,
-      input.ipHash ?? null,
-      hashSessionToken(input.rawToken),
-      expiresAt,
-    ],
-  );
 }
 
 export async function deleteSession(rawToken: string) {
