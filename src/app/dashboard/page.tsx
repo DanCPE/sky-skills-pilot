@@ -459,7 +459,7 @@ export default async function DashboardPage() {
     <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">
       <div className="mx-auto max-w-7xl">
         <header className="mb-10 text-center">
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
+          <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
             Skills Dashboard
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
