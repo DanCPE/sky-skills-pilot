@@ -150,8 +150,7 @@ export default function AdminAccountsPage() {
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 Inspect registered emails, fleet profiles, recorded-score ranking,
-                and the dashboard estimate that currently produces labels like
-                380th.
+                and the real recorded-score rank used by the dashboard.
               </p>
               {data ? (
                 <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -362,7 +361,7 @@ export default function AdminAccountsPage() {
                                           Profile
                                         </th>
                                         <th className="px-3 py-2 font-bold">
-                                          Dashboard Estimate
+                                          Dashboard Rank
                                         </th>
                                         <th className="px-3 py-2 font-bold">
                                           Actual Rank
@@ -403,7 +402,7 @@ export default function AdminAccountsPage() {
                                             </div>
                                           </td>
                                           <td className="px-3 py-2 font-bold">
-                                            {profile.dashboardEstimatedRank}
+                                            {profile.dashboardRank}
                                           </td>
                                           <td className="px-3 py-2">
                                             {profile.actualPlatformRank ?? "-"}

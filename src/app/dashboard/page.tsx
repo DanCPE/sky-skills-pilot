@@ -28,17 +28,14 @@ const domainAccent: Record<string, string> = {
   multitasking: "text-violet-500 bg-violet-50 border-violet-100 dark:bg-violet-500/10 dark:border-violet-500/20",
 };
 
-function averageRadar(points: RadarPoint[]) {
-  const active = points.filter((point) => point.attempts > 0);
-  if (active.length === 0) return 0;
-  return Math.round(
-    active.reduce((total, point) => total + point.value, 0) / active.length,
-  );
-}
-
-function estimatedRank(average: number, attempts: number) {
-  if (attempts === 0) return "Unranked";
-  return `${Math.max(1, Math.round(500 - average * 4.65))}th`;
+function formatRank(rank: number | null) {
+  if (!rank) return "Unranked";
+  const mod100 = rank % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${rank}th`;
+  if (rank % 10 === 1) return `${rank}st`;
+  if (rank % 10 === 2) return `${rank}nd`;
+  if (rank % 10 === 3) return `${rank}rd`;
+  return `${rank}th`;
 }
 
 function HexRadar({ points }: { points: RadarPoint[] }) {
@@ -189,12 +186,22 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
 }
 
 function RankingCard({
+  rank,
+  rankedProfiles,
   average,
   attempts,
+  profilesAhead,
+  recentScores,
 }: {
-  average: number;
+  rank: number | null;
+  rankedProfiles: number;
+  average: number | null;
   attempts: number;
+  profilesAhead: number;
+  recentScores: number[];
 }) {
+  const safeAverage = average ?? 0;
+  const bars = recentScores.length > 0 ? recentScores : [safeAverage];
   return (
     <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-violet-950 via-violet-800 to-purple-700 p-6 text-white shadow-lg shadow-violet-900/20">
       <div className="mb-4 flex items-center justify-between">
@@ -206,28 +213,28 @@ function RankingCard({
         </div>
       </div>
       <p className="text-5xl font-bold tracking-tight">
-        {estimatedRank(average, attempts)}
+        {formatRank(rank)}
       </p>
       <p className="mt-2 text-sm text-violet-100">
         {attempts > 0
-          ? `Current average score is ${average}%.`
+          ? `${profilesAhead} of ${rankedProfiles} ranked profiles are ahead. Average score is ${safeAverage}%.`
           : "Finish a real-mode quiz to enter the ranking."}
       </p>
       <div className="mt-8 flex h-20 items-end gap-2">
-        {[28, 36, 31, 48, 46, 57, 66].map((height, index) => (
+        {bars.map((height, index) => (
           <div
             key={index}
             className="flex-1 rounded-t bg-white/25"
-            style={{ height: `${height}%` }}
+            style={{ height: `${Math.max(8, height)}%` }}
           />
         ))}
         <div
           className="flex-1 rounded-t bg-white"
-          style={{ height: `${Math.max(18, average)}%` }}
+          style={{ height: `${Math.max(18, safeAverage)}%` }}
         />
       </div>
       <div className="mt-3 flex items-center justify-between text-[10px] font-bold text-violet-200">
-        <span>Last 30 Days Trend</span>
+        <span>Recent Recorded Scores</span>
         <span>{attempts} attempts</span>
       </div>
     </div>
@@ -281,9 +288,8 @@ function PriorityCard({ weakest }: { weakest: RadarPoint }) {
 }
 
 function BenchmarkCard({ point }: { point: RadarPoint }) {
-  const bars = [18, 28, 48, 68, 54, 38, 24];
   const value = Number.isFinite(point.value) ? point.value : 0;
-  const rank = point.attempts === 0 ? "--" : `${Math.max(1, 420 - value * 4)}th`;
+  const rank = point.rank ? formatRank(point.rank) : "--";
 
   return (
     <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-950">
@@ -299,20 +305,15 @@ function BenchmarkCard({ point }: { point: RadarPoint }) {
           {domainShortLabels[point.slug] ?? point.label}
         </p>
       </div>
-      <div className="flex h-14 items-end gap-1">
-        {bars.map((height, index) => (
-          <div
-            key={index}
-            className={`flex-1 rounded-t ${
-              index === 5 ? "bg-yellow-300" : "bg-violet-800 dark:bg-violet-400"
-            }`}
-            style={{ height: `${height}%` }}
-          />
-        ))}
+      <div className="h-3 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/10">
+        <div
+          className="h-full rounded-full bg-violet-800 dark:bg-violet-400"
+          style={{ width: `${value}%` }}
+        />
       </div>
       <div className="mt-2 text-right">
         <p className="text-xs font-bold text-emerald-500">
-          {point.attempts > 0 ? `+${Math.max(1, point.attempts)}%` : "0%"}
+          {point.rank ? `${point.rankedProfiles} ranked` : "No rank"}
         </p>
         <p className="text-2xl font-bold text-zinc-950 dark:text-white">
           {rank}
@@ -449,11 +450,14 @@ export default async function DashboardPage() {
     (total, point) => total + point.attempts,
     0,
   );
-  const average = averageRadar(overview.radar);
   const weakest =
     [...overview.radar]
       .filter((point) => point.attempts > 0)
       .sort((a, b) => a.value - b.value)[0] ?? overview.radar[0];
+  const recentScores = overview.scoreHistory
+    .slice(0, 7)
+    .reverse()
+    .map((entry) => Math.round(entry.percentage));
 
   return (
     <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">
@@ -504,7 +508,14 @@ export default async function DashboardPage() {
         <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.95fr)]">
           <HexRadar points={overview.radar} />
           <div className="space-y-5">
-            <RankingCard average={average} attempts={totalAttempts} />
+            <RankingCard
+              rank={overview.ranking.actualPlatformRank}
+              rankedProfiles={overview.ranking.rankedProfiles}
+              average={overview.ranking.dashboardAverage}
+              attempts={overview.ranking.totalAttempts || totalAttempts}
+              profilesAhead={overview.ranking.profilesAhead}
+              recentScores={recentScores}
+            />
             <PriorityCard weakest={weakest} />
           </div>
         </section>

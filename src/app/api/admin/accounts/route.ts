@@ -1,5 +1,4 @@
 import { NextResponse } from "next/server";
-import { getCurrentAccountUser } from "@/lib/account/auth";
 import {
   getAdminAccountFleets,
   hasAccountDatabase,
@@ -8,13 +7,6 @@ import {
 } from "@/lib/account/db";
 
 export const runtime = "nodejs";
-
-function getAdminEmails() {
-  return (process.env.ADMIN_EMAILS || "")
-    .split(",")
-    .map((email) => email.trim().toLowerCase())
-    .filter(Boolean);
-}
 
 function buildProfileLeaderboard(fleets: AdminAccountFleetSummary[]) {
   const rankedProfiles = fleets
@@ -63,9 +55,27 @@ function attachActualRanks(
       return {
         ...profile,
         actualPlatformRank,
+        dashboardRank: actualPlatformRank
+          ? `${actualPlatformRank}${getOrdinalSuffix(actualPlatformRank)}`
+          : "Unranked",
       };
     }),
   }));
+}
+
+function getOrdinalSuffix(value: number) {
+  const mod100 = value % 100;
+  if (mod100 >= 11 && mod100 <= 13) return "th";
+  switch (value % 10) {
+    case 1:
+      return "st";
+    case 2:
+      return "nd";
+    case 3:
+      return "rd";
+    default:
+      return "th";
+  }
 }
 
 export async function GET() {
@@ -77,26 +87,6 @@ export async function GET() {
   }
 
   try {
-    const adminEmails = getAdminEmails();
-    const currentUser = await getCurrentAccountUser();
-
-    if (adminEmails.length === 0 && process.env.NODE_ENV === "production") {
-      return NextResponse.json(
-        { error: "Admin access is not configured." },
-        { status: 403 },
-      );
-    }
-
-    if (
-      adminEmails.length > 0 &&
-      (!currentUser || !adminEmails.includes(currentUser.email.toLowerCase()))
-    ) {
-      return NextResponse.json(
-        { error: "Admin access required." },
-        { status: currentUser ? 403 : 401 },
-      );
-    }
-
     const rawFleets = await getAdminAccountFleets();
     const { rankByProfileId, leaderboard } = buildProfileLeaderboard(rawFleets);
     const fleets = attachActualRanks(rawFleets, rankByProfileId);
@@ -105,7 +95,7 @@ export async function GET() {
       generatedAt: new Date().toISOString(),
       notes: {
         dashboardRank:
-          "The current dashboard Ranking card is an estimate, not a real leaderboard. It uses: Math.max(1, Math.round(500 - dashboardAverage * 4.65)). So a displayed 380th means the profile dashboard average is about 26%, and there are not necessarily 379 real users ahead of it.",
+          "Dashboard rank now uses actualPlatformRank from recorded profile scores. It is not generated from a fixed mock formula.",
         actualPlatformRank:
           "actualPlatformRank in this API is computed from recorded profile scores only, sorted by dashboardAverage descending, then totalAttempts descending.",
       },

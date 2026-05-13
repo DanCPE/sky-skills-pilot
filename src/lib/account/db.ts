@@ -55,6 +55,16 @@ export interface RadarPoint {
   label: string;
   value: number;
   attempts: number;
+  rank: number | null;
+  rankedProfiles: number;
+}
+
+export interface AccountRankingSummary {
+  actualPlatformRank: number | null;
+  rankedProfiles: number;
+  profilesAhead: number;
+  dashboardAverage: number | null;
+  totalAttempts: number;
 }
 
 export interface AccountOverview {
@@ -62,6 +72,7 @@ export interface AccountOverview {
   profiles: AccountProfile[];
   scoreHistory: ScoreHistoryEntry[];
   radar: RadarPoint[];
+  ranking: AccountRankingSummary;
   subscription: {
     status: string;
     provider: string | null;
@@ -77,7 +88,7 @@ export interface AdminAccountProfileSummary {
   scoreCount: number;
   totalAttempts: number;
   dashboardAverage: number | null;
-  dashboardEstimatedRank: string;
+  dashboardRank: string;
   actualPlatformRank: number | null;
   latestScoreAt: string | null;
   createdAt: string;
@@ -460,7 +471,7 @@ function mapAdminProfile(row: Record<string, unknown>): AdminAccountProfileSumma
     scoreCount: Number(row.score_count ?? 0),
     totalAttempts: 0,
     dashboardAverage: null,
-    dashboardEstimatedRank: "Unranked",
+    dashboardRank: "Unranked",
     actualPlatformRank: null,
     latestScoreAt: row.latest_score_at
       ? new Date(String(row.latest_score_at)).toISOString()
@@ -469,11 +480,6 @@ function mapAdminProfile(row: Record<string, unknown>): AdminAccountProfileSumma
     updatedAt: new Date(String(row.updated_at)).toISOString(),
     radar: [],
   };
-}
-
-function estimateDashboardRank(average: number | null, attempts: number) {
-  if (average === null || attempts === 0) return "Unranked";
-  return `${Math.max(1, Math.round(500 - average * 4.65))}th`;
 }
 
 export async function upsertGoogleUser(profile: GoogleProfile) {
@@ -879,7 +885,14 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
   const activeProfile = profileResult.rows[0];
   const fleetId = String(activeProfile.fleet_id);
 
-  const [profilesResult, scoreResult, radarResult, subscriptionResult] =
+  const [
+    profilesResult,
+    scoreResult,
+    radarResult,
+    domainRankResult,
+    profileRankResult,
+    subscriptionResult,
+  ] =
     await Promise.all([
       pool.query(
         `
@@ -922,6 +935,94 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
       ),
       pool.query(
         `
+          WITH domain_avgs AS (
+            SELECT
+              profile_id,
+              normalized_skill_domain AS skill_domain,
+              AVG(percentage)::float AS value,
+              COUNT(*)::int AS attempts
+            FROM (
+              SELECT
+                profile_id,
+                CASE
+                  WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+                  WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
+                  ELSE skill_domain
+                END AS normalized_skill_domain,
+                percentage
+              FROM account_score_history
+              WHERE profile_id IS NOT NULL
+            ) normalized_scores
+            GROUP BY profile_id, normalized_skill_domain
+          ),
+          ranked_domains AS (
+            SELECT
+              profile_id,
+              skill_domain,
+              ROUND(value)::int AS value,
+              attempts,
+              RANK() OVER (
+                PARTITION BY skill_domain
+                ORDER BY value DESC, attempts DESC, profile_id ASC
+              )::int AS domain_rank,
+              COUNT(*) OVER (PARTITION BY skill_domain)::int AS ranked_profiles
+            FROM domain_avgs
+          )
+          SELECT *
+          FROM ranked_domains
+          WHERE profile_id = $1;
+        `,
+        [profileId],
+      ),
+      pool.query(
+        `
+          WITH domain_avgs AS (
+            SELECT
+              profile_id,
+              normalized_skill_domain AS skill_domain,
+              AVG(percentage)::float AS value,
+              COUNT(*)::int AS attempts
+            FROM (
+              SELECT
+                profile_id,
+                CASE
+                  WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+                  WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
+                  ELSE skill_domain
+                END AS normalized_skill_domain,
+                percentage
+              FROM account_score_history
+              WHERE profile_id IS NOT NULL
+            ) normalized_scores
+            GROUP BY profile_id, normalized_skill_domain
+          ),
+          profile_avgs AS (
+            SELECT
+              profile_id,
+              ROUND(AVG(value))::int AS dashboard_average,
+              SUM(attempts)::int AS total_attempts
+            FROM domain_avgs
+            GROUP BY profile_id
+          ),
+          ranked_profiles AS (
+            SELECT
+              profile_id,
+              dashboard_average,
+              total_attempts,
+              RANK() OVER (
+                ORDER BY dashboard_average DESC, total_attempts DESC, profile_id ASC
+              )::int AS actual_platform_rank,
+              COUNT(*) OVER ()::int AS ranked_profiles
+            FROM profile_avgs
+          )
+          SELECT *
+          FROM ranked_profiles
+          WHERE profile_id = $1;
+        `,
+        [profileId],
+      ),
+      pool.query(
+        `
           SELECT status, provider, current_period_end
           FROM account_subscriptions
           WHERE user_id = $1
@@ -941,18 +1042,34 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
       },
     ]),
   );
+  const domainRankByDomain = new Map(
+    domainRankResult.rows.map((row) => [
+      String(row.skill_domain),
+      {
+        rank: Number(row.domain_rank),
+        rankedProfiles: Number(row.ranked_profiles),
+      },
+    ]),
+  );
 
   const radar = accountSkillDomains.map((domain) => {
     const point = radarByDomain.get(domain.slug);
+    const domainRank = domainRankByDomain.get(domain.slug);
     return {
       slug: domain.slug,
       label: domain.label,
       value: point?.value ?? 0,
       attempts: point?.attempts ?? 0,
+      rank: domainRank?.rank ?? null,
+      rankedProfiles: domainRank?.rankedProfiles ?? 0,
     };
   });
 
   const subscriptionRow = subscriptionResult.rows[0];
+  const rankingRow = profileRankResult.rows[0];
+  const actualPlatformRank = rankingRow
+    ? Number(rankingRow.actual_platform_rank)
+    : null;
 
   return {
     user: mapUser({
@@ -963,6 +1080,13 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
     profiles: profilesResult.rows.map(mapProfile),
     scoreHistory: scoreResult.rows.map(mapScore),
     radar,
+    ranking: {
+      actualPlatformRank,
+      rankedProfiles: rankingRow ? Number(rankingRow.ranked_profiles) : 0,
+      profilesAhead: actualPlatformRank ? actualPlatformRank - 1 : 0,
+      dashboardAverage: rankingRow ? Number(rankingRow.dashboard_average) : null,
+      totalAttempts: rankingRow ? Number(rankingRow.total_attempts) : 0,
+    },
     subscription: subscriptionRow
       ? {
           status: String(subscriptionRow.status),
@@ -1059,6 +1183,8 @@ export async function getAdminAccountFleets(): Promise<
       label: domain?.label ?? slug,
       value: Math.round(Number(row.value)),
       attempts: Number(row.attempts),
+      rank: null,
+      rankedProfiles: 0,
     });
     radarByProfile.set(profileId, domainMap);
   }
@@ -1076,6 +1202,8 @@ export async function getAdminAccountFleets(): Promise<
         label: domain.label,
         value: point?.value ?? 0,
         attempts: point?.attempts ?? 0,
+        rank: null,
+        rankedProfiles: 0,
       };
     });
     const activeRadar = profileRadar.filter((point) => point.attempts > 0);
@@ -1095,10 +1223,6 @@ export async function getAdminAccountFleets(): Promise<
       ...profile,
       totalAttempts,
       dashboardAverage,
-      dashboardEstimatedRank: estimateDashboardRank(
-        dashboardAverage,
-        totalAttempts,
-      ),
       radar: profileRadar,
     });
     profilesByFleet.set(fleetId, profiles);
