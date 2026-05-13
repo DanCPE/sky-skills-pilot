@@ -156,6 +156,22 @@ export function hashSessionIp(ip: string) {
   return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
 }
 
+function accountDebug(message: string, meta?: Record<string, unknown>) {
+  console.log(`[account-debug] ${message}`, meta ?? {});
+}
+
+function accountError(
+  message: string,
+  error: unknown,
+  meta?: Record<string, unknown>,
+) {
+  console.error(`[account-debug] ${message}`, {
+    ...(meta ?? {}),
+    error: error instanceof Error ? error.message : String(error),
+    stack: error instanceof Error ? error.stack : undefined,
+  });
+}
+
 export function rankScore(percentage: number) {
   if (percentage >= 90) return "Captain";
   if (percentage >= 75) return "First Officer";
@@ -169,11 +185,20 @@ export async function ensureAccountSchema() {
   if (schemaPromise) return schemaPromise;
 
   schemaPromise = (async () => {
+    const startedAt = Date.now();
     const pool = getPool();
 
-    await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
+    try {
+      await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
 
-    await pool.query(`
+      await pool.query(`
+        CREATE TABLE IF NOT EXISTS account_schema_migrations (
+          id TEXT PRIMARY KEY,
+          applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+      `);
+
+      await pool.query(`
       CREATE TABLE IF NOT EXISTS account_users (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         google_sub TEXT NOT NULL UNIQUE,
@@ -186,7 +211,7 @@ export async function ensureAccountSchema() {
       );
     `);
 
-    await pool.query(`
+      await pool.query(`
       CREATE TABLE IF NOT EXISTS account_sessions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
@@ -198,7 +223,7 @@ export async function ensureAccountSchema() {
       );
     `);
 
-    await pool.query(`
+      await pool.query(`
       CREATE TABLE IF NOT EXISTS account_profiles (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
@@ -210,7 +235,7 @@ export async function ensureAccountSchema() {
       );
     `);
 
-    await pool.query(`
+      await pool.query(`
       CREATE TABLE IF NOT EXISTS account_score_history (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
@@ -231,11 +256,17 @@ export async function ensureAccountSchema() {
       );
     `);
 
-    await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS active_profile_id UUID;");
-    await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS ip_hash TEXT;");
-    await pool.query("ALTER TABLE account_score_history ADD COLUMN IF NOT EXISTS profile_id UUID;");
+      await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS active_profile_id UUID;");
+      await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS ip_hash TEXT;");
+      await pool.query("ALTER TABLE account_score_history ADD COLUMN IF NOT EXISTS profile_id UUID;");
 
-    await pool.query(`
+      const profileMigration = await pool.query(
+        "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
+        ["fleet_profiles_v1"],
+      );
+
+      if (profileMigration.rowCount === 0) {
+        await pool.query(`
       INSERT INTO account_profiles (user_id, call_sign, image_url, is_default)
       SELECT u.id, u.name, u.image_url, TRUE
       FROM account_users u
@@ -244,7 +275,7 @@ export async function ensureAccountSchema() {
       );
     `);
 
-    await pool.query(`
+        await pool.query(`
       UPDATE account_sessions s
       SET active_profile_id = p.id
       FROM account_profiles p
@@ -253,7 +284,7 @@ export async function ensureAccountSchema() {
         AND s.active_profile_id IS NULL;
     `);
 
-    await pool.query(`
+        await pool.query(`
       UPDATE account_score_history h
       SET profile_id = p.id
       FROM account_profiles p
@@ -262,7 +293,13 @@ export async function ensureAccountSchema() {
         AND h.profile_id IS NULL;
     `);
 
-    await pool.query(`
+        await pool.query(
+          "INSERT INTO account_schema_migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING;",
+          ["fleet_profiles_v1"],
+        );
+      }
+
+      await pool.query(`
       CREATE TABLE IF NOT EXISTS account_subscriptions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
@@ -276,7 +313,7 @@ export async function ensureAccountSchema() {
       );
     `);
 
-    await pool.query(`
+      await pool.query(`
       CREATE TABLE IF NOT EXISTS account_payment_intents (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID REFERENCES account_users(id) ON DELETE SET NULL,
@@ -291,32 +328,40 @@ export async function ensureAccountSchema() {
       );
     `);
 
-    await pool.query(
-      "CREATE INDEX IF NOT EXISTS account_sessions_token_hash_idx ON account_sessions(token_hash);",
-    );
-    await pool.query(
-      "CREATE INDEX IF NOT EXISTS account_sessions_expires_at_idx ON account_sessions(expires_at);",
-    );
-    await pool.query(
-      "CREATE INDEX IF NOT EXISTS account_sessions_user_expires_idx ON account_sessions(user_id, expires_at);",
-    );
-    await pool.query(
-      "CREATE INDEX IF NOT EXISTS account_profiles_user_idx ON account_profiles(user_id);",
-    );
-    await pool.query(
-      "CREATE INDEX IF NOT EXISTS account_score_history_user_completed_idx ON account_score_history(user_id, completed_at DESC);",
-    );
-    await pool.query(
-      "CREATE INDEX IF NOT EXISTS account_score_history_profile_completed_idx ON account_score_history(profile_id, completed_at DESC);",
-    );
-    await pool.query(
-      "CREATE INDEX IF NOT EXISTS account_score_history_domain_idx ON account_score_history(skill_domain);",
-    );
-    await pool.query(
-      "CREATE INDEX IF NOT EXISTS account_subscriptions_user_idx ON account_subscriptions(user_id);",
-    );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_sessions_token_hash_idx ON account_sessions(token_hash);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_sessions_expires_at_idx ON account_sessions(expires_at);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_sessions_user_expires_idx ON account_sessions(user_id, expires_at);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_profiles_user_idx ON account_profiles(user_id);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_score_history_user_completed_idx ON account_score_history(user_id, completed_at DESC);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_score_history_profile_completed_idx ON account_score_history(profile_id, completed_at DESC);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_score_history_domain_idx ON account_score_history(skill_domain);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_subscriptions_user_idx ON account_subscriptions(user_id);",
+      );
 
-    schemaReady = true;
+      schemaReady = true;
+      accountDebug("schema ready", { durationMs: Date.now() - startedAt });
+    } catch (error) {
+      schemaPromise = null;
+      accountError("schema setup failed", error, {
+        durationMs: Date.now() - startedAt,
+      });
+      throw error;
+    }
   })();
 
   return schemaPromise;
@@ -543,25 +588,98 @@ export async function deleteAccountProfile(input: {
 }) {
   await ensureAccountSchema();
   const pool = getPool();
+  const client = await pool.connect();
+  const startedAt = Date.now();
 
-  const countResult = await pool.query(
-    "SELECT COUNT(*)::int AS count FROM account_profiles WHERE user_id = $1;",
-    [input.fleetId],
-  );
+  try {
+    await client.query("BEGIN");
 
-  if (Number(countResult.rows[0]?.count ?? 0) <= 1) {
-    throw new Error("A fleet must keep at least one account.");
+    const profileResult = await client.query(
+      `
+        SELECT *
+        FROM account_profiles
+        WHERE id = $1
+          AND user_id = $2
+        LIMIT 1;
+      `,
+      [input.profileId, input.fleetId],
+    );
+
+    if (profileResult.rowCount === 0) {
+      throw new Error("Account profile not found.");
+    }
+
+    if (Boolean(profileResult.rows[0].is_default)) {
+      throw new Error("The default account cannot be deleted.");
+    }
+
+    const fallbackResult = await client.query(
+      `
+        SELECT id
+        FROM account_profiles
+        WHERE user_id = $1
+          AND id <> $2
+        ORDER BY is_default DESC, created_at ASC
+        LIMIT 1;
+      `,
+      [input.fleetId, input.profileId],
+    );
+
+    if (fallbackResult.rowCount === 0) {
+      throw new Error("A fleet must keep at least one account.");
+    }
+
+    const fallbackProfileId = String(fallbackResult.rows[0].id);
+
+    const sessionResult = await client.query(
+      `
+        UPDATE account_sessions
+        SET active_profile_id = $1
+        WHERE user_id = $2
+          AND active_profile_id = $3;
+      `,
+      [fallbackProfileId, input.fleetId, input.profileId],
+    );
+
+    const scoreResult = await client.query(
+      "DELETE FROM account_score_history WHERE profile_id = $1 AND user_id = $2;",
+      [input.profileId, input.fleetId],
+    );
+
+    const deleteResult = await client.query(
+      `
+        DELETE FROM account_profiles
+        WHERE id = $1
+          AND user_id = $2
+          AND is_default = FALSE;
+      `,
+      [input.profileId, input.fleetId],
+    );
+
+    if (deleteResult.rowCount === 0) {
+      throw new Error("Could not delete account profile.");
+    }
+
+    await client.query("COMMIT");
+    accountDebug("profile deleted", {
+      fleetId: input.fleetId,
+      profileId: input.profileId,
+      fallbackProfileId,
+      sessionsMoved: sessionResult.rowCount,
+      scoresDeleted: scoreResult.rowCount,
+      durationMs: Date.now() - startedAt,
+    });
+  } catch (error) {
+    await client.query("ROLLBACK");
+    accountError("profile delete failed", error, {
+      fleetId: input.fleetId,
+      profileId: input.profileId,
+      durationMs: Date.now() - startedAt,
+    });
+    throw error;
+  } finally {
+    client.release();
   }
-
-  await pool.query(
-    `
-      DELETE FROM account_profiles
-      WHERE id = $1
-        AND user_id = $2
-        AND is_default = FALSE;
-    `,
-    [input.profileId, input.fleetId],
-  );
 }
 
 export async function switchSessionProfile(input: {
@@ -571,6 +689,7 @@ export async function switchSessionProfile(input: {
 }) {
   await ensureAccountSchema();
   const pool = getPool();
+  const startedAt = Date.now();
 
   const profileResult = await pool.query(
     "SELECT id FROM account_profiles WHERE id = $1 AND user_id = $2 LIMIT 1;",
@@ -581,7 +700,7 @@ export async function switchSessionProfile(input: {
     throw new Error("Profile not found in this fleet.");
   }
 
-  await pool.query(
+  const switchResult = await pool.query(
     `
       UPDATE account_sessions
       SET active_profile_id = $1
@@ -591,6 +710,16 @@ export async function switchSessionProfile(input: {
     `,
     [input.profileId, hashSessionToken(input.rawToken), input.fleetId],
   );
+
+  if (switchResult.rowCount === 0) {
+    throw new Error("Active session not found. Please sign in again.");
+  }
+
+  accountDebug("profile switched", {
+    fleetId: input.fleetId,
+    profileId: input.profileId,
+    durationMs: Date.now() - startedAt,
+  });
 }
 
 export async function updateAccountProfile(input: {
@@ -622,6 +751,7 @@ export async function updateAccountProfile(input: {
 export async function getUserBySessionToken(rawToken: string | undefined) {
   if (!rawToken || !hasAccountDatabase()) return null;
   await ensureAccountSchema();
+  const startedAt = Date.now();
   const result = await getPool().query(
     `
       SELECT
@@ -636,8 +766,11 @@ export async function getUserBySessionToken(rawToken: string | undefined) {
         p.updated_at
       FROM account_sessions s
       JOIN account_users u ON u.id = s.user_id
+      LEFT JOIN account_profiles active_p
+        ON active_p.id = s.active_profile_id
+       AND active_p.user_id = u.id
       JOIN account_profiles p ON p.id = COALESCE(
-        s.active_profile_id,
+        active_p.id,
         (
           SELECT p2.id
           FROM account_profiles p2
@@ -652,6 +785,11 @@ export async function getUserBySessionToken(rawToken: string | undefined) {
     `,
     [hashSessionToken(rawToken)],
   );
+
+  accountDebug("session lookup", {
+    found: (result.rowCount ?? 0) > 0,
+    durationMs: Date.now() - startedAt,
+  });
 
   if (result.rowCount === 0) return null;
   return mapUser(result.rows[0]);
