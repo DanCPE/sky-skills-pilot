@@ -38,7 +38,7 @@ export default async function SignInPage({
                 className="h-12 w-12 object-contain"
                 priority
               />
-              <span className="text-2xl font-black tracking-tight text-white font-[family-name:var(--font-space-grotesk)]">
+              <span className="text-2xl font-black tracking-tight text-white">
                 SkySkills
               </span>
             </Link>
@@ -51,13 +51,13 @@ export default async function SignInPage({
                 One platform. 15+ aptitude tests.
               </div>
 
-              <h1 className="text-[48px] font-bold leading-[1.08] tracking-tight  font-[family-name:var(--font-inter)]">
+              <h1 className="text-[48px] font-bold leading-[1.08] tracking-tight">
                 Ready for
                 <br />
                 Takeoff?
               </h1>
 
-              <ul className="mt-10 space-y-5 text-[16px] font-medium text-white/90  font-[family-name:var(--font-inter)]">
+              <ul className="mt-10 space-y-5 text-[16px] font-medium text-white/90">
                 {[
                   "Unlimited practice exams",
                   "Real-time performance analytics",
@@ -89,7 +89,7 @@ export default async function SignInPage({
 
         <section className="flex min-h-screen items-center justify-center bg-white px-6 py-16">
           <div className="w-full max-w-lg text-center">
-            <h2 className="text-[30px] font-bold tracking-tight text-zinc-950 font-[family-name:var(--font-inter)]">
+            <h2 className="text-[30px] font-bold tracking-tight text-zinc-950">
               SkySkills Account
             </h2>
             <p className="mt-4 text-lg font-medium text-zinc-500">

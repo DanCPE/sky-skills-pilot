@@ -87,7 +87,7 @@ export default function AdminAnalyticsPage() {
     <div className="min-h-screen bg-[#F8FAFC] px-4 pb-12 pt-10 text-zinc-900 dark:bg-transparent dark:text-zinc-100 sm:px-6">
       <main className="mx-auto w-full max-w-6xl space-y-6">
         <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-black/40">
-          <h1 className="text-3xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)]">
+          <h1 className="text-3xl font-bold tracking-tight">
             Admin Analytics Dashboard
           </h1>
           <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">

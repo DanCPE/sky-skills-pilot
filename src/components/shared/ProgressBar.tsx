@@ -32,7 +32,7 @@ export default function ProgressBar({ current, total, score, compact = false }: 
 
       {compact && (
         <div className="flex items-center justify-between mt-1">
-          <span className="text-[10px] sm:text-xs font-medium tracking-wider text-zinc-500 dark:text-zinc-400 uppercase font-[family-name:var(--font-space-inter)]">
+          <span className="text-[10px] sm:text-xs font-medium tracking-wider text-zinc-500 dark:text-zinc-400 uppercase">
             PROGRESS: {Math.round(progress)}% COMPLETE
           </span>
           <span className="text-xs sm:text-sm font-bold text-[#4F12A6] dark:text-brand-gold">

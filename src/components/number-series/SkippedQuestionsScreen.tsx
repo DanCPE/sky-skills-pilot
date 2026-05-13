@@ -72,13 +72,13 @@ export default function SkippedQuestionsScreen({
                   {question.sequence.slice(0, 4).map((num, i) => (
                     <span
                       key={i}
-                      className="text-xs font-mono text-zinc-500 dark:text-zinc-400"
+                      className="text-xs text-zinc-500 dark:text-zinc-400"
                     >
                       {num}
                       {i < 3 && <span className="mx-0.5 text-zinc-300">·</span>}
                     </span>
                   ))}
-                  <span className="text-xs font-mono text-zinc-500 dark:text-zinc-400">
+                  <span className="text-xs text-zinc-500 dark:text-zinc-400">
                     ?
                   </span>
                   <span className="text-xs text-zinc-400">...</span>

@@ -100,7 +100,7 @@ export default function ResultsScreen({
                       {isExpanded ? "Hide" : "Show"}
                     </span>
                   </div>
-                  <div className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                  <div className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
                     {question.expression}
                   </div>
                   <div className="mt-2 text-sm text-zinc-700 dark:text-zinc-300">

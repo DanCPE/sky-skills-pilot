@@ -70,13 +70,13 @@ export default function ResultsScreen({
               <div className="mb-3 grid gap-2 md:grid-cols-2">
                 <div className="rounded-lg bg-white p-2 dark:bg-zinc-800">
                   <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">String A</div>
-                  <div className="font-[family-name:var(--font-geist-mono)] text-sm font-bold tracking-wider text-zinc-900 dark:text-zinc-100">
+                  <div className="text-sm font-bold tracking-wider text-zinc-900 dark:text-zinc-100">
                     {question.stringA}
                   </div>
                 </div>
                 <div className="rounded-lg bg-white p-2 dark:bg-zinc-800">
                   <div className="mb-1 text-xs font-medium text-zinc-500 dark:text-zinc-400">String B</div>
-                  <div className="font-[family-name:var(--font-geist-mono)] text-sm font-bold tracking-wider text-zinc-900 dark:text-zinc-100">
+                  <div className="text-sm font-bold tracking-wider text-zinc-900 dark:text-zinc-100">
                     {question.stringB}
                   </div>
                 </div>

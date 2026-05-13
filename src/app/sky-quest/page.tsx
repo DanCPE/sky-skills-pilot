@@ -34,10 +34,10 @@ export default function SkyQuestPage() {
           <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-yellow-100/80 dark:bg-yellow-900/30 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
             <span>⚡</span> BASIC ACCESS
           </div>
-          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
+          <h1 className="text-4xl md:text-5xl font-extrabold tracking-tight text-zinc-900 dark:text-zinc-100">
             Sky Quests
           </h1>
-          <p className="mx-auto mt-4 max-w-2xl text-sm md:text-base text-zinc-500 dark:text-zinc-400 font-medium font-[family-name:var(--font-inter)]">
+          <p className="mx-auto mt-4 max-w-2xl text-sm md:text-base text-zinc-500 dark:text-zinc-400 font-medium">
             Sky Quests helps you practice different Sky Skills and aptitude
             areas, one challenge at a time, so you can prepare with confidence
             for pilot assessments.
@@ -53,7 +53,7 @@ export default function SkyQuestPage() {
                 <button
                   key={category.value}
                   onClick={() => setSelectedCategory(category.value)}
-                  className={`flex-1 min-w-fit whitespace-nowrap rounded-lg md:rounded-xl px-4 py-2 text-[14px] font-bold font-[family-name:var(--font-space-grotesk)] transition-all ${
+                  className={`flex-1 min-w-fit whitespace-nowrap rounded-lg md:rounded-xl px-4 py-2 text-[14px] font-bold transition-all ${
                     isSelected
                       ? "bg-violet-700 text-white shadow"
                       : "text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 hover:text-zinc-900 dark:hover:text-zinc-100"
@@ -111,10 +111,10 @@ export default function SkyQuestPage() {
 
                   {/* Content */}
                   <div className="flex flex-1 flex-col p-5">
-                    <h2 className="mb-2 text-sm font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
+                    <h2 className="mb-2 text-sm font-bold text-zinc-900 dark:text-zinc-100">
                       {topic.title}
                     </h2>
-                    <p className="mb-5 flex-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400 font-[family-name:var(--font-inter)]">
+                    <p className="mb-5 flex-1 text-xs leading-relaxed text-zinc-500 dark:text-zinc-400">
                       {topic.description}
                     </p>
 
@@ -146,7 +146,7 @@ export default function SkyQuestPage() {
           </div>
         ) : (
           <div className="py-20 text-center">
-            <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
+            <p className="text-sm font-medium text-zinc-400 dark:text-zinc-500">
               No quests found for this category.
             </p>
           </div>
@@ -164,10 +164,10 @@ export default function SkyQuestPage() {
                 className="object-contain"
               />
             </div>
-            <h3 className="mb-8 text-xl font-bold text-zinc-900 dark:text-zinc-100 font-[family-name:var(--font-space-grotesk)]">
+            <h3 className="mb-8 text-xl font-bold text-zinc-900 dark:text-zinc-100">
               Unlock Your Full Skills
             </h3>
-            <button className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-8 py-3 text-sm font-bold text-zinc-900 shadow-md transition-transform hover:scale-105 hover:bg-yellow-300 dark:hover:bg-yellow-500 font-[family-name:var(--font-space-grotesk)]">
+            <button className="inline-flex items-center gap-2 rounded-full bg-yellow-400 px-8 py-3 text-sm font-bold text-zinc-900 shadow-md transition-transform hover:scale-105 hover:bg-yellow-300 dark:hover:bg-yellow-500">
               Unlock All Quests
               <span className="relative w-5 h-5 translate-y-[-1px]">
                 <Image
@@ -211,7 +211,7 @@ export default function SkyQuestPage() {
             />
           </span>
         </div>
-        <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
+        <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
           © 2026 SkySkills. All rights reserved. <br />
           <span className="hover:text-zinc-600 dark:hover:text-zinc-300 cursor-pointer">
             Privacy Policy

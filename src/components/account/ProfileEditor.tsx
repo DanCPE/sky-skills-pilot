@@ -8,6 +8,7 @@ import {
   type ChangeEvent,
   type FormEvent,
 } from "react";
+import { notifyAccountChanged } from "@/components/Navbar";
 
 export default function ProfileEditor({
   initialName,
@@ -71,10 +72,15 @@ export default function ProfileEditor({
       body: formData,
     });
 
+    const data = (await response.json().catch(() => null)) as {
+      error?: string;
+      user?: {
+        name?: string;
+        imageUrl?: string | null;
+      };
+    } | null;
+
     if (!response.ok) {
-      const data = (await response.json().catch(() => null)) as {
-        error?: string;
-      } | null;
       setError(data?.error || "Failed to update profile.");
       setIsSaving(false);
       return;
@@ -83,6 +89,10 @@ export default function ProfileEditor({
     setSaved(true);
     setIsSaving(false);
     setSelectedFile(null);
+    notifyAccountChanged({
+      name: data?.user?.name || name,
+      imageUrl: data?.user?.imageUrl ?? (removeImage ? null : previewUrl),
+    });
     router.refresh();
   }
 
@@ -93,7 +103,7 @@ export default function ProfileEditor({
           <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
             Profile
           </p>
-          <h2 className="mt-1 text-xl font-bold text-zinc-950 dark:text-white font-[family-name:var(--font-space-grotesk)]">
+          <h2 className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">
             Account identity
           </h2>
         </div>

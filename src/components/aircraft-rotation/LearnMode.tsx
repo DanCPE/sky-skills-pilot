@@ -148,7 +148,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
       {status === "gameover" ? (
         <div className="flex flex-col items-center">
           <div className="text-center mt-20 p-10 bg-white dark:bg-zinc-900 rounded-2xl shadow-xl dark:shadow-zinc-950 border border-zinc-200 dark:border-zinc-800 w-full max-w-2xl">
-            <h2 className="text-4xl font-bold mb-4 font-[family-name:var(--font-space-grotesk)]">
+            <h2 className="text-4xl font-bold mb-4">
               Game Over!
             </h2>
             <p className="text-xl mb-8">
@@ -181,7 +181,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                 </span>
               </div>
             </div>
-            <div className="flex flex-col items-end font-[family-name:var(--font-inter)]">
+            <div className="flex flex-col items-end">
               <span className="text-[24px] font-bold text-zinc-900 dark:text-white/90">Question {round}/{maxRounds}</span>
               <span className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400">Correct : <span className="text-green-500">{score}</span></span>
               <span className="text-[13px] font-semibold text-zinc-500 dark:text-zinc-400">Incorrect : <span className="text-red-500">{(round - 1) - score}</span></span>
@@ -195,7 +195,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
             <div className="bg-zinc-950/80 backdrop-blur-xl rounded-3xl border border-white/5 shadow-2xl overflow-hidden flex-1 py-8 px-4 sm:px-10 flex flex-col items-center gap-4 relative h-full">
               {/* Question Header */}
               <div className="w-full text-center">
-                <h2 className="text-xl sm:text-2xl font-bold text-white font-[family-name:var(--font-space-grotesk)]">
+                <h2 className="text-xl sm:text-2xl font-bold text-white">
                   What is the final adjustment?
                 </h2>
               </div>
@@ -263,7 +263,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
             <div className="w-full rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 flex flex-col gap-6 hover:shadow-xl transition-shadow">
               {/* Answers */}
               <div className="flex flex-col">
-                <h3 className="text-[20px] font-bold font-[family-name:var(--font-inter)] text-zinc-500 dark:text-zinc-300 mb-4 text-center">
+                <h3 className="text-[20px] font-bold text-zinc-500 dark:text-zinc-300 mb-4 text-center">
                   Your Answer
                 </h3>
 
@@ -312,7 +312,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                   <button
                     onClick={handleSubmit}
                     disabled={selectedAngle === null || selectedDir === null}
-                    className="mt-4 w-full py-3.5 rounded-xl bg-white text-zinc-900 disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl font-[family-name:var(--font-space-grotesk)] text-[16px] font-bold leading-none"
+                    className="mt-4 w-full py-3.5 rounded-xl bg-white text-zinc-900 disabled:opacity-20 disabled:cursor-not-allowed transition-all hover:scale-[1.02] active:scale-95 shadow-xl text-[16px] font-bold leading-none"
                   >
                     Submit Route
                   </button>

@@ -419,7 +419,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
       )}
       {/* Footer Bar */}
       <div className="w-full bg-white dark:bg-zinc-900/80 py-4 flex justify-center items-center mt-auto shrink-0">
-        <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
+        <p className=" text-[14px] text-[#374151]">
           © 2026 SkySkills. All rights reserved.
         </p>
       </div>

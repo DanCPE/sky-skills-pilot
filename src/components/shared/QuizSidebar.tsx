@@ -48,7 +48,7 @@ export default function QuizSidebar({
             Time Remaining
           </span>
           {timeLimit ? (
-            <div className="text-xl font-black text-white font-[family-name:var(--font-inter)]">
+            <div className="text-xl font-black text-white">
               <Timer
                 timeLimit={timeLimit}
                 onTimeUp={onTimeUp ?? (() => {})}
@@ -57,7 +57,7 @@ export default function QuizSidebar({
               />
             </div>
           ) : (
-            <span className="text-xl font-black text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
+            <span className="text-xl font-black text-zinc-500">
               --:--
             </span>
           )}
@@ -90,7 +90,7 @@ export default function QuizSidebar({
       {/* Submit Button */}
       <button
         onClick={onSubmit}
-        className="mx-auto px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-inter)] text-[16px] font-bold leading-none"
+        className="mx-auto px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 text-[16px] font-bold leading-none"
       >
         Submit
       </button>

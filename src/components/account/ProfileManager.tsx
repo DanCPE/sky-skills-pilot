@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import type { AccountProfile } from "@/lib/account/db";
+import { notifyAccountChanged } from "@/components/Navbar";
 
 export default function ProfileManager({
   profiles,
@@ -33,6 +34,7 @@ export default function ProfileManager({
     }
     setCallSign("");
     setIsBusy(false);
+    notifyAccountChanged();
     router.refresh();
   }
 
@@ -50,7 +52,16 @@ export default function ProfileManager({
       setIsBusy(false);
       return;
     }
+    const selectedProfile = profiles.find((profile) => profile.id === profileId);
     setIsBusy(false);
+    notifyAccountChanged(
+      selectedProfile
+        ? {
+            name: selectedProfile.callSign,
+            imageUrl: selectedProfile.imageUrl,
+          }
+        : undefined,
+    );
     router.refresh();
   }
 
@@ -67,6 +78,7 @@ export default function ProfileManager({
       return;
     }
     setIsBusy(false);
+    notifyAccountChanged();
     router.refresh();
   }
 

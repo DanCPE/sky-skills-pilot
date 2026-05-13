@@ -23,13 +23,13 @@ export default function QuestionCard({
   return (
     <div className="flex flex-col gap-8 rounded-2xl border-2 border-[#E2EAF0] bg-white px-4 py-8 transition-shadow hover:shadow-xl dark:border-white/5 dark:bg-black/20">
       <div className="text-center">
-        <h3 className="text-[16px] font-bold tracking-tight text-zinc-900 drop-shadow-sm dark:text-white md:text-[20px] font-[family-name:var(--font-inter)]">
+        <h3 className="text-[16px] font-bold tracking-tight text-zinc-900 drop-shadow-sm dark:text-white md:text-[20px]">
           {question.prompt}
         </h3>
       </div>
 
       <div className="flex min-h-[100px] items-center justify-center overflow-hidden rounded-[1rem] border-2 border-[#4F12A6] bg-white px-6 py-4 dark:border-white/90 dark:bg-zinc-900/80">
-        <span className="inline-flex flex-wrap items-center gap-x-[0.25em] font-[family-name:var(--font-space-grotesk)] text-[32px] font-black leading-none tracking-tight text-zinc-900 dark:text-white md:text-[42px]">
+        <span className="inline-flex flex-wrap items-center gap-x-[0.25em] text-[32px] font-black leading-none tracking-tight text-zinc-900 dark:text-white md:text-[42px]">
           {question.expression.split(" ").map((token, index) =>
             token === "?" ? (
               <span

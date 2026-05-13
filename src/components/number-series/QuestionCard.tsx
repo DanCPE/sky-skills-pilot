@@ -32,7 +32,7 @@ export default function QuestionCard({
         <div className="flex flex-wrap items-center justify-center gap-6">
           {question.sequence.map((num, index) => (
             <React.Fragment key={index}>
-              <span className="text-[40px] md:text-[36px] font-bold text-zinc-900 dark:text-white font-[family-name:var(--font-inter)] tracking-tighter">
+              <span className="text-[40px] md:text-[36px] font-bold text-zinc-900 dark:text-white tracking-tighter">
                 {num}
               </span>
               <span className="text-[40px] md:text-[36px] font-semibold text-black dark:text-zinc-600">
@@ -40,13 +40,13 @@ export default function QuestionCard({
               </span>
             </React.Fragment>
           ))}
-          <span className="text-[40px] md:text-[36px] font-semibold text-zinc-900 dark:text-white font-[family-name:var(--font-inter)] tracking-tighter">
+          <span className="text-[40px] md:text-[36px] font-semibold text-zinc-900 dark:text-white tracking-tighter">
             ?
           </span>
           <span className="text-[40px] md:text-[36px] font-semibold text-black dark:text-zinc-600">
             ,
           </span>
-          <span className="text-[40px] md:text-[36px] font-bold text-zinc-900 dark:text-white font-[family-name:var(--font-inter)] tracking-tighter">
+          <span className="text-[40px] md:text-[36px] font-bold text-zinc-900 dark:text-white tracking-tighter">
             {question.nextNumberAfterAnswer}
           </span>
         </div>

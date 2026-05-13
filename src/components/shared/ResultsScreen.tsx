@@ -71,7 +71,7 @@ export default function ResultsScreen({
           ))}
         </div>
 
-        <h2 className="mb-2 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-brand-gold">
+        <h2 className="mb-2 text-3xl font-bold text-zinc-900 dark:text-brand-gold">
           {performance.text}
         </h2>
         <p className="mb-6 text-base text-zinc-500 dark:text-zinc-400">
@@ -81,7 +81,7 @@ export default function ResultsScreen({
         {/* Stats Row */}
         <div className="mb-4 flex justify-center gap-8">
           <div className="flex flex-col items-center">
-            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold">
               {attemptedCount}
             </span>
             <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -89,7 +89,7 @@ export default function ResultsScreen({
             </span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold">
               {correctCount}
             </span>
             <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -97,7 +97,7 @@ export default function ResultsScreen({
             </span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold font-[family-name:var(--font-space-grotesk)]">
+            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold">
               {accuracy}%
             </span>
             <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">

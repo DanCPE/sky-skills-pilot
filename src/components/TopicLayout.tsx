@@ -30,7 +30,7 @@ export default function TopicLayout({
         )}
 
         <div className="mb-10 text-center flex flex-col items-center">
-          <h1 className="text-[48px] font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-[#4F12A6] dark:text-brand-gold">
+          <h1 className="text-[48px] font-bold tracking-tight text-[#4F12A6] dark:text-brand-gold">
             {title}
           </h1>
           <p className="mt-2 text-base text-zinc-500 dark:text-zinc-400 max-w-2xl">

@@ -743,7 +743,7 @@ export default function QuizInterface({
       <div className="mx-auto mb-20 w-full max-w-[980px] flex-1 p-4 pt-12 sm:p-6 sm:pt-16">
         <div className="mb-4 flex flex-col gap-4 rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 dark:border-white/5 dark:bg-black/40 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-[family-name:var(--font-space-grotesk)] text-[30px] font-bold tracking-tight text-zinc-900 dark:text-white">
+            <h1 className=" text-[30px] font-bold tracking-tight text-zinc-900 dark:text-white">
               Dern-Jood
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -755,7 +755,7 @@ export default function QuizInterface({
               </span>
             </div>
           </div>
-          <div className="font-[family-name:var(--font-inter)] text-[24px] font-bold text-zinc-900 dark:text-white/90">
+          <div className=" text-[24px] font-bold text-zinc-900 dark:text-white/90">
             {currentQuestionIndex + 1} / {questions.length}
           </div>
         </div>
@@ -826,7 +826,7 @@ export default function QuizInterface({
             {showQuestionPopup ? (
               <div className="mb-8 flex min-h-[160px] items-center justify-center rounded-2xl border-2 border-[#4F12A6] bg-white px-4 py-6 dark:border-white/90 dark:bg-zinc-900/80">
                 <span
-                  className={`break-words text-center font-[family-name:var(--font-space-grotesk)] font-black text-zinc-900 dark:text-white ${questionTextSize}`}
+                  className={`break-words text-center font-black text-zinc-900 dark:text-white ${questionTextSize}`}
                 >
                   {currentQuestion.expression}
                 </span>
@@ -926,7 +926,7 @@ export default function QuizInterface({
                   >
                     BPM
                   </label>
-                  <span className="font-[family-name:var(--font-space-grotesk)] text-lg font-black text-zinc-900 dark:text-white">
+                  <span className=" text-lg font-black text-zinc-900 dark:text-white">
                     {learnBpm}
                   </span>
                 </div>
@@ -947,7 +947,7 @@ export default function QuizInterface({
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
                 Time Left
               </p>
-              <p className="mt-1 font-[family-name:var(--font-space-grotesk)] text-4xl font-black text-zinc-900 dark:text-white">
+              <p className="mt-1 text-4xl font-black text-zinc-900 dark:text-white">
                 {remainingSeconds}s
               </p>
             </div>
@@ -956,7 +956,7 @@ export default function QuizInterface({
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
                 Score
               </p>
-              <p className="mt-1 font-[family-name:var(--font-space-grotesk)] text-3xl font-black text-zinc-900 dark:text-white">
+              <p className="mt-1 text-3xl font-black text-zinc-900 dark:text-white">
                 {answers.filter((item) => item.isCorrect).length}/{answers.length}
               </p>
             </div>
@@ -994,7 +994,7 @@ export default function QuizInterface({
       </div>
 
       <div className="mt-auto flex w-full shrink-0 items-center justify-center bg-white py-4 dark:bg-black/40">
-        <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
+        <p className=" text-[14px] text-[#374151]">
           © 2026 SkySkills. All rights reserved.
         </p>
       </div>

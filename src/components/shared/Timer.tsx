@@ -86,7 +86,7 @@ export default function Timer({
   if (compact) {
     return (
       <span
-        className={`text-xl font-bold font-[family-name:var(--font-space-grotesk)] ${getTimeColor()}`}
+        className={`text-xl font-bold ${getTimeColor()}`}
       >
         {formattedTime}
       </span>
@@ -114,7 +114,7 @@ export default function Timer({
         </span>
       </div>
       <span
-        className={`text-2xl font-bold font-[family-name:var(--font-space-grotesk)] ${getTimeColor()}`}
+        className={`text-2xl font-bold ${getTimeColor()}`}
       >
         {formattedTime}
       </span>

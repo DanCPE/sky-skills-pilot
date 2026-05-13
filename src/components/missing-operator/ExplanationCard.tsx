@@ -57,7 +57,7 @@ export default function ExplanationCard({
             </svg>
           )}
         </div>
-        <h4 className="text-xl font-black text-zinc-900 dark:text-white font-[family-name:var(--font-space-grotesk)]">
+        <h4 className="text-xl font-black text-zinc-900 dark:text-white">
           {result.correct ? "Correct!" : "Incorrect"}
         </h4>
       </div>

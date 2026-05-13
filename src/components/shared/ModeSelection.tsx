@@ -147,7 +147,7 @@ export default function ModeSelection<T>({
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 text-center">
-        <h2 className="mb-3 text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-white">
+        <h2 className="mb-3 text-2xl font-bold text-zinc-900 dark:text-white">
           Choose Your Mode
         </h2>
         <p className="text-zinc-600 dark:text-zinc-400">{subtitle}</p>
@@ -170,7 +170,7 @@ export default function ModeSelection<T>({
               {learnIcon ?? <LearnIcon />}
             </div>
             <div>
-              <h3 className="font-[family-name:var(--font-inter)] text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
                 Learn Mode
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -198,7 +198,7 @@ export default function ModeSelection<T>({
               {realIcon ?? <RealIcon />}
             </div>
             <div>
-              <h3 className=" font-[family-name:var(--font-inter)] text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
                 Real Mode
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">

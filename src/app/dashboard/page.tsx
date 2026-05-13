@@ -205,7 +205,7 @@ function RankingCard({
           <span className="text-lg font-black">▥</span>
         </div>
       </div>
-      <p className="text-5xl font-black tracking-tight font-[family-name:var(--font-space-grotesk)]">
+      <p className="text-5xl font-black tracking-tight">
         {estimatedRank(average, attempts)}
       </p>
       <p className="mt-2 text-sm text-violet-100">
@@ -382,7 +382,7 @@ export default async function DashboardPage() {
     return (
       <main className="min-h-screen bg-zinc-100 px-6 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
         <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 dark:border-white/10 dark:bg-zinc-950">
-          <h1 className="text-3xl font-bold font-[family-name:var(--font-space-grotesk)]">
+          <h1 className="text-3xl font-bold">
             Account setup needed
           </h1>
           <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
@@ -402,7 +402,7 @@ export default async function DashboardPage() {
     return (
       <main className="min-h-screen bg-[#f4f6f8] px-5 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
         <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-          <h1 className="text-3xl font-black font-[family-name:var(--font-space-grotesk)]">
+          <h1 className="text-3xl font-black">
             Dashboard unavailable
           </h1>
           <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
@@ -428,7 +428,7 @@ export default async function DashboardPage() {
     return (
       <main className="min-h-screen bg-[#f4f6f8] px-5 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
         <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-          <h1 className="text-3xl font-black font-[family-name:var(--font-space-grotesk)]">
+          <h1 className="text-3xl font-black">
             Dashboard unavailable
           </h1>
           <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
@@ -459,7 +459,7 @@ export default async function DashboardPage() {
     <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">
       <div className="mx-auto max-w-7xl">
         <header className="mb-10 text-center">
-          <h1 className="text-4xl font-black tracking-tight sm:text-5xl font-[family-name:var(--font-space-grotesk)]">
+          <h1 className="text-4xl font-black tracking-tight sm:text-5xl">
             Skills Dashboard
           </h1>
           <p className="mx-auto mt-5 max-w-2xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">

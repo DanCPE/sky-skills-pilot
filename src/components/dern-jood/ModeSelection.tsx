@@ -63,7 +63,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
   return (
     <div className="mx-auto max-w-3xl">
       <div className="mb-8 text-center">
-        <h2 className="mb-3 font-[family-name:var(--font-space-grotesk)] text-2xl font-bold text-zinc-900 dark:text-white">
+        <h2 className="mb-3 text-2xl font-bold text-zinc-900 dark:text-white">
           Choose Your Mode
         </h2>
         <p className="text-zinc-600 dark:text-zinc-400">
@@ -86,7 +86,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
               ♫
             </div>
             <div>
-              <h3 className="font-[family-name:var(--font-inter)] text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
                 Learn Mode
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -114,7 +114,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
               ⏱
             </div>
             <div>
-              <h3 className="font-[family-name:var(--font-inter)] text-lg font-bold text-zinc-900 dark:text-zinc-100">
+              <h3 className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
                 Real Mode
               </h3>
               <p className="text-sm text-zinc-500 dark:text-zinc-400">
@@ -164,7 +164,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
             >
               Metronome BPM
             </label>
-            <span className="font-[family-name:var(--font-space-grotesk)] text-lg font-bold text-zinc-900 dark:text-white">
+            <span className=" text-lg font-bold text-zinc-900 dark:text-white">
               {bpm}
             </span>
           </div>

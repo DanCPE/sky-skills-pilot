@@ -13,7 +13,7 @@ export default async function AccountPage() {
     return (
       <main className="min-h-screen bg-zinc-100 px-6 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
         <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 dark:border-white/10 dark:bg-zinc-950">
-          <h1 className="text-3xl font-bold font-[family-name:var(--font-space-grotesk)]">
+          <h1 className="text-3xl font-bold">
             Account setup needed
           </h1>
           <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
@@ -51,7 +51,7 @@ export default async function AccountPage() {
               <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
                 Account settings
               </p>
-              <h1 className="text-3xl font-black font-[family-name:var(--font-space-grotesk)]">
+              <h1 className="text-3xl font-black">
                 {overview.user.name}
               </h1>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
