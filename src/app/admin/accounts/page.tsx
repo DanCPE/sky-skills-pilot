@@ -48,7 +48,7 @@ function ProfileAvatar({
   name: string;
 }) {
   return (
-    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xs font-black text-white">
+    <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xs font-bold text-white">
       {imageUrl ? (
         // eslint-disable-next-line @next/next/no-img-element
         <img src={imageUrl} alt="" className="h-full w-full object-cover" />
@@ -142,10 +142,10 @@ export default function AdminAccountsPage() {
         <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
           <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
                 Admin Observability
               </p>
-              <h1 className="mt-1 text-3xl font-black tracking-tight">
+              <h1 className="mt-1 text-3xl font-bold tracking-tight">
                 Platform Accounts
               </h1>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
@@ -183,19 +183,19 @@ export default function AdminAccountsPage() {
                 <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                   Registered Emails
                 </p>
-                <p className="mt-2 text-3xl font-black">{data.totals.fleets}</p>
+                <p className="mt-2 text-3xl font-bold">{data.totals.fleets}</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
                 <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                   Profiles
                 </p>
-                <p className="mt-2 text-3xl font-black">{data.totals.profiles}</p>
+                <p className="mt-2 text-3xl font-bold">{data.totals.profiles}</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
                 <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                   Ranked Profiles
                 </p>
-                <p className="mt-2 text-3xl font-black">
+                <p className="mt-2 text-3xl font-bold">
                   {data.totals.rankedProfiles}
                 </p>
               </div>
@@ -203,14 +203,14 @@ export default function AdminAccountsPage() {
                 <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
                   Active Sessions
                 </p>
-                <p className="mt-2 text-3xl font-black">
+                <p className="mt-2 text-3xl font-bold">
                   {data.totals.activeSessions}
                 </p>
               </div>
             </section>
 
             <section className="rounded-2xl border border-amber-200 bg-amber-50 p-5 text-sm leading-6 text-amber-950 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100">
-              <p className="font-black">Dashboard rank explanation</p>
+              <p className="font-bold">Dashboard rank explanation</p>
               <p className="mt-2">{data.notes.dashboardRank}</p>
               <p className="mt-3 text-amber-900/80 dark:text-amber-100/80">
                 {data.notes.actualPlatformRank}
@@ -219,7 +219,7 @@ export default function AdminAccountsPage() {
 
             <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
               <div className="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
-                <h2 className="text-lg font-black">Actual Recorded Leaderboard</h2>
+                <h2 className="text-lg font-bold">Actual Recorded Leaderboard</h2>
                 <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                   Top 25 profiles by recorded dashboard average.
                 </p>
@@ -243,7 +243,7 @@ export default function AdminAccountsPage() {
                         key={profile.profileId}
                         className="border-t border-zinc-100 dark:border-white/10"
                       >
-                        <td className="px-4 py-3 font-black">
+                        <td className="px-4 py-3 font-bold">
                           {profile.actualPlatformRank}
                         </td>
                         <td className="px-4 py-3 font-bold">
@@ -278,7 +278,7 @@ export default function AdminAccountsPage() {
             <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
               <div className="flex flex-col gap-3 border-b border-zinc-200 px-5 py-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
                 <div>
-                  <h2 className="text-lg font-black">Registered Fleets</h2>
+                  <h2 className="text-lg font-bold">Registered Fleets</h2>
                   <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                     Expand each registered email to inspect its profiles.
                   </p>
@@ -313,7 +313,7 @@ export default function AdminAccountsPage() {
                               <button
                                 type="button"
                                 onClick={() => toggleFleet(fleet.fleetId)}
-                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-lg font-black transition hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-white/10"
+                                className="flex h-8 w-8 items-center justify-center rounded-lg border border-zinc-200 text-lg font-bold transition hover:bg-zinc-50 dark:border-white/10 dark:hover:bg-white/10"
                                 aria-label={
                                   isExpanded
                                     ? `Hide profiles for ${fleet.email}`
@@ -331,7 +331,7 @@ export default function AdminAccountsPage() {
                                   name={fleet.name}
                                 />
                                 <div>
-                                  <p className="font-black">{fleet.email}</p>
+                                  <p className="font-bold">{fleet.email}</p>
                                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                                     {fleet.name}
                                   </p>
@@ -358,22 +358,22 @@ export default function AdminAccountsPage() {
                                   <table className="min-w-full text-left text-xs">
                                     <thead className="bg-zinc-50 text-zinc-500 dark:bg-white/5 dark:text-zinc-400">
                                       <tr>
-                                        <th className="px-3 py-2 font-black">
+                                        <th className="px-3 py-2 font-bold">
                                           Profile
                                         </th>
-                                        <th className="px-3 py-2 font-black">
+                                        <th className="px-3 py-2 font-bold">
                                           Dashboard Estimate
                                         </th>
-                                        <th className="px-3 py-2 font-black">
+                                        <th className="px-3 py-2 font-bold">
                                           Actual Rank
                                         </th>
-                                        <th className="px-3 py-2 font-black">
+                                        <th className="px-3 py-2 font-bold">
                                           Average
                                         </th>
-                                        <th className="px-3 py-2 font-black">
+                                        <th className="px-3 py-2 font-bold">
                                           Attempts
                                         </th>
-                                        <th className="px-3 py-2 font-black">
+                                        <th className="px-3 py-2 font-bold">
                                           Radar
                                         </th>
                                       </tr>
@@ -391,7 +391,7 @@ export default function AdminAccountsPage() {
                                                 name={profile.callSign}
                                               />
                                               <div>
-                                                <p className="font-black text-zinc-900 dark:text-zinc-100">
+                                                <p className="font-bold text-zinc-900 dark:text-zinc-100">
                                                   {profile.callSign}
                                                 </p>
                                                 <p className="text-[11px] text-zinc-500 dark:text-zinc-400">
@@ -402,7 +402,7 @@ export default function AdminAccountsPage() {
                                               </div>
                                             </div>
                                           </td>
-                                          <td className="px-3 py-2 font-black">
+                                          <td className="px-3 py-2 font-bold">
                                             {profile.dashboardEstimatedRank}
                                           </td>
                                           <td className="px-3 py-2">

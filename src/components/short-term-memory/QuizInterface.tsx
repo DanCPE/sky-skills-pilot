@@ -86,7 +86,7 @@ function MathQuestionCard({
 }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
-      <p className="mb-4 text-center text-2xl font-black text-zinc-900 dark:text-zinc-100">
+      <p className="mb-4 text-center text-2xl font-bold text-zinc-900 dark:text-zinc-100">
         {question.prompt}
       </p>
       <div className="grid grid-cols-2 gap-3">

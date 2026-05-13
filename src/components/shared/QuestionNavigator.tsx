@@ -26,7 +26,7 @@ export default function QuestionNavigator({
     const isCurrent = index === currentIndex;
 
     if (isCurrent) {
-      return "bg-[#F1F5F9] text-[#4F12A6] border-2 border-[#4F12A6] font-black shadow-lg scale-105 z-10";
+      return "bg-[#F1F5F9] text-[#4F12A6] border-2 border-[#4F12A6] font-bold shadow-lg scale-105 z-10";
     }
 
     if (status === "answered") {

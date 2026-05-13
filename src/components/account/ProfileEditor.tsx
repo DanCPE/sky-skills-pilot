@@ -100,7 +100,7 @@ export default function ProfileEditor({
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
+          <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
             Profile
           </p>
           <h2 className="mt-1 text-xl font-bold text-zinc-950 dark:text-white">

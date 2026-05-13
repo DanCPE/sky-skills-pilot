@@ -48,7 +48,7 @@ export default function QuizSidebar({
             Time Remaining
           </span>
           {timeLimit ? (
-            <div className="text-xl font-black text-white">
+            <div className="text-xl font-bold text-white">
               <Timer
                 timeLimit={timeLimit}
                 onTimeUp={onTimeUp ?? (() => {})}
@@ -57,7 +57,7 @@ export default function QuizSidebar({
               />
             </div>
           ) : (
-            <span className="text-xl font-black text-zinc-500">
+            <span className="text-xl font-bold text-zinc-500">
               --:--
             </span>
           )}

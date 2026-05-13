@@ -101,7 +101,7 @@ export default function ResultsScreen({
                     <button
                       key={opt}
                       disabled
-                      className={`h-12 rounded-xl border-2 text-sm font-black ${btnStyle}`}
+                      className={`h-12 rounded-xl border-2 text-sm font-bold ${btnStyle}`}
                     >
                       {opt}
                     </button>

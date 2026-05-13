@@ -218,7 +218,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                       className="w-24 h-24"
                     />
                   </CompassCircle>
-                  <div className="text-sm font-black uppercase tracking-widest text-zinc-300">
+                  <div className="text-sm font-bold uppercase tracking-widest text-zinc-300">
                     START
                   </div>
                 </div>
@@ -229,7 +229,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                     {roundData.seq.map((step, idx) => (
                       <div
                         key={idx}
-                        className="flex justify-center items-center bg-transparent px-8 py-2 rounded-xl text-lg font-black border border-white/40 text-white min-w-[140px]"
+                        className="flex justify-center items-center bg-transparent px-8 py-2 rounded-xl text-lg font-bold border border-white/40 text-white min-w-[140px]"
                       >
                         <span className="flex items-center gap-1">
                           {step.angle}
@@ -251,7 +251,7 @@ export default function LearnMode({ onRestart }: { onRestart: () => void }) {
                       className="w-24 h-24"
                     />
                   </CompassCircle>
-                  <div className="text-sm font-black uppercase tracking-widest text-zinc-300 flex items-center gap-2">
+                  <div className="text-sm font-bold uppercase tracking-widest text-zinc-300 flex items-center gap-2">
                     TARGET{" "}
                     <span className="w-3 h-3 rounded-full bg-brand-purple animate-pulse"></span>
                   </div>

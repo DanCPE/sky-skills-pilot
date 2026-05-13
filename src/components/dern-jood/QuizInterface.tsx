@@ -826,7 +826,7 @@ export default function QuizInterface({
             {showQuestionPopup ? (
               <div className="mb-8 flex min-h-[160px] items-center justify-center rounded-2xl border-2 border-[#4F12A6] bg-white px-4 py-6 dark:border-white/90 dark:bg-zinc-900/80">
                 <span
-                  className={`break-words text-center font-black text-zinc-900 dark:text-white ${questionTextSize}`}
+                  className={`break-words text-center font-bold text-zinc-900 dark:text-white ${questionTextSize}`}
                 >
                   {currentQuestion.expression}
                 </span>
@@ -926,7 +926,7 @@ export default function QuizInterface({
                   >
                     BPM
                   </label>
-                  <span className=" text-lg font-black text-zinc-900 dark:text-white">
+                  <span className=" text-lg font-bold text-zinc-900 dark:text-white">
                     {learnBpm}
                   </span>
                 </div>
@@ -947,7 +947,7 @@ export default function QuizInterface({
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
                 Time Left
               </p>
-              <p className="mt-1 text-4xl font-black text-zinc-900 dark:text-white">
+              <p className="mt-1 text-4xl font-bold text-zinc-900 dark:text-white">
                 {remainingSeconds}s
               </p>
             </div>
@@ -956,7 +956,7 @@ export default function QuizInterface({
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
                 Score
               </p>
-              <p className="mt-1 text-3xl font-black text-zinc-900 dark:text-white">
+              <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">
                 {answers.filter((item) => item.isCorrect).length}/{answers.length}
               </p>
             </div>

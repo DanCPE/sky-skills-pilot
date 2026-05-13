@@ -29,7 +29,7 @@ export default function QuestionCard({
       </div>
 
       <div className="flex min-h-[100px] items-center justify-center overflow-hidden rounded-[1rem] border-2 border-[#4F12A6] bg-white px-6 py-4 dark:border-white/90 dark:bg-zinc-900/80">
-        <span className="inline-flex flex-wrap items-center gap-x-[0.25em] text-[32px] font-black leading-none tracking-tight text-zinc-900 dark:text-white md:text-[42px]">
+        <span className="inline-flex flex-wrap items-center gap-x-[0.25em] text-[32px] font-bold leading-none tracking-tight text-zinc-900 dark:text-white md:text-[42px]">
           {question.expression.split(" ").map((token, index) =>
             token === "?" ? (
               <span
@@ -59,7 +59,7 @@ export default function QuestionCard({
                   onClick={() => onAnswer(option)}
                   onMouseEnter={() => setHoveredOption(option)}
                   onMouseLeave={() => setHoveredOption(null)}
-                  className={`min-h-10 w-full rounded-2xl border-2 px-2 py-2 text-[14px] font-black transition-all duration-300 md:min-h-12 md:text-[16px] ${
+                  className={`min-h-10 w-full rounded-2xl border-2 px-2 py-2 text-[14px] font-bold transition-all duration-300 md:min-h-12 md:text-[16px] ${
                     isSelected
                       ? "z-10 scale-105 border-[#4F12A6] bg-[#4F12A6] text-white"
                       : hoveredOption === option && !disabled
@@ -71,7 +71,7 @@ export default function QuestionCard({
                 </button>
 
                 <div
-                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-[12px] font-black transition-all duration-300 ${
+                  className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-all duration-300 ${
                     isSelected
                       ? "scale-110 border-[#4F12A6] bg-[#4F12A6] text-white"
                       : "border-[#E0E0E0] text-zinc-500 dark:border-white/20"

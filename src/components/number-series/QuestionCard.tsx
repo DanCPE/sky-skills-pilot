@@ -67,7 +67,7 @@ export default function QuestionCard({
                 <button
                   disabled={disabled}
                   onClick={() => onAnswer(option)}
-                  className={`w-full h-10 md:h-12 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center text-[14px] md:text-[16px] font-black ${
+                  className={`w-full h-10 md:h-12 rounded-2xl border-2 transition-all duration-300 flex items-center justify-center text-[14px] md:text-[16px] font-bold ${
                     isSelected
                       ? "bg-[#4F12A6] border-[#4F12A6] text-white scale-105 z-10"
                       : "bg-white dark:bg-zinc-950 border-[#E0E0E0] dark:border-white/5 text-zinc-900 dark:text-white hover:border-zinc-400 dark:hover:border-white/20 hover:bg-zinc-50 dark:hover:bg-zinc-900 active:scale-95"
@@ -78,7 +78,7 @@ export default function QuestionCard({
 
                 {/* Circle Indicator Label */}
                 <div
-                  className={`flex items-center justify-center w-8 h-8 rounded-full border-2 font-black text-[12px] transition-all duration-300 ${
+                  className={`flex items-center justify-center w-8 h-8 rounded-full border-2 font-bold text-[12px] transition-all duration-300 ${
                     isSelected
                       ? "bg-[#4F12A6] border-[#4F12A6] text-white scale-110"
                       : "border-[#E0E0E0] dark:border-white/20 text-zinc-500"

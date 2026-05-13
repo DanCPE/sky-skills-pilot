@@ -53,14 +53,14 @@ export default function ExplanationCard({
             </svg>
           )}
         </div>
-        <h4 className="text-xl font-black text-zinc-900 dark:text-white">
+        <h4 className="text-xl font-bold text-zinc-900 dark:text-white">
           {result.correct ? "Correct!" : "Incorrect"}
         </h4>
       </div>
 
       {/* Pattern Type Badge */}
       <div className="mb-4">
-        <span className="inline-block rounded-md bg-[#4F12A6]/20 border border-[#4F12A6]/30 px-3 py-1 text-[10px] font-black uppercase tracking-widest text-[#4F12A6] dark:text-violet-400">
+        <span className="inline-block rounded-md bg-[#4F12A6]/20 border border-[#4F12A6]/30 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-[#4F12A6] dark:text-violet-400">
           {question.patternType
             .split("_")
             .map((word) => word.charAt(0).toUpperCase() + word.slice(1))

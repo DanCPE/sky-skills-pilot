@@ -48,7 +48,7 @@ export default function QuestionCard({
             >
               <span className="text-[16px] font-bold">{option}</span>
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-black ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-bold ${
                   isSelected
                     ? "border-white/50 bg-white/10 text-white"
                     : "border-[#E0E0E0] text-zinc-500 dark:border-white/20 dark:text-zinc-300"

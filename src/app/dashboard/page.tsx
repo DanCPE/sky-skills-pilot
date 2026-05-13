@@ -70,7 +70,7 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
       <div className="mb-3 flex items-center justify-between border-b border-zinc-200 pb-4 dark:border-white/10">
-        <p className="text-xs font-black uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
           Skill Distribution
         </p>
         <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700 dark:bg-violet-500/15 dark:text-violet-200">
@@ -161,7 +161,7 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
                     : "middle"
               }
               dominantBaseline="middle"
-              className="fill-zinc-600 text-[8px] font-black dark:fill-zinc-300"
+              className="fill-zinc-600 text-[8px] font-bold dark:fill-zinc-300"
             >
               {point.shortLabel}
             </text>
@@ -178,7 +178,7 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
             <span className="font-bold text-zinc-700 dark:text-zinc-200">
               {domainShortLabels[point.slug] ?? point.label}
             </span>
-            <span className="font-black text-violet-700 dark:text-violet-300">
+            <span className="font-bold text-violet-700 dark:text-violet-300">
               {point.value}%
             </span>
           </div>
@@ -198,14 +198,14 @@ function RankingCard({
   return (
     <div className="overflow-hidden rounded-2xl bg-gradient-to-br from-violet-950 via-violet-800 to-purple-700 p-6 text-white shadow-lg shadow-violet-900/20">
       <div className="mb-4 flex items-center justify-between">
-        <p className="text-xs font-black uppercase tracking-[0.24em] text-violet-200">
+        <p className="text-xs font-bold uppercase tracking-[0.24em] text-violet-200">
           Ranking
         </p>
         <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-white/10">
-          <span className="text-lg font-black">▥</span>
+          <span className="text-lg font-bold">▥</span>
         </div>
       </div>
-      <p className="text-5xl font-black tracking-tight">
+      <p className="text-5xl font-bold tracking-tight">
         {estimatedRank(average, attempts)}
       </p>
       <p className="mt-2 text-sm text-violet-100">
@@ -237,19 +237,19 @@ function RankingCard({
 function PriorityCard({ weakest }: { weakest: RadarPoint }) {
   return (
     <div className="rounded-2xl border border-rose-200 bg-white p-5 shadow-sm dark:border-rose-500/25 dark:bg-zinc-950">
-      <p className="text-lg font-black text-zinc-950 dark:text-white">
+      <p className="text-lg font-bold text-zinc-950 dark:text-white">
         Top Improvement Priority
       </p>
       <div className="mt-5 rounded-xl bg-rose-50 p-4 dark:bg-rose-500/10">
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-rose-500">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-rose-500">
           Lowest Skill Area
         </p>
         <div className="mt-1 flex items-end justify-between gap-4">
-          <p className="text-2xl font-black text-zinc-950 dark:text-white">
+          <p className="text-2xl font-bold text-zinc-950 dark:text-white">
             {domainShortLabels[weakest.slug] ?? weakest.label}
           </p>
           <div className="text-right">
-            <p className="text-3xl font-black text-rose-500">
+            <p className="text-3xl font-bold text-rose-500">
               {weakest.value || 0}%
             </p>
             <p className="text-[10px] font-bold uppercase text-zinc-400">
@@ -259,10 +259,10 @@ function PriorityCard({ weakest }: { weakest: RadarPoint }) {
         </div>
       </div>
       <div className="mt-5 rounded-xl border border-zinc-200 p-4 dark:border-white/10">
-        <p className="text-[10px] font-black uppercase tracking-[0.18em] text-zinc-400">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-zinc-400">
           Highest Impact Area
         </p>
-        <p className="mt-2 text-sm font-black text-zinc-950 dark:text-white">
+        <p className="mt-2 text-sm font-bold text-zinc-950 dark:text-white">
           Practice more {domainShortLabels[weakest.slug] ?? weakest.label}
         </p>
         <p className="mt-2 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
@@ -271,7 +271,7 @@ function PriorityCard({ weakest }: { weakest: RadarPoint }) {
         </p>
         <Link
           href="/sky-quest"
-          className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-zinc-950 px-4 py-3 text-sm font-black text-white transition hover:bg-violet-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-violet-100"
+          className="mt-4 inline-flex w-full items-center justify-center rounded-xl bg-zinc-950 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-800 dark:bg-white dark:text-zinc-950 dark:hover:bg-violet-100"
         >
           Practice Now
         </Link>
@@ -289,13 +289,13 @@ function BenchmarkCard({ point }: { point: RadarPoint }) {
     <div className="rounded-xl border border-zinc-200 bg-white p-4 shadow-sm dark:border-white/10 dark:bg-zinc-950">
       <div className="mb-4 flex items-center gap-3">
         <div
-          className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-black ${
+          className={`flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-bold ${
             domainAccent[point.slug] ?? domainAccent.multitasking
           }`}
         >
           {value}
         </div>
-        <p className="text-sm font-black text-zinc-600 dark:text-zinc-300">
+        <p className="text-sm font-bold text-zinc-600 dark:text-zinc-300">
           {domainShortLabels[point.slug] ?? point.label}
         </p>
       </div>
@@ -314,7 +314,7 @@ function BenchmarkCard({ point }: { point: RadarPoint }) {
         <p className="text-xs font-bold text-emerald-500">
           {point.attempts > 0 ? `+${Math.max(1, point.attempts)}%` : "0%"}
         </p>
-        <p className="text-2xl font-black text-zinc-950 dark:text-white">
+        <p className="text-2xl font-bold text-zinc-950 dark:text-white">
           {rank}
         </p>
       </div>
@@ -329,14 +329,14 @@ function HistoryPanel({ scoreHistory }: { scoreHistory: ScoreHistoryEntry[] }) {
     <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h2 className="text-xl font-black text-zinc-950 dark:text-white">
+          <h2 className="text-xl font-bold text-zinc-950 dark:text-white">
             Historical Ranking Progression
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
             Longitudinal analysis from real-mode score history.
           </p>
         </div>
-        <div className="flex gap-2 text-xs font-black">
+        <div className="flex gap-2 text-xs font-bold">
           <span className="rounded-lg bg-violet-100 px-3 py-2 text-violet-700 dark:bg-violet-500/15 dark:text-violet-200">
             All Time
           </span>
@@ -347,7 +347,7 @@ function HistoryPanel({ scoreHistory }: { scoreHistory: ScoreHistoryEntry[] }) {
 
       <div className="relative mt-10 h-56 overflow-hidden">
         <div className="absolute left-0 right-0 top-1/2 border-t border-dashed border-zinc-200 dark:border-white/10" />
-        <div className="absolute right-0 top-[44%] text-[10px] font-black text-zinc-400">
+        <div className="absolute right-0 top-[44%] text-[10px] font-bold text-zinc-400">
           Platform Avg.
         </div>
         <div className="flex h-full items-end gap-4 pt-8">
@@ -355,7 +355,7 @@ function HistoryPanel({ scoreHistory }: { scoreHistory: ScoreHistoryEntry[] }) {
             ? ["JAN", "FEB", "MAR", "APR", "MAY", "CURRENT"].map((label) => (
                 <div key={label} className="flex flex-1 flex-col items-center">
                   <div className="h-2 w-2 rounded-full bg-zinc-200 dark:bg-zinc-800" />
-                  <span className="mt-20 text-[10px] font-black text-zinc-300 dark:text-zinc-700">
+                  <span className="mt-20 text-[10px] font-bold text-zinc-300 dark:text-zinc-700">
                     {label}
                   </span>
                 </div>
@@ -366,7 +366,7 @@ function HistoryPanel({ scoreHistory }: { scoreHistory: ScoreHistoryEntry[] }) {
                     className="w-full rounded-t-xl bg-violet-700 dark:bg-violet-400"
                     style={{ height: `${Math.max(10, entry.percentage)}%` }}
                   />
-                  <span className="mt-3 text-[10px] font-black text-zinc-400">
+                  <span className="mt-3 text-[10px] font-bold text-zinc-400">
                     {index === recent.length - 1 ? "CURRENT" : `#${index + 1}`}
                   </span>
                 </div>
@@ -402,7 +402,7 @@ export default async function DashboardPage() {
     return (
       <main className="min-h-screen bg-[#f4f6f8] px-5 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
         <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-          <h1 className="text-3xl font-black">
+          <h1 className="text-3xl font-bold">
             Dashboard unavailable
           </h1>
           <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
@@ -410,7 +410,7 @@ export default async function DashboardPage() {
           </p>
           <Link
             href="/sign-in?callbackUrl=/dashboard"
-            className="mt-6 inline-flex rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-600"
+            className="mt-6 inline-flex rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-600"
           >
             Sign in
           </Link>
@@ -428,7 +428,7 @@ export default async function DashboardPage() {
     return (
       <main className="min-h-screen bg-[#f4f6f8] px-5 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
         <div className="mx-auto max-w-3xl rounded-2xl border border-zinc-200 bg-white p-8 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-          <h1 className="text-3xl font-black">
+          <h1 className="text-3xl font-bold">
             Dashboard unavailable
           </h1>
           <p className="mt-4 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
@@ -437,7 +437,7 @@ export default async function DashboardPage() {
           </p>
           <Link
             href="/account"
-            className="mt-6 inline-flex rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-600"
+            className="mt-6 inline-flex rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-600"
           >
             Account settings
           </Link>
@@ -471,7 +471,7 @@ export default async function DashboardPage() {
 
         <section className="mb-8 flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xl font-black text-white">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xl font-bold text-white">
               {overview.user.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -484,10 +484,10 @@ export default async function DashboardPage() {
               )}
             </div>
             <div className="text-left">
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
                 Google account
               </p>
-              <h2 className="text-2xl font-black">{overview.user.name}</h2>
+              <h2 className="text-2xl font-bold">{overview.user.name}</h2>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 {overview.user.email}
               </p>
@@ -495,7 +495,7 @@ export default async function DashboardPage() {
           </div>
           <Link
             href="/account"
-            className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-black text-zinc-700 transition hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-200 dark:hover:bg-white/10"
+            className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-bold text-zinc-700 transition hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-200 dark:hover:bg-white/10"
           >
             Account settings
           </Link>
@@ -510,7 +510,7 @@ export default async function DashboardPage() {
         </section>
 
         <section className="mt-8">
-          <h2 className="mb-5 text-2xl font-black">Category Benchmarking</h2>
+          <h2 className="mb-5 text-2xl font-bold">Category Benchmarking</h2>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-6">
             {overview.radar.map((point) => (
               <BenchmarkCard key={point.slug} point={point} />
@@ -525,14 +525,14 @@ export default async function DashboardPage() {
         <section className="mt-8">
           <div className="mb-4 flex items-end justify-between gap-4">
             <div>
-              <h2 className="text-2xl font-black">Recent Score Records</h2>
+              <h2 className="text-2xl font-bold">Recent Score Records</h2>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 Real-mode quiz completions are ranked and saved here.
               </p>
             </div>
             <Link
               href="/sky-quest"
-              className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-600"
+              className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-600"
             >
               Practice
             </Link>
@@ -556,7 +556,7 @@ export default async function DashboardPage() {
                     className="grid gap-3 px-5 py-4 text-sm sm:grid-cols-[1fr_auto_auto]"
                   >
                     <div>
-                      <p className="font-black text-zinc-950 dark:text-zinc-100">
+                      <p className="font-bold text-zinc-950 dark:text-zinc-100">
                         {entry.topicTitle}
                       </p>
                       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
@@ -564,7 +564,7 @@ export default async function DashboardPage() {
                         {entry.mode ?? "practice"}
                       </p>
                     </div>
-                    <div className="font-black text-violet-700 dark:text-violet-300">
+                    <div className="font-bold text-violet-700 dark:text-violet-300">
                       {entry.percentage.toFixed(0)}%
                     </div>
                     <div className="text-zinc-500 dark:text-zinc-400">

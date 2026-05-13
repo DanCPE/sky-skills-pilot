@@ -35,7 +35,7 @@ export default async function AccountPage() {
       <div className="mx-auto max-w-5xl">
         <header className="mb-8 flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xl font-black text-white">
+            <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xl font-bold text-white">
               {overview.user.imageUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -48,10 +48,10 @@ export default async function AccountPage() {
               )}
             </div>
             <div>
-              <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
+              <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
                 Account settings
               </p>
-              <h1 className="text-3xl font-black">
+              <h1 className="text-3xl font-bold">
                 {overview.user.name}
               </h1>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
@@ -62,14 +62,14 @@ export default async function AccountPage() {
           <div className="flex flex-wrap gap-3">
             <Link
               href="/dashboard"
-              className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-black text-white transition hover:bg-violet-600"
+              className="rounded-xl bg-violet-700 px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-600"
             >
               View dashboard
             </Link>
             <form action="/api/auth/logout" method="post">
               <button
                 type="submit"
-                className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-black text-zinc-700 transition hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-200 dark:hover:bg-white/10"
+                className="rounded-xl border border-zinc-300 px-4 py-2 text-sm font-bold text-zinc-700 transition hover:bg-zinc-100 dark:border-white/15 dark:text-zinc-200 dark:hover:bg-white/10"
               >
                 Sign out
               </button>
@@ -91,7 +91,7 @@ export default async function AccountPage() {
 
           <aside className="space-y-6">
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-              <h2 className="text-xl font-black">Subscription</h2>
+              <h2 className="text-xl font-bold">Subscription</h2>
               <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
                 Payment records are prepared for future checkout integration.
               </p>
@@ -112,7 +112,7 @@ export default async function AccountPage() {
               <button
                 type="button"
                 disabled
-                className="mt-5 w-full rounded-xl bg-zinc-200 px-4 py-2.5 text-sm font-black text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                className="mt-5 w-full rounded-xl bg-zinc-200 px-4 py-2.5 text-sm font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
               >
                 Checkout coming soon
               </button>

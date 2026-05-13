@@ -38,7 +38,7 @@ export default async function SignInPage({
                 className="h-12 w-12 object-contain"
                 priority
               />
-              <span className="text-2xl font-black tracking-tight text-white">
+              <span className="text-2xl font-bold tracking-tight text-white">
                 SkySkills
               </span>
             </Link>
@@ -64,7 +64,7 @@ export default async function SignInPage({
                   "Compare your skills with all users.",
                 ].map((item) => (
                   <li key={item} className="flex items-center gap-4">
-                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm font-black text-zinc-950">
+                    <span className="flex h-4 w-4 shrink-0 items-center justify-center rounded-full bg-amber-400 text-sm font-bold text-zinc-950">
                       ✓
                     </span>
                     {item}

@@ -185,7 +185,7 @@ function AnswerCard({
         : SHAPE_CARD_BORDER[shape.shape];
 
   const inputClass = [
-    "h-10 w-10 rounded-lg border-2 text-center text-base font-black uppercase outline-none transition-all",
+    "h-10 w-10 rounded-lg border-2 text-center text-base font-bold uppercase outline-none transition-all",
     isLocked
       ? "cursor-not-allowed border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : isRevealed
@@ -448,7 +448,7 @@ function ResultModal({
         </div>
 
         <div className="mb-6 text-center">
-          <div className=" text-5xl font-black text-zinc-900 dark:text-zinc-100">
+          <div className=" text-5xl font-bold text-zinc-900 dark:text-zinc-100">
             {score}
             <span className="text-2xl font-medium text-zinc-400">
               {" "}

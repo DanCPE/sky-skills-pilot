@@ -84,10 +84,10 @@ export default function ProfileManager({
 
   return (
     <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-      <p className="text-xs font-black uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
+      <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
         Fleet accounts
       </p>
-      <h2 className="mt-1 text-xl font-black">Profiles in this fleet</h2>
+      <h2 className="mt-1 text-xl font-bold">Profiles in this fleet</h2>
       <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
         One registered email can hold up to 3 individual accounts.
       </p>
@@ -99,7 +99,7 @@ export default function ProfileManager({
             className="flex items-center justify-between gap-3 rounded-xl border border-zinc-200 p-3 dark:border-white/10"
           >
             <div className="flex items-center gap-3">
-              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-sm font-black text-white">
+              <div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-sm font-bold text-white">
                 {profile.imageUrl ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img src={profile.imageUrl} alt="" className="h-full w-full object-cover" />
@@ -108,7 +108,7 @@ export default function ProfileManager({
                 )}
               </div>
               <div>
-                <p className="font-black">{profile.callSign}</p>
+                <p className="font-bold">{profile.callSign}</p>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
                   {profile.id === activeProfileId ? "Active account" : "Available account"}
                 </p>
@@ -120,7 +120,7 @@ export default function ProfileManager({
                   type="button"
                   disabled={isBusy}
                   onClick={() => switchProfile(profile.id)}
-                  className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-black text-white disabled:opacity-50"
+                  className="rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white disabled:opacity-50"
                 >
                   Use
                 </button>
@@ -130,7 +130,7 @@ export default function ProfileManager({
                   type="button"
                   disabled={isBusy}
                   onClick={() => deleteProfile(profile.id)}
-                  className="rounded-lg border border-red-200 px-3 py-2 text-xs font-black text-red-600 disabled:opacity-50 dark:border-red-500/30 dark:text-red-300"
+                  className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-600 disabled:opacity-50 dark:border-red-500/30 dark:text-red-300"
                 >
                   Delete
                 </button>
@@ -152,7 +152,7 @@ export default function ProfileManager({
           type="button"
           disabled={!canCreate || isBusy || callSign.trim().length < 2}
           onClick={createProfile}
-          className="rounded-xl bg-zinc-950 px-4 py-2 text-sm font-black text-white disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-white dark:text-zinc-950 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
+          className="rounded-xl bg-zinc-950 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-white dark:text-zinc-950 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
         >
           Create
         </button>

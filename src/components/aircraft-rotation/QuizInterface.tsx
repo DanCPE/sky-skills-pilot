@@ -150,7 +150,7 @@ const QuestionRow = ({
             Question {index + 1}
           </h3>
           {selectedAnswer && !isSubmitted && (
-            <span className="uppercase tracking-widest rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-black text-brand-purple">
+            <span className="uppercase tracking-widest rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-bold text-brand-purple">
               Answered
             </span>
           )}
@@ -172,15 +172,15 @@ const QuestionRow = ({
                     <span
                       className={
                         step.dir === "L"
-                          ? "text-blue-500 dark:text-blue-400 font-black"
-                          : "text-amber-500 dark:text-amber-400 font-black"
+                          ? "text-blue-500 dark:text-blue-400 font-bold"
+                          : "text-amber-500 dark:text-amber-400 font-bold"
                       }
                     >
                       {step.dir}
                     </span>
                   </div>
                   {!isLast && (
-                    <span className="text-zinc-400 dark:text-zinc-600 font-black shrink-0">
+                    <span className="text-zinc-400 dark:text-zinc-600 font-bold shrink-0">
                       →
                     </span>
                   )}
@@ -227,7 +227,7 @@ const QuestionRow = ({
                 key={i}
                 disabled={isSubmitted}
                 onClick={() => onSelect(optVal)}
-                className={`h-12 px-2 sm:px-3 rounded-xl font-black text-xs sm:text-sm transition-all tracking-tight border-2 ${btnStyle}`}
+                className={`h-12 px-2 sm:px-3 rounded-xl font-bold text-xs sm:text-sm transition-all tracking-tight border-2 ${btnStyle}`}
               >
                 {opt.dir === null ? "N/A" : `${opt.angle} ${opt.dir}`}
               </button>
