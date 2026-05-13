@@ -16,6 +16,9 @@ const navItems = [
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [accountStatus, setAccountStatus] = useState<
+    "loading" | "signed-in" | "signed-out"
+  >("loading");
   const [account, setAccount] = useState<{
     name: string;
     imageUrl: string | null;
@@ -33,10 +36,20 @@ export default function Navbar() {
             name: data.user.name,
             imageUrl: data.user.imageUrl ?? null,
           });
+          setAccountStatus("signed-in");
+          return;
+        }
+
+        if (!cancelled) {
+          setAccount(null);
+          setAccountStatus("signed-out");
         }
       })
       .catch(() => {
-        if (!cancelled) setAccount(null);
+        if (!cancelled) {
+          setAccount(null);
+          setAccountStatus("signed-out");
+        }
       });
 
     return () => {
@@ -92,7 +105,13 @@ export default function Navbar() {
 
             {/* Desktop Actions */}
             <div className="hidden sm:flex flex-1 justify-end items-center gap-6">
-              {account ? (
+              {accountStatus === "loading" ? (
+                <div
+                  className="h-10 w-10 animate-pulse rounded-full border border-zinc-200 bg-zinc-100 dark:border-white/10 dark:bg-zinc-800"
+                  aria-label="Loading account"
+                  title="Loading account"
+                />
+              ) : account ? (
                 <Link
                   href="/account"
                   className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-violet-700 text-sm font-bold text-white transition-colors hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 dark:border-white/10 dark:focus:ring-offset-black"
@@ -215,7 +234,12 @@ export default function Navbar() {
                 className="flex items-center gap-3 px-4 py-2 rounded-lg text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
                 onClick={() => setMobileMenuOpen(false)}
               >
-                {account ? (
+                {accountStatus === "loading" ? (
+                  <>
+                    <span className="h-8 w-8 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                    Loading account
+                  </>
+                ) : account ? (
                   <>
                     <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xs font-bold text-white">
                       {account.imageUrl ? (
