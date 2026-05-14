@@ -378,7 +378,12 @@ function HistoryPanel({ scoreHistory }: { scoreHistory: ScoreHistoryEntry[] }) {
   );
 }
 
+function monotonicMs() {
+  return Number(process.hrtime.bigint() / BigInt(1000000));
+}
+
 export default async function DashboardPage() {
+  const pageStartedAt = monotonicMs();
   if (!hasAccountDatabase()) {
     return (
       <main className="min-h-screen bg-zinc-100 px-6 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
@@ -397,7 +402,12 @@ export default async function DashboardPage() {
 
   let user;
   try {
+    const sessionStartedAt = monotonicMs();
     user = await getCurrentAccountUser();
+    console.log("[dashboard] session resolved", {
+      hasUser: Boolean(user),
+      durationMs: monotonicMs() - sessionStartedAt,
+    });
   } catch (error) {
     console.error("[dashboard] failed to read current account user", error);
     return (
@@ -423,7 +433,13 @@ export default async function DashboardPage() {
 
   let overview;
   try {
+    const overviewStartedAt = monotonicMs();
     overview = await getAccountOverview(user.profileId);
+    console.log("[dashboard] overview resolved", {
+      profileId: user.profileId,
+      durationMs: monotonicMs() - overviewStartedAt,
+      totalMs: monotonicMs() - pageStartedAt,
+    });
   } catch (error) {
     console.error("[dashboard] failed to load account overview", error);
     return (

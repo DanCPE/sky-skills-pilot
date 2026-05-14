@@ -31,7 +31,7 @@ export default function SkyQuestPage() {
       <main className="mx-auto max-w-7xl px-6 pt-12">
         {/* Page Header */}
         <div className="mb-10 text-center flex flex-col items-center">
-          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-yellow-100/80 dark:bg-yellow-900/30 px-3 py-1 text-[10px] font-bold uppercase tracking-widest text-yellow-600 dark:text-yellow-400">
+          <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-yellow-100/80 dark:bg-yellow-900/30 px-3 py-1 text-[10px] font-bold uppercase  text-yellow-600 dark:text-yellow-400">
             <span>⚡</span> BASIC ACCESS
           </div>
           <h1 className="text-4xl md:text-5xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100">

@@ -413,11 +413,11 @@ export default function QuizInterface({
                     }`}
                   >
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-300 tracking-widest">
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-300 ">
                         Question {index + 1}
                       </h3>
                       {selectedAnswers[index] && (
-                        <span className="uppercase tracking-widest rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-bold text-brand-purple">
+                        <span className="uppercase  rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-bold text-brand-purple">
                           Answered
                         </span>
                       )}

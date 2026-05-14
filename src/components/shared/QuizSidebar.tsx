@@ -44,7 +44,7 @@ export default function QuizSidebar({
       {/* Timer & Progress Panel */}
       <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex flex-col gap-6">
         <div className="flex items-center justify-between">
-          <span className="font-bold text-zinc-500 dark:text-zinc-300 tracking-widest text-[16px]">
+          <span className="font-bold text-zinc-500 dark:text-zinc-300  text-[16px]">
             Time Remaining
           </span>
           {timeLimit ? (
@@ -75,7 +75,7 @@ export default function QuizSidebar({
 
       {/* Question Navigator Panel */}
       <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-4 hover:shadow-xl transition-shadow">
-        <h3 className="mb-3 font-bold text-zinc-500 dark:text-zinc-300 tracking-widest text-[16px]">
+        <h3 className="mb-3 font-bold text-zinc-500 dark:text-zinc-300  text-[16px]">
           Question Navigator
         </h3>
         <QuestionNavigator

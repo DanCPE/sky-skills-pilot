@@ -146,25 +146,25 @@ export default function AdminAnalyticsPage() {
           <>
             <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-black/40">
-                <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs uppercase  text-zinc-500 dark:text-zinc-400">
                   Unique Clients (IP)
                 </p>
                 <p className="mt-2 text-3xl font-bold">{data.uniqueUsersByIp}</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-black/40">
-                <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs uppercase  text-zinc-500 dark:text-zinc-400">
                   Unique Sessions
                 </p>
                 <p className="mt-2 text-3xl font-bold">{data.uniqueSessions}</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-black/40">
-                <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs uppercase  text-zinc-500 dark:text-zinc-400">
                   Total Events
                 </p>
                 <p className="mt-2 text-3xl font-bold">{data.totalEvents}</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-black/40">
-                <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs uppercase  text-zinc-500 dark:text-zinc-400">
                   Topics Tracked
                 </p>
                 <p className="mt-2 text-3xl font-bold">{data.byTopic.length}</p>

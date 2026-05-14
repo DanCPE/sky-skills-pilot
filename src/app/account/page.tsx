@@ -4,11 +4,19 @@ import DeleteAccountSection from "@/components/account/DeleteAccountSection";
 import ProfileEditor from "@/components/account/ProfileEditor";
 import ProfileManager from "@/components/account/ProfileManager";
 import { getCurrentAccountUser } from "@/lib/account/auth";
-import { getAccountOverview, hasAccountDatabase } from "@/lib/account/db";
+import {
+  getAccountSettingsOverview,
+  hasAccountDatabase,
+} from "@/lib/account/db";
 
 export const dynamic = "force-dynamic";
 
+function monotonicMs() {
+  return Number(process.hrtime.bigint() / BigInt(1000000));
+}
+
 export default async function AccountPage() {
+  const pageStartedAt = monotonicMs();
   if (!hasAccountDatabase()) {
     return (
       <main className="min-h-screen bg-zinc-100 px-6 py-16 text-zinc-950 dark:bg-black dark:text-zinc-100">
@@ -25,10 +33,21 @@ export default async function AccountPage() {
     );
   }
 
+  const sessionStartedAt = monotonicMs();
   const user = await getCurrentAccountUser();
+  console.log("[account-page] session resolved", {
+    hasUser: Boolean(user),
+    durationMs: monotonicMs() - sessionStartedAt,
+  });
   if (!user) redirect("/sign-in");
 
-  const overview = await getAccountOverview(user.profileId);
+  const settingsStartedAt = monotonicMs();
+  const overview = await getAccountSettingsOverview(user);
+  console.log("[account-page] settings resolved", {
+    profileId: user.profileId,
+    durationMs: monotonicMs() - settingsStartedAt,
+    totalMs: monotonicMs() - pageStartedAt,
+  });
 
   return (
     <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">

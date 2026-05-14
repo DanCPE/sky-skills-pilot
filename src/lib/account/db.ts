@@ -80,6 +80,16 @@ export interface AccountOverview {
   } | null;
 }
 
+export interface AccountSettingsOverview {
+  user: AccountUser;
+  profiles: AccountProfile[];
+  subscription: {
+    status: string;
+    provider: string | null;
+    currentPeriodEnd: string | null;
+  } | null;
+}
+
 export interface AdminAccountProfileSummary {
   id: string;
   callSign: string;
@@ -460,6 +470,19 @@ function mapScore(row: Record<string, unknown>): ScoreHistoryEntry {
       row.time_taken_seconds === null ? null : Number(row.time_taken_seconds),
     completedAt: new Date(String(row.completed_at)).toISOString(),
   };
+}
+
+function asRows(value: unknown): Record<string, unknown>[] {
+  if (Array.isArray(value)) return value as Record<string, unknown>[];
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) ? (parsed as Record<string, unknown>[]) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
 }
 
 function mapAdminProfile(row: Record<string, unknown>): AdminAccountProfileSummary {
@@ -892,194 +915,212 @@ export async function getUserBySessionToken(rawToken: string | undefined) {
   return mapUser(result.rows[0]);
 }
 
+function mapSubscription(row: Record<string, unknown> | null) {
+  if (!row) return null;
+  return {
+    status: String(row.status),
+    provider: row.provider ? String(row.provider) : null,
+    currentPeriodEnd: row.current_period_end
+      ? new Date(String(row.current_period_end)).toISOString()
+      : null,
+  };
+}
+
+export async function getAccountSettingsOverview(
+  user: AccountUser,
+): Promise<AccountSettingsOverview> {
+  await ensureAccountSchema();
+  const startedAt = Date.now();
+  const result = await getPool().query(
+    `
+      WITH fleet_profiles AS (
+        SELECT COALESCE(
+          jsonb_agg(to_jsonb(p) ORDER BY p.is_default DESC, p.created_at ASC),
+          '[]'::jsonb
+        ) AS rows
+        FROM account_profiles p
+        WHERE p.user_id = $1
+      ),
+      latest_subscription AS (
+        SELECT to_jsonb(s) AS row
+        FROM account_subscriptions s
+        WHERE s.user_id = $1
+        ORDER BY s.created_at DESC
+        LIMIT 1
+      )
+      SELECT
+        fleet_profiles.rows AS profiles,
+        latest_subscription.row AS subscription
+      FROM fleet_profiles
+      LEFT JOIN latest_subscription ON TRUE;
+    `,
+    [user.fleetId],
+  );
+
+  const row = result.rows[0] ?? {};
+  const profiles = asRows(row.profiles);
+  const subscriptionRow = row.subscription as Record<string, unknown> | null;
+
+  accountDebug("account settings overview loaded", {
+    fleetId: user.fleetId,
+    profileId: user.profileId,
+    profiles: profiles.length,
+    durationMs: Date.now() - startedAt,
+  });
+
+  return {
+    user,
+    profiles: profiles.map(mapProfile),
+    subscription: mapSubscription(subscriptionRow),
+  };
+}
+
 export async function getAccountOverview(profileId: string): Promise<AccountOverview> {
   await ensureAccountSchema();
   const pool = getPool();
-
-  const profileResult = await pool.query(
+  const startedAt = Date.now();
+  const result = await pool.query(
     `
-      SELECT
-        p.*,
-        u.id AS fleet_id,
-        u.google_sub,
-        u.email,
-        u.email_verified
-      FROM account_profiles p
-      JOIN account_users u ON u.id = p.user_id
-      WHERE p.id = $1
-      LIMIT 1;
-    `,
-    [profileId],
-  );
-
-  if (profileResult.rowCount === 0) {
-    throw new Error("Account profile not found.");
-  }
-
-  const activeProfile = profileResult.rows[0];
-  const fleetId = String(activeProfile.fleet_id);
-
-  const [
-    profilesResult,
-    scoreResult,
-    radarResult,
-    domainRankResult,
-    profileRankResult,
-    subscriptionResult,
-  ] =
-    await Promise.all([
-      pool.query(
-        `
-          SELECT *
-          FROM account_profiles
-          WHERE user_id = $1
-          ORDER BY is_default DESC, created_at ASC;
-        `,
-        [fleetId],
+      WITH active_profile AS (
+        SELECT
+          p.*,
+          u.id AS fleet_id,
+          u.google_sub,
+          u.email,
+          u.email_verified
+        FROM account_profiles p
+        JOIN account_users u ON u.id = p.user_id
+        WHERE p.id = $1
+        LIMIT 1
       ),
-      pool.query(
-        `
+      fleet_profiles AS (
+        SELECT COALESCE(
+          jsonb_agg(to_jsonb(p) ORDER BY p.is_default DESC, p.created_at ASC),
+          '[]'::jsonb
+        ) AS rows
+        FROM account_profiles p
+        JOIN active_profile ap ON ap.fleet_id = p.user_id
+      ),
+      recent_scores AS (
+        SELECT COALESCE(
+          jsonb_agg(to_jsonb(h) ORDER BY h.completed_at DESC),
+          '[]'::jsonb
+        ) AS rows
+        FROM (
           SELECT *
           FROM account_score_history
           WHERE profile_id = $1
           ORDER BY completed_at DESC
-          LIMIT 25;
-        `,
-        [profileId],
+          LIMIT 25
+        ) h
       ),
-      pool.query(
-        `
-          SELECT normalized_skill_domain AS skill_domain,
-                 AVG(percentage)::float AS value,
-                 COUNT(*)::int AS attempts
-          FROM (
-            SELECT
-              CASE
-                WHEN topic_slug = 'dern-jood' THEN 'multitasking'
-                WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
-                ELSE skill_domain
-              END AS normalized_skill_domain,
-              percentage
-            FROM account_score_history
-            WHERE profile_id = $1
-          ) normalized_scores
-          GROUP BY normalized_skill_domain;
-        `,
-        [profileId],
+      normalized_scores AS (
+        SELECT
+          profile_id,
+          CASE
+            WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+            WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
+            ELSE skill_domain
+          END AS skill_domain,
+          percentage
+        FROM account_score_history
+        WHERE profile_id IS NOT NULL
       ),
-      pool.query(
-        `
-          WITH domain_avgs AS (
-            SELECT
-              profile_id,
-              normalized_skill_domain AS skill_domain,
-              AVG(percentage)::float AS value,
-              COUNT(*)::int AS attempts
-            FROM (
-              SELECT
-                profile_id,
-                CASE
-                  WHEN topic_slug = 'dern-jood' THEN 'multitasking'
-                  WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
-                  ELSE skill_domain
-                END AS normalized_skill_domain,
-                percentage
-              FROM account_score_history
-              WHERE profile_id IS NOT NULL
-            ) normalized_scores
-            GROUP BY profile_id, normalized_skill_domain
-          ),
-          ranked_domains AS (
-            SELECT
-              profile_id,
-              skill_domain,
-              ROUND(value)::int AS value,
-              attempts,
-              RANK() OVER (
-                PARTITION BY skill_domain
-                ORDER BY value DESC, attempts DESC, profile_id ASC
-              )::int AS domain_rank,
-              COUNT(*) OVER (PARTITION BY skill_domain)::int AS ranked_profiles
-            FROM domain_avgs
-          )
-          SELECT *
-          FROM ranked_domains
-          WHERE profile_id = $1;
-        `,
-        [profileId],
+      domain_avgs AS (
+        SELECT
+          profile_id,
+          skill_domain,
+          AVG(percentage)::float AS value,
+          COUNT(*)::int AS attempts
+        FROM normalized_scores
+        GROUP BY profile_id, skill_domain
       ),
-      pool.query(
-        `
-          WITH domain_avgs AS (
-            SELECT
-              profile_id,
-              normalized_skill_domain AS skill_domain,
-              AVG(percentage)::float AS value,
-              COUNT(*)::int AS attempts
-            FROM (
-              SELECT
-                profile_id,
-                CASE
-                  WHEN topic_slug = 'dern-jood' THEN 'multitasking'
-                  WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
-                  ELSE skill_domain
-                END AS normalized_skill_domain,
-                percentage
-              FROM account_score_history
-              WHERE profile_id IS NOT NULL
-            ) normalized_scores
-            GROUP BY profile_id, normalized_skill_domain
-          ),
-          profile_avgs AS (
-            SELECT
-              profile_id,
-              ROUND(AVG(value))::int AS dashboard_average,
-              SUM(attempts)::int AS total_attempts
-            FROM domain_avgs
-            GROUP BY profile_id
-          ),
-          ranked_profiles AS (
-            SELECT
-              profile_id,
-              dashboard_average,
-              total_attempts,
-              RANK() OVER (
-                ORDER BY dashboard_average DESC, total_attempts DESC, profile_id ASC
-              )::int AS actual_platform_rank,
-              COUNT(*) OVER ()::int AS ranked_profiles
-            FROM profile_avgs
-          )
-          SELECT *
-          FROM ranked_profiles
-          WHERE profile_id = $1;
-        `,
-        [profileId],
+      ranked_domains AS (
+        SELECT
+          profile_id,
+          skill_domain,
+          ROUND(value)::int AS value,
+          attempts,
+          RANK() OVER (
+            PARTITION BY skill_domain
+            ORDER BY value DESC, attempts DESC, profile_id ASC
+          )::int AS domain_rank,
+          COUNT(*) OVER (PARTITION BY skill_domain)::int AS ranked_profiles
+        FROM domain_avgs
       ),
-      pool.query(
-        `
-          SELECT status, provider, current_period_end
-          FROM account_subscriptions
-          WHERE user_id = $1
-          ORDER BY created_at DESC
-          LIMIT 1;
-        `,
-        [fleetId],
+      active_radar AS (
+        SELECT COALESCE(
+          jsonb_agg(to_jsonb(rd) ORDER BY rd.skill_domain),
+          '[]'::jsonb
+        ) AS rows
+        FROM ranked_domains rd
+        WHERE rd.profile_id = $1
       ),
-    ]);
+      profile_avgs AS (
+        SELECT
+          profile_id,
+          ROUND(AVG(value))::int AS dashboard_average,
+          SUM(attempts)::int AS total_attempts
+        FROM domain_avgs
+        GROUP BY profile_id
+      ),
+      ranked_profiles AS (
+        SELECT
+          profile_id,
+          dashboard_average,
+          total_attempts,
+          RANK() OVER (
+            ORDER BY dashboard_average DESC, total_attempts DESC, profile_id ASC
+          )::int AS actual_platform_rank,
+          COUNT(*) OVER ()::int AS ranked_profiles
+        FROM profile_avgs
+      ),
+      active_rank AS (
+        SELECT *
+        FROM ranked_profiles
+        WHERE profile_id = $1
+      ),
+      latest_subscription AS (
+        SELECT to_jsonb(s) AS row
+        FROM account_subscriptions s
+        JOIN active_profile ap ON ap.fleet_id = s.user_id
+        ORDER BY s.created_at DESC
+        LIMIT 1
+      )
+      SELECT
+        ap.*,
+        fp.rows AS profiles,
+        rs.rows AS score_history,
+        ar.rows AS radar_rows,
+        active_rank.actual_platform_rank,
+        active_rank.ranked_profiles,
+        active_rank.dashboard_average,
+        active_rank.total_attempts,
+        latest_subscription.row AS subscription
+      FROM active_profile ap
+      CROSS JOIN fleet_profiles fp
+      CROSS JOIN recent_scores rs
+      CROSS JOIN active_radar ar
+      LEFT JOIN active_rank ON active_rank.profile_id = ap.id
+      LEFT JOIN latest_subscription ON TRUE;
+    `,
+    [profileId],
+  );
 
+  if (result.rowCount === 0) {
+    throw new Error("Account profile not found.");
+  }
+
+  const activeProfile = result.rows[0];
+  const profiles = asRows(activeProfile.profiles);
+  const scoreHistory = asRows(activeProfile.score_history);
+  const radarRows = asRows(activeProfile.radar_rows);
   const radarByDomain = new Map(
-    radarResult.rows.map((row) => [
+    radarRows.map((row) => [
       String(row.skill_domain),
       {
         value: Math.round(Number(row.value)),
         attempts: Number(row.attempts),
-      },
-    ]),
-  );
-  const domainRankByDomain = new Map(
-    domainRankResult.rows.map((row) => [
-      String(row.skill_domain),
-      {
         rank: Number(row.domain_rank),
         rankedProfiles: Number(row.ranked_profiles),
       },
@@ -1088,22 +1129,33 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
 
   const radar = accountSkillDomains.map((domain) => {
     const point = radarByDomain.get(domain.slug);
-    const domainRank = domainRankByDomain.get(domain.slug);
     return {
       slug: domain.slug,
       label: domain.label,
       value: point?.value ?? 0,
       attempts: point?.attempts ?? 0,
-      rank: domainRank?.rank ?? null,
-      rankedProfiles: domainRank?.rankedProfiles ?? 0,
+      rank: point?.rank ?? null,
+      rankedProfiles: point?.rankedProfiles ?? 0,
     };
   });
 
-  const subscriptionRow = subscriptionResult.rows[0];
-  const rankingRow = profileRankResult.rows[0];
-  const actualPlatformRank = rankingRow
-    ? Number(rankingRow.actual_platform_rank)
+  const subscriptionRow = activeProfile.subscription as
+    | Record<string, unknown>
+    | null;
+  const actualPlatformRank = activeProfile.actual_platform_rank
+    ? Number(activeProfile.actual_platform_rank)
     : null;
+  const rankedProfiles = activeProfile.ranked_profiles
+    ? Number(activeProfile.ranked_profiles)
+    : 0;
+
+  accountDebug("account overview loaded", {
+    profileId,
+    durationMs: Date.now() - startedAt,
+    profiles: profiles.length,
+    scores: scoreHistory.length,
+    rankedProfiles,
+  });
 
   return {
     user: mapUser({
@@ -1111,27 +1163,21 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
       profile_id: activeProfile.id,
       profile_image_url: activeProfile.image_url,
     }),
-    profiles: profilesResult.rows.map(mapProfile),
-    scoreHistory: scoreResult.rows.map(mapScore),
+    profiles: profiles.map(mapProfile),
+    scoreHistory: scoreHistory.map(mapScore),
     radar,
     ranking: {
       actualPlatformRank,
-      rankedProfiles: rankingRow ? Number(rankingRow.ranked_profiles) : 0,
+      rankedProfiles,
       profilesAhead: actualPlatformRank ? actualPlatformRank - 1 : 0,
-      dashboardAverage: rankingRow ? Number(rankingRow.dashboard_average) : null,
-      totalAttempts: rankingRow ? Number(rankingRow.total_attempts) : 0,
+      dashboardAverage: activeProfile.dashboard_average
+        ? Number(activeProfile.dashboard_average)
+        : null,
+      totalAttempts: activeProfile.total_attempts
+        ? Number(activeProfile.total_attempts)
+        : 0,
     },
-    subscription: subscriptionRow
-      ? {
-          status: String(subscriptionRow.status),
-          provider: subscriptionRow.provider
-            ? String(subscriptionRow.provider)
-            : null,
-          currentPeriodEnd: subscriptionRow.current_period_end
-            ? new Date(String(subscriptionRow.current_period_end)).toISOString()
-            : null,
-        }
-      : null,
+    subscription: mapSubscription(subscriptionRow),
   };
 }
 

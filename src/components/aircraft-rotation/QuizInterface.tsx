@@ -150,7 +150,7 @@ const QuestionRow = ({
             Question {index + 1}
           </h3>
           {selectedAnswer && !isSubmitted && (
-            <span className="uppercase tracking-widest rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-bold text-brand-purple">
+            <span className="uppercase  rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-bold text-brand-purple">
               Answered
             </span>
           )}

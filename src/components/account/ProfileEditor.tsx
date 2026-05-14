@@ -150,7 +150,7 @@ export default function ProfileEditor({
             type="file"
             accept="image/png,image/jpeg,image/webp"
             onChange={handleFileChange}
-            className="mt-2 block w-full rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-3 text-sm text-zinc-600 file:mr-4 file:rounded-lg file:border-0 file:bg-violet-700 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white hover:border-violet-300 dark:border-white/10 dark:bg-black/40 dark:text-zinc-300"
+            className="mt-2 block w-full rounded-xl border border-dashed border-zinc-300 bg-zinc-50 px-3 py-3 text-sm text-zinc-500 file:mr-4 file:rounded-lg file:border-0 file:bg-zinc-700 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white hover:border-violet-300 dark:border-white/10 dark:bg-zinc-800 dark:text-zinc-500"
           />
           <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
             JPG, PNG, or WebP. Stored in the app database. Max 750 KB.

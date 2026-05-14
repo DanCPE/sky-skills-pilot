@@ -179,19 +179,19 @@ export default function AdminAccountsPage() {
           <>
             <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-                <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs uppercase  text-zinc-500 dark:text-zinc-400">
                   Registered Emails
                 </p>
                 <p className="mt-2 text-3xl font-bold">{data.totals.fleets}</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-                <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs uppercase  text-zinc-500 dark:text-zinc-400">
                   Profiles
                 </p>
                 <p className="mt-2 text-3xl font-bold">{data.totals.profiles}</p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-                <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs uppercase  text-zinc-500 dark:text-zinc-400">
                   Ranked Profiles
                 </p>
                 <p className="mt-2 text-3xl font-bold">
@@ -199,7 +199,7 @@ export default function AdminAccountsPage() {
                 </p>
               </div>
               <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-                <p className="text-xs uppercase tracking-widest text-zinc-500 dark:text-zinc-400">
+                <p className="text-xs uppercase  text-zinc-500 dark:text-zinc-400">
                   Active Sessions
                 </p>
                 <p className="mt-2 text-3xl font-bold">
