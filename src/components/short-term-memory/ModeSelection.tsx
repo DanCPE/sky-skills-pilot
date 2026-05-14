@@ -14,21 +14,43 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
   const [mode, setMode] = useState<Mode>("real");
   const [rows, setRows] = useState(7);
   const [columns, setColumns] = useState(4);
+  const [isLoading, setIsLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const effectiveRows = mode === "real" ? 7 : rows;
   const effectiveColumns = mode === "real" ? 4 : columns;
 
-  const handleStart = () => {
-    onStart(
-      generateShortTermMemoryQuiz({
+  const handleStart = async () => {
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const accessResponse = await fetch("/api/account/access/short-term-memory", {
+        cache: "no-store",
+      });
+
+      if (!accessResponse.ok) {
+        const errorData = (await accessResponse.json().catch(() => null)) as
+          | { error?: string }
+          | null;
+        throw new Error(errorData?.error || "This quiz requires paid access.");
+      }
+
+      onStart(
+        generateShortTermMemoryQuiz({
         mode,
         rows: effectiveRows,
         columns: effectiveColumns,
         memorizeSeconds: 120,
         charactersPerCell: 3,
         contentType: "mixed",
-      })
-    );
+        }),
+      );
+    } catch (startError) {
+      setError(startError instanceof Error ? startError.message : "Something went wrong");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -166,11 +188,17 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
       <div className="text-center">
         <button
           onClick={handleStart}
-          className="inline-flex items-center justify-center rounded-xl bg-brand-purple px-8 py-4 text-lg font-bold text-white shadow-lg shadow-brand-purple/20 transition-all hover:opacity-90 active:scale-[0.98]"
+          disabled={isLoading}
+          className="inline-flex items-center justify-center rounded-xl bg-brand-purple px-8 py-4 text-lg font-bold text-white shadow-lg shadow-brand-purple/20 transition-all hover:opacity-90 active:scale-[0.98] disabled:cursor-not-allowed disabled:bg-zinc-400"
         >
-          Start Memory Quiz
+          {isLoading ? "Loading..." : "Start Memory Quiz"}
         </button>
       </div>
+      {error ? (
+        <div className="mx-auto mt-6 max-w-xl rounded-lg border-2 border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
+          <p className="text-sm text-red-800 dark:text-red-200">{error}</p>
+        </div>
+      ) : null}
     </div>
   );
 }

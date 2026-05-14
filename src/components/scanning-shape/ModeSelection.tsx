@@ -23,6 +23,7 @@ export default function ModeSelection({
 }) {
   return (
     <SharedModeSelection<ScanningShapeQuizResponse>
+      topicSlug="scanning-shape"
       subtitle="Scan shape panels and identify the hidden letter inside each shape using only the 2-digit number as your clue."
       defaultQuestionCount={7}
       sliderLabel="Number of Sections"

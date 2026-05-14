@@ -1,8 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getTopicAccessDeniedResponse } from "@/lib/account/quiz-access";
 import { generatePassageRecallQuiz } from "@/lib/passage-recall-generator";
 
 export async function GET(req: NextRequest) {
   try {
+    const denied = await getTopicAccessDeniedResponse("passage-recall");
+    if (denied) return denied;
+
     const searchParams = req.nextUrl.searchParams;
     const modeParam = searchParams.get("mode");
     const durationParam = searchParams.get("duration");

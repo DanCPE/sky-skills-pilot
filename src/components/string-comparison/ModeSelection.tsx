@@ -10,6 +10,7 @@ interface ModeSelectionProps {
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   return (
     <SharedModeSelection<ScanningPracticeQuizResponse>
+      topicSlug="string-comparison"
       subtitle="Practice quick visual comparison for pilot aptitude tests"
       defaultQuestionCount={40}
       timePerQuestion={6}

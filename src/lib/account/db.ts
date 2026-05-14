@@ -1,5 +1,6 @@
 import { createHash, randomBytes } from "crypto";
 import { Pool } from "pg";
+import { topicSlugs, topics as quizTopics } from "../topics";
 import { accountSkillDomains, getAccountSkillDomainForTopic } from "./topics";
 
 const SESSION_COOKIE_NAME = "sky_session";
@@ -88,6 +89,40 @@ export interface AccountSettingsOverview {
     provider: string | null;
     currentPeriodEnd: string | null;
   } | null;
+}
+
+export type SubscriptionStatus =
+  | "active"
+  | "not_started"
+  | "canceled"
+  | "past_due"
+  | "trialing";
+
+export interface QuizAccessRule {
+  topicSlug: string;
+  isLocked: boolean;
+  updatedAt: string;
+}
+
+export interface TopicAccessState {
+  topicSlug: string;
+  isLocked: boolean;
+  isPaid: boolean;
+  canAccess: boolean;
+}
+
+export interface AdminBillingFleet {
+  fleetId: string;
+  email: string;
+  name: string;
+  imageUrl: string | null;
+  subscriptionStatus: string;
+  provider: string | null;
+  currentPeriodEnd: string | null;
+  profileCount: number;
+  activeSessionCount: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface AdminAccountProfileSummary {
@@ -380,6 +415,52 @@ export async function ensureAccountSchema() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+
+      await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_quiz_access (
+        topic_slug TEXT PRIMARY KEY,
+        is_locked BOOLEAN NOT NULL DEFAULT FALSE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+      const quizAccessMigration = await pool.query(
+        "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
+        ["quiz_access_v1"],
+      );
+
+      if (quizAccessMigration.rowCount === 0) {
+        for (const topic of quizTopics) {
+          await pool.query(
+            `
+              INSERT INTO account_quiz_access (topic_slug, is_locked)
+              VALUES ($1, $2)
+              ON CONFLICT (topic_slug)
+              DO UPDATE SET
+                is_locked = EXCLUDED.is_locked,
+                updated_at = NOW();
+            `,
+            [topic.slug, Boolean(topic.isLocked)],
+          );
+        }
+
+        await pool.query(
+          "INSERT INTO account_schema_migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING;",
+          ["quiz_access_v1"],
+        );
+      } else {
+        for (const topic of quizTopics) {
+          await pool.query(
+            `
+              INSERT INTO account_quiz_access (topic_slug, is_locked)
+              VALUES ($1, $2)
+              ON CONFLICT (topic_slug) DO NOTHING;
+            `,
+            [topic.slug, Boolean(topic.isLocked)],
+          );
+        }
+      }
 
       await pool.query(
         "CREATE INDEX IF NOT EXISTS account_sessions_token_hash_idx ON account_sessions(token_hash);",
@@ -926,6 +1007,18 @@ function mapSubscription(row: Record<string, unknown> | null) {
   };
 }
 
+function isPaidSubscriptionStatus(status: string | null | undefined) {
+  return status === "active" || status === "trialing";
+}
+
+function mapQuizAccessRule(row: Record<string, unknown>): QuizAccessRule {
+  return {
+    topicSlug: String(row.topic_slug),
+    isLocked: Boolean(row.is_locked),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
 export async function getAccountSettingsOverview(
   user: AccountUser,
 ): Promise<AccountSettingsOverview> {
@@ -1407,4 +1500,258 @@ export async function recordScore(input: {
   );
 
   return mapScore(result.rows[0]);
+}
+
+export async function isFleetPaid(fleetId: string) {
+  if (!hasAccountDatabase()) return false;
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT status, current_period_end
+      FROM account_subscriptions
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+      LIMIT 1;
+    `,
+    [fleetId],
+  );
+
+  if (result.rowCount === 0) return false;
+
+  const row = result.rows[0];
+  if (!isPaidSubscriptionStatus(String(row.status))) return false;
+
+  if (!row.current_period_end) return true;
+  return new Date(String(row.current_period_end)).getTime() > Date.now();
+}
+
+export async function getQuizAccessRules(): Promise<QuizAccessRule[]> {
+  if (!hasAccountDatabase()) {
+    return quizTopics.map((topic) => ({
+      topicSlug: topic.slug,
+      isLocked: Boolean(topic.isLocked),
+      updatedAt: new Date(0).toISOString(),
+    }));
+  }
+
+  await ensureAccountSchema();
+  const result = await getPool().query(
+    `
+      SELECT topic_slug, is_locked, updated_at
+      FROM account_quiz_access
+      ORDER BY topic_slug ASC;
+    `,
+  );
+
+  const rulesBySlug = new Map(
+    result.rows.map((row) => [String(row.topic_slug), mapQuizAccessRule(row)]),
+  );
+
+  return quizTopics.map((topic) => {
+    const rule = rulesBySlug.get(topic.slug);
+    return (
+      rule ?? {
+        topicSlug: topic.slug,
+        isLocked: Boolean(topic.isLocked),
+        updatedAt: new Date(0).toISOString(),
+      }
+    );
+  });
+}
+
+export async function getTopicAccessState(
+  topicSlug: string,
+  user?: AccountUser | null,
+): Promise<TopicAccessState> {
+  if (!topicSlugs.has(topicSlug)) {
+    throw new Error("Topic not found.");
+  }
+
+  const staticTopic = quizTopics.find((topic) => topic.slug === topicSlug);
+  let isLocked = Boolean(staticTopic?.isLocked);
+
+  if (hasAccountDatabase()) {
+    await ensureAccountSchema();
+    const result = await getPool().query(
+      `
+        SELECT is_locked
+        FROM account_quiz_access
+        WHERE topic_slug = $1
+        LIMIT 1;
+      `,
+      [topicSlug],
+    );
+
+    if ((result.rowCount ?? 0) > 0) {
+      isLocked = Boolean(result.rows[0].is_locked);
+    }
+  }
+
+  const isPaid = user ? await isFleetPaid(user.fleetId) : false;
+
+  return {
+    topicSlug,
+    isLocked,
+    isPaid,
+    canAccess: !isLocked || isPaid,
+  };
+}
+
+export async function getTopicsWithAccess(user?: AccountUser | null) {
+  const [rules, isPaid] = await Promise.all([
+    getQuizAccessRules(),
+    user ? isFleetPaid(user.fleetId) : Promise.resolve(false),
+  ]);
+
+  const rulesBySlug = new Map(rules.map((rule) => [rule.topicSlug, rule]));
+
+  return {
+    isPaid,
+    topics: quizTopics.map((topic) => {
+      const requiresPaid = Boolean(rulesBySlug.get(topic.slug)?.isLocked);
+      return {
+        ...topic,
+        isLocked: requiresPaid && !isPaid,
+        requiresPaid,
+      };
+    }),
+  };
+}
+
+export async function setQuizAccessRule(input: {
+  topicSlug: string;
+  isLocked: boolean;
+}) {
+  if (!topicSlugs.has(input.topicSlug)) {
+    throw new Error("Topic not found.");
+  }
+
+  await ensureAccountSchema();
+  const result = await getPool().query(
+    `
+      INSERT INTO account_quiz_access (topic_slug, is_locked)
+      VALUES ($1, $2)
+      ON CONFLICT (topic_slug)
+      DO UPDATE SET
+        is_locked = EXCLUDED.is_locked,
+        updated_at = NOW()
+      RETURNING *;
+    `,
+    [input.topicSlug, input.isLocked],
+  );
+
+  return mapQuizAccessRule(result.rows[0]);
+}
+
+export async function setFleetManualSubscription(input: {
+  fleetId?: string;
+  email?: string;
+  status: SubscriptionStatus;
+}) {
+  await ensureAccountSchema();
+
+  if (!input.fleetId && !input.email) {
+    throw new Error("fleetId or email is required.");
+  }
+
+  const userResult = await getPool().query(
+    `
+      SELECT id
+      FROM account_users
+      WHERE ($1::uuid IS NOT NULL AND id = $1::uuid)
+         OR ($2::text IS NOT NULL AND lower(email) = lower($2::text))
+      LIMIT 1;
+    `,
+    [input.fleetId ?? null, input.email ?? null],
+  );
+
+  if (userResult.rowCount === 0) {
+    throw new Error("Registered email not found.");
+  }
+
+  const fleetId = String(userResult.rows[0].id);
+  const result = await getPool().query(
+    `
+      INSERT INTO account_subscriptions (
+        user_id,
+        provider,
+        status,
+        current_period_end,
+        updated_at
+      )
+      VALUES ($1, 'manual', $2, NULL, NOW())
+      RETURNING *;
+    `,
+    [fleetId, input.status],
+  );
+
+  accountDebug("manual subscription updated", {
+    fleetId,
+    email: input.email,
+    status: input.status,
+  });
+
+  return mapSubscription(result.rows[0]);
+}
+
+export async function getAdminBillingOverview() {
+  await ensureAccountSchema();
+
+  const [fleetResult, quizAccess] = await Promise.all([
+    getPool().query(
+      `
+        SELECT
+          u.id AS fleet_id,
+          u.email,
+          u.name,
+          u.image_url,
+          u.created_at,
+          u.updated_at,
+          COALESCE(s.status, 'not_started') AS subscription_status,
+          s.provider,
+          s.current_period_end,
+          COUNT(DISTINCT p.id)::int AS profile_count,
+          COUNT(DISTINCT sess.id)::int AS active_session_count
+        FROM account_users u
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM account_subscriptions sub
+          WHERE sub.user_id = u.id
+          ORDER BY sub.created_at DESC
+          LIMIT 1
+        ) s ON TRUE
+        LEFT JOIN account_profiles p
+          ON p.user_id = u.id
+        LEFT JOIN account_sessions sess
+          ON sess.user_id = u.id
+         AND sess.expires_at > NOW()
+        GROUP BY u.id, s.status, s.provider, s.current_period_end
+        ORDER BY u.created_at DESC;
+      `,
+    ),
+    getQuizAccessRules(),
+  ]);
+
+  const fleets: AdminBillingFleet[] = fleetResult.rows.map((row) => ({
+    fleetId: String(row.fleet_id),
+    email: String(row.email),
+    name: String(row.name),
+    imageUrl: row.image_url ? String(row.image_url) : null,
+    subscriptionStatus: String(row.subscription_status),
+    provider: row.provider ? String(row.provider) : null,
+    currentPeriodEnd: row.current_period_end
+      ? new Date(String(row.current_period_end)).toISOString()
+      : null,
+    profileCount: Number(row.profile_count ?? 0),
+    activeSessionCount: Number(row.active_session_count ?? 0),
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  }));
+
+  return {
+    generatedAt: new Date().toISOString(),
+    fleets,
+    quizAccess,
+  };
 }

@@ -56,6 +56,7 @@ const RealIcon = () => (
 interface ModeSelectionProps<T> {
   /** Short topic description shown below the heading */
   subtitle: string;
+  topicSlug?: string;
   defaultQuestionCount?: number;
   sliderLabel?: string;
   sliderHelperText?: (value: number) => string;
@@ -90,6 +91,7 @@ interface ModeSelectionProps<T> {
 
 export default function ModeSelection<T>({
   subtitle,
+  topicSlug,
   defaultQuestionCount = 20,
   sliderLabel = "Number of Questions",
   sliderHelperText,
@@ -134,6 +136,18 @@ export default function ModeSelection<T>({
         difficulty: selectedDifficulty,
         questionCount,
       });
+
+      if (topicSlug) {
+        const accessResponse = await fetch(`/api/account/access/${topicSlug}`, {
+          cache: "no-store",
+        });
+        if (!accessResponse.ok) {
+          const errorData = (await accessResponse.json().catch(() => null)) as
+            | { error?: string }
+            | null;
+          throw new Error(errorData?.error || "This quiz requires paid access.");
+        }
+      }
 
       const data = await onFetch(selectedMode, selectedDifficulty, questionCount);
       onStart(data);

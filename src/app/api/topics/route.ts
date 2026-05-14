@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
-import { topics } from "@/lib/topics";
+import { getCurrentAccountUser } from "@/lib/account/auth";
+import { getTopicsWithAccess } from "@/lib/account/db";
+
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
 
 export async function GET() {
-  return NextResponse.json(topics);
+  const user = await getCurrentAccountUser();
+  const access = await getTopicsWithAccess(user);
+  return NextResponse.json(access);
 }

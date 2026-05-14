@@ -1,9 +1,13 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getTopicAccessDeniedResponse } from "@/lib/account/quiz-access";
 import { generateQuiz } from "@/lib/string-comparison-generator";
 import type { ScanningPracticeQuizResponse } from "@/types";
 
 export async function GET(req: NextRequest) {
   try {
+    const denied = await getTopicAccessDeniedResponse("string-comparison");
+    if (denied) return denied;
+
     const searchParams = req.nextUrl.searchParams;
     const mode = searchParams.get("mode");
     const difficulty = searchParams.get("difficulty") || "medium";
