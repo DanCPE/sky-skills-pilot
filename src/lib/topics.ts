@@ -43,6 +43,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/calculate dark.png",
   },
   {
+    slug: "approximation",
+    icon: "≈",
+    title: "Approximation",
+    description: "Estimate answers across arithmetic, units, geometry, physics, finance, and time questions.",
+    category: "approximation",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/cal.png",
+    coverImageDark: "/images/icons/SkyQuests/cal dark.png",
+  },
+  {
     slug: "missing-operator",
     icon: "🧮",
     title: "Missing Operator",

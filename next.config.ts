@@ -3,6 +3,9 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   /* config options here */
   reactCompiler: true,
+  outputFileTracingIncludes: {
+    "/api/approximation/questions": ["./src/lib/approximation-engine/**/*.py"],
+  },
   rewrites: async () => {
     return [
       {

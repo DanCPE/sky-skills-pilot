@@ -116,6 +116,40 @@ export interface CalculationSubmitResult extends SubmitResult {
   currentScore?: number;
 }
 
+// Approximation specific types
+export interface ApproximationQuestion extends Question {
+  id: string;
+  prompt: string;
+  options: string[];
+  correctAnswer: string;
+  correctChoice: string;
+  exactValue?: number | string;
+  unit?: string;
+  category: string;
+  questionType: string;
+  difficulty: "easy" | "medium" | "hard";
+  explanation: string;
+}
+
+export interface ApproximationQuizResponse {
+  questions: ApproximationQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
+export interface ApproximationSubmitPayload extends SubmitPayload {
+  mode: "learn" | "real";
+  questionIndex: number;
+  timeRemaining?: number;
+  correctAnswer: string;
+}
+
+export interface ApproximationSubmitResult extends SubmitResult {
+  correctAnswer?: string;
+  explanation?: string;
+  currentScore?: number;
+}
+
 // Dern-Jood specific types
 export interface DernJoodQuestion extends Question {
   id: string;
