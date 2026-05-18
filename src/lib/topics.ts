@@ -18,7 +18,7 @@ export const topics: Topic[] = [
     description: "Find the 3D piece that completes an incomplete cube.",
     category: "spatial",
     isLocked: false,
-    coverImage: "/images/icons/SkyQuests/Rubik from Google Drive.png",
+    coverImage: "/images/icons/SkyQuests/rubik.png",
     coverImageDark: "/images/icons/SkyQuests/rubik dark.png",
   },
   {
@@ -71,6 +71,16 @@ export const topics: Topic[] = [
     isLocked: false,
     coverImage: "/images/icons/SkyQuests/DJ.png",
     coverImageDark: "/images/icons/SkyQuests/DJ dark.png",
+  },
+  {
+    slug: "joy-stick-game",
+    icon: "🕹️",
+    title: "Joy-Stick Game",
+    description: "Control a top-view aircraft marker, capture color targets, avoid moving obstacles, and answer math questions.",
+    category: "multitasking",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/Takeoff.png",
+    coverImageDark: "/images/icons/SkyQuests/Takeoff.png",
   },
   {
     slug: "pattern-recognition",

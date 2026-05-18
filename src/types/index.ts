@@ -168,6 +168,15 @@ export interface DernJoodQuizResponse {
   bpm?: number;
 }
 
+// Joy-Stick Game specific types
+export type JoyStickGameQuestion = DernJoodQuestion;
+
+export interface JoyStickGameQuizResponse {
+  questions: JoyStickGameQuestion[];
+  mode: "learn" | "real";
+  bpm?: number;
+}
+
 // Missing Operator specific types
 export interface MissingOperatorQuestion extends Question {
   id: string;
