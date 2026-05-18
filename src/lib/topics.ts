@@ -12,6 +12,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/box dark.png",
   },
   {
+    slug: "missing-cube",
+    icon: "🧊",
+    title: "Missing Cube",
+    description: "Find the 3D piece that completes an incomplete cube.",
+    category: "spatial",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/Rubik from Google Drive.png",
+    coverImageDark: "/images/icons/SkyQuests/rubik dark.png",
+  },
+  {
     slug: "number-series",
     icon: "🔢",
     title: "Number Series",

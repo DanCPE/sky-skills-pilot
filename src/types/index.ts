@@ -270,6 +270,48 @@ export interface SpatialOrientationSubmitResult {
   correctDir: Direction;
 }
 
+// --- Missing Cube Types ---
+
+export interface CubeCell {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface MissingCubePiece {
+  id: string;
+  label: string;
+  cells: CubeCell[];
+  displayOffset?: CubeCell;
+  displayRotation?: {
+    yaw: number;
+    pitch: number;
+    roll: number;
+  };
+}
+
+export interface MissingCubeQuestion {
+  id: string;
+  prompt: string;
+  size: 3 | 4 | 5;
+  difficulty: "easy" | "medium" | "hard";
+  visibleParts: MissingCubePiece[];
+  missingPiece: MissingCubePiece;
+  options: MissingCubePiece[];
+  correctOptionId: string;
+  initialRotation: {
+    yaw: number;
+    pitch: number;
+  };
+  explanation: string;
+}
+
+export interface MissingCubeQuizResponse {
+  questions: MissingCubeQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
 // --- Short-Term Memory Table Types ---
 
 export type ShortTermMemoryContentType =
