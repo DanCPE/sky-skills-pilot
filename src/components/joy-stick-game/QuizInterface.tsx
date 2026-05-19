@@ -345,7 +345,12 @@ export default function QuizInterface({
   const autoMicEnabledRef = useRef(false);
   const quizStartedRef = useRef(false);
   const quizCompleteRef = useRef(false);
-  const startVoiceRecognitionRef = useRef<(() => void) | null>(null);
+  const answerRef = useRef("");
+  const startVoiceRecognitionRef = useRef<((cancelSpeech?: boolean) => void) | null>(
+    null,
+  );
+  const voiceSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingVoiceTranscriptRef = useRef("");
   const sensitivityRef = useRef(sensitivity);
   const obstacleSpeedRef = useRef(obstacleSpeed);
   const obstacleCountRef = useRef(obstacleCount);
@@ -358,6 +363,10 @@ export default function QuizInterface({
       Math.min(100, (remainingSeconds / currentQuestion.timeLimitSeconds) * 100),
     );
   }, [currentQuestion, remainingSeconds]);
+
+  useEffect(() => {
+    answerRef.current = answer;
+  }, [answer]);
 
   const resetField = useCallback((nextObstacleCount = obstacleCountRef.current) => {
     const nextSnapshot = createInitialSnapshot(
@@ -381,7 +390,7 @@ export default function QuizInterface({
     }
 
     setTimeout(() => {
-      startVoiceRecognitionRef.current?.();
+      startVoiceRecognitionRef.current?.(false);
     }, 250);
   }, []);
 
@@ -489,7 +498,12 @@ export default function QuizInterface({
 
     const nextIndex = currentQuestionIndex + 1;
     const nextQuestion = questions[nextIndex];
+    if (voiceSubmitTimerRef.current) {
+      clearTimeout(voiceSubmitTimerRef.current);
+      voiceSubmitTimerRef.current = null;
+    }
     recognitionRef.current?.abort();
+    answerRef.current = "";
     setAnswer("");
     setRemainingSeconds(nextQuestion.timeLimitSeconds);
     questionStartedAtRef.current = Date.now();
@@ -532,9 +546,18 @@ export default function QuizInterface({
     recordAnswer(answer);
   };
 
-  const startVoiceRecognition = useCallback(async () => {
+  const startVoiceRecognition = useCallback(async (cancelSpeech = false) => {
     if (!quizStarted || quizComplete || !currentQuestion || isListening) return;
     if (typeof window === "undefined") return;
+
+    if (
+      !cancelSpeech &&
+      (window.speechSynthesis?.speaking || window.speechSynthesis?.pending)
+    ) {
+      setVoiceInputStatus("Waiting for question voice...");
+      setTimeout(() => startVoiceRecognitionRef.current?.(false), 250);
+      return;
+    }
 
     const Recognition =
       window.SpeechRecognition ?? window.webkitSpeechRecognition;
@@ -564,10 +587,20 @@ export default function QuizInterface({
     };
 
     const runRecognition = (processLocally: boolean) => {
-      window.speechSynthesis?.cancel();
+      if (cancelSpeech) {
+        window.speechSynthesis?.cancel();
+      }
       const recognition = createRecognition(processLocally);
 
+      const clearPendingVoiceSubmit = () => {
+        if (voiceSubmitTimerRef.current) {
+          clearTimeout(voiceSubmitTimerRef.current);
+          voiceSubmitTimerRef.current = null;
+        }
+      };
+
       const fallbackToRepeat = (message: string) => {
+        clearPendingVoiceSubmit();
         recognition.abort();
         recognitionRef.current = null;
         setIsListening(false);
@@ -582,6 +615,7 @@ export default function QuizInterface({
         );
       };
       recognition.onerror = (event) => {
+        clearPendingVoiceSubmit();
         setIsListening(false);
 
         if (event.error === "language-not-supported" && processLocally) {
@@ -613,15 +647,31 @@ export default function QuizInterface({
       };
       recognition.onresult = (event) => {
         const result = event.results[event.resultIndex];
-        const transcript = result[0]?.transcript.trim() ?? "";
+        const transcriptParts: string[] = [];
+        for (let index = 0; index < event.results.length; index += 1) {
+          const part = event.results[index][0]?.transcript.trim();
+          if (part) {
+            transcriptParts.push(part);
+          }
+        }
+        const transcript =
+          transcriptParts.join(" ").trim() || result[0]?.transcript.trim() || "";
         if (!transcript) {
           fallbackToRepeat("Heard nothing. Repeating question");
           return;
         }
 
-        setVoiceInputStatus(`Heard: ${transcript}`);
+        pendingVoiceTranscriptRef.current = transcript;
+        setVoiceInputStatus(
+          result.isFinal ? `Heard: ${transcript}` : `Hearing: ${transcript}`,
+        );
+
+        if (!result.isFinal) {
+          return;
+        }
 
         if (isRepeatCommand(transcript)) {
+          clearPendingVoiceSubmit();
           recognitionRef.current?.abort();
           recognitionRef.current = null;
           setIsListening(false);
@@ -630,21 +680,27 @@ export default function QuizInterface({
           return;
         }
 
-        const parsedAnswer =
-          currentQuestion.prompt === "Read back the numbers"
-            ? parseSpokenDigitSequence(transcript)
-            : parseSpokenNumber(transcript);
-        if (!parsedAnswer) {
-          fallbackToRepeat(`Could not answer: ${transcript}. Repeating question`);
-          return;
-        }
+        clearPendingVoiceSubmit();
+        voiceSubmitTimerRef.current = setTimeout(() => {
+          const settledTranscript = pendingVoiceTranscriptRef.current.trim();
+          const parsedAnswer =
+            currentQuestion.prompt === "Read back the numbers"
+              ? parseSpokenDigitSequence(settledTranscript)
+              : parseSpokenNumber(settledTranscript);
+          if (!parsedAnswer) {
+            fallbackToRepeat(
+              `Could not answer: ${settledTranscript}. Repeating question`,
+            );
+            return;
+          }
 
-        setAnswer(parsedAnswer);
-        setVoiceInputStatus(`Submitting: ${parsedAnswer}`);
-        recognition.abort();
-        recognitionRef.current = null;
-        setIsListening(false);
-        recordAnswer(parsedAnswer);
+          setAnswer(parsedAnswer);
+          answerRef.current = parsedAnswer;
+          setVoiceInputStatus(`Heard answer: ${parsedAnswer}. Waiting for timer.`);
+          recognition.abort();
+          recognitionRef.current = null;
+          setIsListening(false);
+        }, 450);
       };
 
       recognitionRef.current = recognition;
@@ -662,7 +718,6 @@ export default function QuizInterface({
     isListening,
     quizComplete,
     quizStarted,
-    recordAnswer,
     speakQuestion,
   ]);
 
@@ -677,6 +732,10 @@ export default function QuizInterface({
   };
 
   const stopVoiceRecognition = () => {
+    if (voiceSubmitTimerRef.current) {
+      clearTimeout(voiceSubmitTimerRef.current);
+      voiceSubmitTimerRef.current = null;
+    }
     recognitionRef.current?.abort();
     recognitionRef.current = null;
     setIsListening(false);
@@ -716,7 +775,7 @@ export default function QuizInterface({
       setRemainingSeconds((prev) => {
         if (prev <= 1) {
           clearInterval(timer);
-          recordAnswer("");
+          recordAnswer(answerRef.current);
           return 0;
         }
         return prev - 1;
@@ -734,7 +793,7 @@ export default function QuizInterface({
     if (speechEnabled) {
       speechTimer = setTimeout(() => speakQuestion(), 80);
     } else if (autoMicEnabled) {
-      speechTimer = setTimeout(() => startVoiceRecognitionRef.current?.(), 250);
+      speechTimer = setTimeout(() => startVoiceRecognitionRef.current?.(false), 250);
     }
 
     return () => {
@@ -976,8 +1035,8 @@ export default function QuizInterface({
   }, [quizComplete]);
 
   useEffect(() => {
-    startVoiceRecognitionRef.current = () => {
-      void startVoiceRecognition();
+    startVoiceRecognitionRef.current = (cancelSpeech = false) => {
+      void startVoiceRecognition(cancelSpeech);
     };
   }, [startVoiceRecognition]);
 
@@ -1001,6 +1060,9 @@ export default function QuizInterface({
       }
       audioContextRef.current?.close();
       window.speechSynthesis?.cancel();
+      if (voiceSubmitTimerRef.current) {
+        clearTimeout(voiceSubmitTimerRef.current);
+      }
       recognitionRef.current?.abort();
       speechUtteranceRef.current = null;
     };
@@ -1277,7 +1339,7 @@ export default function QuizInterface({
                     typeof window === "undefined" ||
                     !window.speechSynthesis?.speaking
                   ) {
-                    void startVoiceRecognition();
+                    void startVoiceRecognition(true);
                   }
                 }}
                 disabled={!quizStarted}
