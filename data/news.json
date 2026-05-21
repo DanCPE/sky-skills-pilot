@@ -1,0 +1,22 @@
+[
+  {
+    "id": "resources-launch",
+    "title": "Free resource downloads are now live",
+    "date": "May 21, 2026",
+    "summary": "SkySkills now has a dedicated resource shelf where printable practice materials can be published and downloaded.",
+    "isPublished": true,
+    "sortOrder": 10,
+    "createdAt": "2026-05-21T00:00:00.000Z",
+    "updatedAt": "2026-05-21T00:00:00.000Z"
+  },
+  {
+    "id": "dern-jood-paper",
+    "title": "Dern-Jood paper added",
+    "date": "May 21, 2026",
+    "summary": "The new Dern-Jood paper gives learners a printable sheet for rhythm-based mental math practice.",
+    "isPublished": true,
+    "sortOrder": 20,
+    "createdAt": "2026-05-21T00:00:00.000Z",
+    "updatedAt": "2026-05-21T00:00:00.000Z"
+  }
+]

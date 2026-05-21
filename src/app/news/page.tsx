@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useState } from "react";
 import type { FreeResource } from "@/types/free-resource";
+import type { NewsItem } from "@/types/news";
 
 type HubCategory = "news" | "free-resources" | "patch-notes";
 
@@ -9,27 +10,14 @@ interface FreeResourcesResponse {
   resources: FreeResource[];
 }
 
+interface NewsResponse {
+  items: NewsItem[];
+}
+
 const categories: { value: HubCategory; label: string }[] = [
   { value: "news", label: "News" },
   { value: "free-resources", label: "Free Resources" },
   { value: "patch-notes", label: "Updates Patch Note" },
-];
-
-const newsItems = [
-  {
-    id: "resources-launch",
-    title: "Free resource downloads are now live",
-    date: "May 21, 2026",
-    summary:
-      "SkySkills now has a dedicated resource shelf where printable practice materials can be published and downloaded.",
-  },
-  {
-    id: "dern-jood-paper",
-    title: "Dern-Jood paper added",
-    date: "May 21, 2026",
-    summary:
-      "The new Dern-Jood paper gives learners a printable sheet for rhythm-based mental math practice.",
-  },
 ];
 
 const patchNotes = [
@@ -57,6 +45,9 @@ const patchNotes = [
 export default function NewsPage() {
   const [selectedCategory, setSelectedCategory] =
     useState<HubCategory>("news");
+  const [newsItems, setNewsItems] = useState<NewsItem[]>([]);
+  const [isLoadingNews, setIsLoadingNews] = useState(true);
+  const [newsError, setNewsError] = useState<string | null>(null);
   const [resources, setResources] = useState<FreeResource[]>([]);
   const [isLoadingResources, setIsLoadingResources] = useState(true);
   const [resourceError, setResourceError] = useState<string | null>(null);
@@ -73,6 +64,41 @@ export default function NewsPage() {
     ) {
       setSelectedCategory(requestedCategory);
     }
+  }, []);
+
+  useEffect(() => {
+    let ignore = false;
+
+    async function loadNews() {
+      try {
+        const response = await fetch("/api/news", { cache: "no-store" });
+
+        if (!response.ok) {
+          throw new Error("Failed to load news.");
+        }
+
+        const data = (await response.json()) as NewsResponse;
+        if (!ignore) {
+          setNewsItems(data.items);
+        }
+      } catch (loadError) {
+        if (!ignore) {
+          setNewsError(
+            loadError instanceof Error ? loadError.message : "Failed to load news.",
+          );
+        }
+      } finally {
+        if (!ignore) {
+          setIsLoadingNews(false);
+        }
+      }
+    }
+
+    void loadNews();
+
+    return () => {
+      ignore = true;
+    };
   }, []);
 
   useEffect(() => {
@@ -165,22 +191,42 @@ export default function NewsPage() {
 
         {selectedCategory === "news" && (
           <section className="mx-auto grid max-w-4xl gap-5">
-            {newsItems.map((item) => (
-              <article
-                key={item.id}
-                className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-black/40"
-              >
-                <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-purple dark:text-brand-gold">
-                  {item.date}
-                </p>
-                <h2 className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-bold">
-                  {item.title}
-                </h2>
-                <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-                  {item.summary}
-                </p>
-              </article>
-            ))}
+            {isLoadingNews && (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-zinc-500 shadow-sm dark:border-white/10 dark:bg-black/40 dark:text-zinc-300">
+                Loading news...
+              </div>
+            )}
+
+            {newsError && (
+              <div className="rounded-2xl border border-red-300 bg-red-50 p-6 text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200">
+                {newsError}
+              </div>
+            )}
+
+            {!isLoadingNews &&
+              !newsError &&
+              newsItems.map((item) => (
+                <article
+                  key={item.id}
+                  className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-black/40"
+                >
+                  <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-purple dark:text-brand-gold">
+                    {item.date}
+                  </p>
+                  <h2 className="mt-2 font-[family-name:var(--font-space-grotesk)] text-2xl font-bold">
+                    {item.title}
+                  </h2>
+                  <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                    {item.summary}
+                  </p>
+                </article>
+              ))}
+
+            {!isLoadingNews && !newsError && newsItems.length === 0 && (
+              <div className="rounded-2xl border border-zinc-200 bg-white p-8 text-zinc-500 shadow-sm dark:border-white/10 dark:bg-black/40 dark:text-zinc-300">
+                No news published yet.
+              </div>
+            )}
           </section>
         )}
 
