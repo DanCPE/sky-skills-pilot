@@ -12,6 +12,7 @@ import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "./ResultsScreen";
 import type { DernJoodQuizResponse } from "@/types";
+import DernJoodPapers from "./DernJoodPapers";
 
 interface QuizAnswer {
   questionId: string;
@@ -967,6 +968,10 @@ export default function QuizInterface({
                   </div>
                 );
               })}
+            </div>
+
+            <div className="mt-6">
+              <DernJoodPapers compact />
             </div>
 
             <button

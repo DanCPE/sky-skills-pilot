@@ -39,8 +39,8 @@ export const topics: Topic[] = [
     description: "Answer mental math questions while keeping pace with a metronome.",
     category: "approximation",
     isLocked: false,
-    coverImage: "/images/icons/SkyQuests/cal.png",
-    coverImageDark: "/images/icons/SkyQuests/cal dark.png",
+    coverImage: "/images/icons/SkyQuests/approx.png",
+    coverImageDark: "/images/icons/SkyQuests/approx dark.png",
   },
   {
     slug: "missing-operator",
@@ -69,8 +69,8 @@ export const topics: Topic[] = [
     description: "Solve puzzles involving shapes and space.",
     category: "spatial",
     isLocked: true,
-    coverImage: "/images/icons/SkyQuests/rubik.png",
-    coverImageDark: "/images/icons/SkyQuests/rubik dark.png",
+    coverImage: "/images/icons/SkyQuests/jigsaw.png",
+    coverImageDark: "/images/icons/SkyQuests/jigsaw dark.png",
   },
   {
     slug: "aircraft-rotation",

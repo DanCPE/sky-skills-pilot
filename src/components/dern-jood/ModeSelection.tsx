@@ -4,6 +4,7 @@ import { useState } from "react";
 import QuestionCountSlider from "@/components/shared/QuestionCountSlider";
 import { trackClientEvent } from "@/lib/client-analytics";
 import type { DernJoodQuizResponse } from "@/types";
+import DernJoodPapers from "./DernJoodPapers";
 
 type Mode = "learn" | "real" | null;
 type Difficulty = "easy" | "medium" | "hard" | "mixed";
@@ -70,6 +71,8 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
           Practice mental math while holding a steady metronome rhythm.
         </p>
       </div>
+
+      <DernJoodPapers />
 
       <div className="mb-8 grid gap-6 md:grid-cols-2">
         <button
