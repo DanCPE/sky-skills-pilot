@@ -355,6 +355,44 @@ export interface MissingCubeQuizResponse {
   timeLimit?: number;
 }
 
+// --- Jigsaw Types ---
+
+export interface JigsawCell {
+  x: number;
+  y: number;
+}
+
+export interface JigsawPiece {
+  id: string;
+  label: string;
+  cells: JigsawCell[];
+  color: string;
+  displayRotation: number;
+}
+
+export interface JigsawOption {
+  id: string;
+  label: string;
+  cells: JigsawCell[];
+}
+
+export interface JigsawQuestion {
+  id: string;
+  prompt: string;
+  difficulty: "easy" | "medium" | "hard";
+  gridSize: number;
+  pieces: JigsawPiece[];
+  options: JigsawOption[];
+  correctOptionId: string;
+  explanation: string;
+}
+
+export interface JigsawQuizResponse {
+  questions: JigsawQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
 // --- Short-Term Memory Table Types ---
 
 export type ShortTermMemoryContentType =

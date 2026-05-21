@@ -22,6 +22,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/rubik dark.png",
   },
   {
+    slug: "jigsaw",
+    icon: "🧩",
+    title: "Jigsaw",
+    description: "Mentally assemble loose shape parts and choose the completed silhouette.",
+    category: "spatial",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/shape.png",
+    coverImageDark: "/images/icons/SkyQuests/shape dark.png",
+  },
+  {
     slug: "number-series",
     icon: "🔢",
     title: "Number Series",
