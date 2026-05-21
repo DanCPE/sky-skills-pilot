@@ -4,22 +4,38 @@ interface TopicLayoutProps {
   title: string;
   description: string;
   children: React.ReactNode;
+  fullWidth?: boolean;
+  showBackLink?: boolean;
 }
 
-export default function TopicLayout({ title, description, children }: TopicLayoutProps) {
+export default function TopicLayout({
+  title,
+  description,
+  children,
+  fullWidth,
+  showBackLink = true,
+}: TopicLayoutProps) {
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <main className="mx-auto max-w-4xl px-6 py-12">
-        <Link
-          href="/"
-          className="mb-8 inline-flex items-center gap-1 text-sm text-zinc-500 transition-colors hover:text-zinc-900 dark:hover:text-zinc-50"
-        >
-          ← Back
-        </Link>
+    <div className="min-h-screen bg-white dark:bg-transparent text-[var(--foreground)]">
+      <main
+        className={`${fullWidth ? "w-full py-12 pl-4 pr-6" : "mx-auto max-w-4xl px-6 py-12"}`}
+      >
+        {showBackLink && (
+          <Link
+            href="/sky-quest"
+            className={`mb-8 inline-flex items-center gap-1 text-sm text-[#4F12A6] transition-colors hover:text-zinc-900 dark:text-brand-gold/80 dark:hover:text-brand-gold ${fullWidth ? "ml-32" : "ml-0"}`}
+          >
+            ← BACK TO QUESTS
+          </Link>
+        )}
 
-        <div className="mb-10">
-          <h1 className="text-3xl font-bold tracking-tight">{title}</h1>
-          <p className="mt-2 text-base text-zinc-500 dark:text-zinc-400">{description}</p>
+        <div className="mb-10 text-center flex flex-col items-center">
+          <h1 className="text-[48px] font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-[#4F12A6] dark:text-brand-gold">
+            {title}
+          </h1>
+          <p className="mt-2 text-base text-zinc-500 dark:text-zinc-400 max-w-2xl">
+            {description}
+          </p>
         </div>
 
         {children}

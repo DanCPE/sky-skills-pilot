@@ -1,40 +1,54 @@
 import Link from "next/link";
-import { topics } from "@/lib/topics";
+import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-[var(--background)] text-[var(--foreground)]">
-      <main className="mx-auto max-w-4xl px-6 py-16">
-        <div className="mb-12 text-center">
-          <h1 className="text-4xl font-bold tracking-tight">Sky Skills</h1>
-          <p className="mt-3 text-lg text-zinc-500 dark:text-zinc-400">
-            Choose a topic to start practising
-          </p>
+    <div className="min-h-screen bg-black text-white" style={{ "--font-scale": 1 } as React.CSSProperties}>
+      {/* Hero Section */}
+      <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden">
+        {/* Fixed Background Image Layer */}
+        <div className="fixed inset-0 z-0 bg-black">
+          <Image
+            src="/images/backgrounds/home-dark.png"
+            alt="Cockpit background"
+            fill
+            priority
+            quality={90}
+            className="object-cover opacity-80"
+            sizes="100vw"
+          />
+          {/* Dark gradient overlay for readability */}
+          <div className="absolute inset-0 bg-gradient-to-b from-violet-950/40 via-violet-900/10 to-black" />
         </div>
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {topics.map((topic) => (
+        {/* Content Layer */}
+        <div className="relative z-10 mx-auto max-w-4xl px-6 text-center mt-[-10vh]">
+          <h1 className="text-[71.4px] md:text-7xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-white mb-2 shadow-sm drop-shadow-md">
+            Clear for Takeoff
+          </h1>
+          <h2 className="text-[71.4px] md:text-7xl font-bold tracking-tight font-[family-name:var(--font-space-grotesk)] text-white drop-shadow-md">
+            Ace Your <span className="text-amber-400">SkySkills</span>
+          </h2>
+
+          <p className="mx-auto mt-8 max-w-2xl text-[20px] md:text-xl text-zinc-300 font-light leading-relaxed">
+            Develop the logical, spatial, scanning and short-term memory skills
+            essential for your exams. The most comprehensive, distraction-free
+            preparation platform designed for your success.
+          </p>
+
+          <div className="mt-10 flex flex-col items-center">
             <Link
-              key={topic.slug}
-              href={`/${topic.slug}`}
-              className="group flex flex-col gap-3 rounded-2xl border border-zinc-200 bg-white p-6 transition-all hover:-translate-y-0.5 hover:shadow-md dark:border-zinc-800 dark:bg-zinc-900 dark:hover:border-zinc-700"
+              href="/sky-quest"
+              className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-8 py-3.5 text-base font-bold text-white transition-colors hover:bg-violet-600 shadow-lg active:scale-95"
             >
-              <span className="text-3xl">{topic.icon}</span>
-              <div>
-                <h2 className="text-base font-semibold text-zinc-900 dark:text-zinc-50">
-                  {topic.title}
-                </h2>
-                <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                  {topic.description}
-                </p>
-              </div>
-              <span className="mt-auto text-sm font-medium text-zinc-400 transition-colors group-hover:text-zinc-900 dark:group-hover:text-zinc-50">
-                Start →
-              </span>
+              Our Quests 
             </Link>
-          ))}
+            {/* <p className="mt-3 text-sm text-zinc-400 font-medium">
+              No credit card required for trial
+            </p> */}
+          </div>
         </div>
-      </main>
+      </div>
     </div>
   );
 }

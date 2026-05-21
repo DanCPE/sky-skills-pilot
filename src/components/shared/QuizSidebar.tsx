@@ -1,0 +1,99 @@
+"use client";
+
+import Timer from "./Timer";
+import ProgressBar from "./ProgressBar";
+import QuestionNavigator from "./QuestionNavigator";
+
+interface QuizSidebarProps {
+  // Timer
+  /** Pass undefined to show "--:--" (e.g. learn mode) */
+  timeLimit?: number;
+  onTimeUp?: () => void;
+  isPaused?: boolean;
+
+  // Progress
+  answeredCount: number;
+  totalQuestions: number;
+  score?: number;
+
+  // Navigator
+  currentIndex: number;
+  answeredIndices: Set<number>;
+  skippedIndices?: Set<number>;
+  onSelectQuestion: (index: number) => void;
+
+  // Submit
+  onSubmit: () => void;
+}
+
+export default function QuizSidebar({
+  timeLimit,
+  onTimeUp,
+  isPaused = false,
+  answeredCount,
+  totalQuestions,
+  score,
+  currentIndex,
+  answeredIndices,
+  skippedIndices,
+  onSelectQuestion,
+  onSubmit,
+}: QuizSidebarProps) {
+  return (
+    <div className="flex flex-col gap-4">
+      {/* Timer & Progress Panel */}
+      <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-6 hover:shadow-xl transition-shadow flex flex-col gap-6">
+        <div className="flex items-center justify-between">
+          <span className="font-bold text-zinc-500 dark:text-zinc-300 tracking-widest text-[16px]">
+            Time Remaining
+          </span>
+          {timeLimit ? (
+            <div className="text-xl font-black text-white font-[family-name:var(--font-inter)]">
+              <Timer
+                timeLimit={timeLimit}
+                onTimeUp={onTimeUp ?? (() => {})}
+                isPaused={isPaused}
+                compact
+              />
+            </div>
+          ) : (
+            <span className="text-xl font-black text-zinc-500 font-[family-name:var(--font-space-grotesk)]">
+              --:--
+            </span>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <ProgressBar
+            current={answeredCount}
+            total={totalQuestions}
+            score={score}
+            compact
+          />
+        </div>
+      </div>
+
+      {/* Question Navigator Panel */}
+      <div className="rounded-2xl border-2 border-zinc-200 dark:border-white/5 bg-white dark:bg-black/40 backdrop-blur-md p-4 hover:shadow-xl transition-shadow">
+        <h3 className="mb-3 font-bold text-zinc-500 dark:text-zinc-300 tracking-widest text-[16px]">
+          Question Navigator
+        </h3>
+        <QuestionNavigator
+          totalQuestions={totalQuestions}
+          currentIndex={currentIndex}
+          answeredIndices={answeredIndices}
+          skippedIndices={skippedIndices}
+          onSelectQuestion={onSelectQuestion}
+        />
+      </div>
+
+      {/* Submit Button */}
+      <button
+        onClick={onSubmit}
+        className="mx-auto px-16 py-3.5 rounded-xl bg-amber-400 text-zinc-900 hover:bg-amber-500 transition-all shadow-lg shadow-amber-400/20 active:scale-95 font-[family-name:var(--font-inter)] text-[16px] font-bold leading-none"
+      >
+        Submit
+      </button>
+    </div>
+  );
+}
