@@ -30,8 +30,8 @@ export const metadata: Metadata = {
   description: "Cognitive skills practice platform",
   icons: {
     icon: [
+      { url: "/icon.png", type: "image/png", sizes: "192x192" },
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
   },
 };
