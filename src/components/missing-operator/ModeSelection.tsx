@@ -10,6 +10,7 @@ interface ModeSelectionProps {
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   return (
     <SharedModeSelection<MissingOperatorQuizResponse>
+      topicSlug="missing-operator"
       subtitle="Select a mode and difficulty to practice basic calculations"
       defaultQuestionCount={20}
       formatRealModeTime={(count) => `${(count / 10) * 5} minutes`}

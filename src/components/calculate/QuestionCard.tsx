@@ -23,13 +23,13 @@ export default function QuestionCard({
   return (
     <div className="flex flex-col gap-10 rounded-2xl border-2 border-[#E2EAF0] bg-white px-4 py-6 transition-shadow hover:shadow-xl dark:border-white/5 dark:bg-black/20">
       <div className="pt-6 text-center">
-        <h3 className="text-[16px] font-bold tracking-tight text-zinc-900 drop-shadow-sm dark:text-white md:text-[20px] font-[family-name:var(--font-inter)]">
+        <h3 className="text-[16px] font-bold tracking-tight text-zinc-900 drop-shadow-sm dark:text-white md:text-[20px]">
           {question.prompt}
         </h3>
       </div>
 
       <div className="flex min-h-[100px] items-center justify-center overflow-hidden rounded-[1rem] border-2 border-[#4F12A6] bg-white px-6 py-4 dark:border-white/90 dark:bg-zinc-900/80">
-        <span className="font-[family-name:var(--font-space-grotesk)] text-[42px] font-black tracking-tight text-zinc-900 dark:text-white md:text-[32px]">
+        <span className=" text-[42px] font-bold tracking-tight text-zinc-900 dark:text-white md:text-[32px]">
           {question.expression}
         </span>
       </div>
@@ -50,7 +50,7 @@ export default function QuestionCard({
                   onClick={() => onAnswer(option)}
                   onMouseEnter={() => setHoveredOption(option)}
                   onMouseLeave={() => setHoveredOption(null)}
-                  className={`h-10 w-full rounded-2xl border-2 text-[14px] font-black transition-all duration-300 md:h-12 md:text-[16px] ${
+                  className={`h-10 w-full rounded-2xl border-2 text-[14px] font-bold transition-all duration-300 md:h-12 md:text-[16px] ${
                     isSelected
                       ? "z-10 scale-105 border-[#4F12A6] bg-[#4F12A6] text-white"
                       : hoveredOption === option && !disabled
@@ -62,7 +62,7 @@ export default function QuestionCard({
                 </button>
 
                 <div
-                  className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-black transition-all duration-300 ${
+                  className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-all duration-300 ${
                     isSelected
                       ? "scale-110 border-[#4F12A6] bg-[#4F12A6] text-white"
                       : "border-[#E0E0E0] text-zinc-500 dark:border-white/20"

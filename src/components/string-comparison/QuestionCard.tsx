@@ -70,7 +70,7 @@ export default function QuestionCard({
           <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String A
           </div>
-          <div className="text-center text-zinc-900 dark:text-zinc-100 font-sans break-all text-[20px] font-bold">
+          <div className="text-center text-zinc-900 dark:text-zinc-100 break-all text-[20px] font-bold">
             {question.stringA}
           </div>
         </div>
@@ -80,7 +80,7 @@ export default function QuestionCard({
           <div className="font-medium uppercase tracking-wider text-zinc-400 dark:text-zinc-500 mb-1 text-[9px]">
             String B
           </div>
-          <div className="text-center text-zinc-900 dark:text-zinc-100 font-sans break-all text-[20px] font-bold">
+          <div className="text-center text-zinc-900 dark:text-zinc-100 break-all text-[20px] font-bold">
             {question.stringB}
           </div>
         </div>

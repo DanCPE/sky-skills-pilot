@@ -21,7 +21,7 @@ export default function QuestionCard({
   return (
     <div className="rounded-2xl border-2 border-[#E2EAF0] bg-white px-4 py-6 transition-shadow hover:shadow-xl dark:border-white/5 dark:bg-black/20">
       <div className="pt-2 text-center">
-        <h3 className="text-[18px] font-bold tracking-tight text-zinc-900 drop-shadow-sm dark:text-white font-[family-name:var(--font-inter)]">
+        <h3 className="text-[18px] font-bold tracking-tight text-zinc-900 drop-shadow-sm dark:text-white">
           {question.prompt}
         </h3>
       </div>
@@ -48,7 +48,7 @@ export default function QuestionCard({
             >
               <span className="text-[16px] font-bold">{option}</span>
               <span
-                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-black ${
+                className={`flex h-8 w-8 items-center justify-center rounded-full border-2 text-[12px] font-bold ${
                   isSelected
                     ? "border-white/50 bg-white/10 text-white"
                     : "border-[#E0E0E0] text-zinc-500 dark:border-white/20 dark:text-zinc-300"

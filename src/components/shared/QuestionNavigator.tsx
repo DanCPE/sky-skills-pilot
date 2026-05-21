@@ -26,7 +26,7 @@ export default function QuestionNavigator({
     const isCurrent = index === currentIndex;
 
     if (isCurrent) {
-      return "bg-[#F1F5F9] text-[#4F12A6] border-2 border-[#4F12A6] font-black shadow-lg scale-105 z-10";
+      return "bg-[#F1F5F9] text-[#4F12A6] border-2 border-[#4F12A6] font-bold shadow-lg scale-105 z-10";
     }
 
     if (status === "answered") {
@@ -56,7 +56,7 @@ export default function QuestionNavigator({
         ))}
       </div>
 
-      <div className="font-[family-name:var(--font-inter)] flex gap-6 text-[10px] font-bold text-black dark:text-white tracking-widest uppercase">
+      <div className=" flex gap-6 text-[10px] font-bold text-black dark:text-white  uppercase">
         <div className="flex items-center gap-2">
           <div className="h-2 w-2 rounded-full bg-[#4F12A6]"></div>
           <span>DONE</span>

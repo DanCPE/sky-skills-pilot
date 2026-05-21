@@ -32,11 +32,11 @@ export default function QuestionCountSlider({
   return (
     <div className="mb-8 rounded-2xl border border-zinc-200 dark:border-white/10 bg-white/50 dark:bg-black/40 dark:backdrop-blur-md p-6">
       <div className="mb-6 flex items-start justify-between gap-4">
-        <label className="block text-left font-[family-name:var(--font-inter)] text-[16px] font-bold text-zinc-900 dark:text-zinc-100">
+        <label className="block text-left text-[16px] font-bold text-zinc-900 dark:text-zinc-100">
           {title}
         </label>
         {helperText ? (
-          <span className="text-right font-[family-name:var(--font-inter)] text-sm font-medium text-zinc-500 dark:text-zinc-400">
+          <span className="text-right text-sm font-medium text-zinc-500 dark:text-zinc-400">
             {helperText}
           </span>
         ) : null}
@@ -62,7 +62,7 @@ export default function QuestionCountSlider({
           className="relative z-10 h-1.5 w-full cursor-pointer appearance-none bg-transparent [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-[#4F12A6] dark:[&::-webkit-slider-thumb]:bg-[#FACC15] [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white dark:[&::-webkit-slider-thumb]:border-zinc-900 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-[#4F12A6] dark:[&::-moz-range-thumb]:bg-[#FACC15] [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white dark:[&::-moz-range-thumb]:border-zinc-900"
         />
       </div>
-      <div className="relative mt-2 h-6 w-full font-[family-name:var(--font-inter)]">
+      <div className="relative mt-2 h-6 w-full">
         {labels.map((label) => {
           const pos = ((label - min) / (max - min)) * 100;
           return (

@@ -15,7 +15,8 @@ export type TopicCategory =
   | "logical"
   | "spatial"
   | "approximation"
-  | "short-term-memory";
+  | "short-term-memory"
+  | "multitasking";
 
 export interface Question {
   id: string;
@@ -115,6 +116,40 @@ export interface CalculationSubmitResult extends SubmitResult {
   currentScore?: number;
 }
 
+// Approximation specific types
+export interface ApproximationQuestion extends Question {
+  id: string;
+  prompt: string;
+  options: string[];
+  correctAnswer: string;
+  correctChoice: string;
+  exactValue?: number | string;
+  unit?: string;
+  category: string;
+  questionType: string;
+  difficulty: "easy" | "medium" | "hard";
+  explanation: string;
+}
+
+export interface ApproximationQuizResponse {
+  questions: ApproximationQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
+export interface ApproximationSubmitPayload extends SubmitPayload {
+  mode: "learn" | "real";
+  questionIndex: number;
+  timeRemaining?: number;
+  correctAnswer: string;
+}
+
+export interface ApproximationSubmitResult extends SubmitResult {
+  correctAnswer?: string;
+  explanation?: string;
+  currentScore?: number;
+}
+
 // Dern-Jood specific types
 export interface DernJoodQuestion extends Question {
   id: string;
@@ -129,6 +164,15 @@ export interface DernJoodQuestion extends Question {
 
 export interface DernJoodQuizResponse {
   questions: DernJoodQuestion[];
+  mode: "learn" | "real";
+  bpm?: number;
+}
+
+// Joy-Stick Game specific types
+export type JoyStickGameQuestion = DernJoodQuestion;
+
+export interface JoyStickGameQuizResponse {
+  questions: JoyStickGameQuestion[];
   mode: "learn" | "real";
   bpm?: number;
 }
@@ -267,6 +311,48 @@ export interface SpatialOrientationSubmitResult {
   correct: boolean;
   correctAngle: number;
   correctDir: Direction;
+}
+
+// --- Missing Cube Types ---
+
+export interface CubeCell {
+  x: number;
+  y: number;
+  z: number;
+}
+
+export interface MissingCubePiece {
+  id: string;
+  label: string;
+  cells: CubeCell[];
+  displayOffset?: CubeCell;
+  displayRotation?: {
+    yaw: number;
+    pitch: number;
+    roll: number;
+  };
+}
+
+export interface MissingCubeQuestion {
+  id: string;
+  prompt: string;
+  size: 3 | 4 | 5;
+  difficulty: "easy" | "medium" | "hard";
+  visibleParts: MissingCubePiece[];
+  missingPiece: MissingCubePiece;
+  options: MissingCubePiece[];
+  correctOptionId: string;
+  initialRotation: {
+    yaw: number;
+    pitch: number;
+  };
+  explanation: string;
+}
+
+export interface MissingCubeQuizResponse {
+  questions: MissingCubeQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
 }
 
 // --- Short-Term Memory Table Types ---

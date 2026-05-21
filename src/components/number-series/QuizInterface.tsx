@@ -9,6 +9,7 @@ import TopicLayout from "@/components/TopicLayout";
 import QuizCompleteConfirmation from "./QuizCompleteConfirmation";
 import QuizSidebar from "@/components/shared/QuizSidebar";
 import QuizFooterNav from "@/components/shared/QuizFooterNav";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type {
   NumberSeriesQuizResponse,
   NumberSeriesSubmitResult,
@@ -320,6 +321,18 @@ export default function QuizInterface({
     return Math.round((correct / questions.length) * 100);
   };
 
+  const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
+  useRecordRealModeScore({
+    completed: quizComplete,
+    mode,
+    topicSlug: "number-series",
+    topicTitle: "Number Series",
+    score: correctCount,
+    maxScore: questions.length,
+    questionCount: questions.length,
+    timeTakenSeconds: totalTimeTaken || undefined,
+  });
+
   // Show submit confirmation
   const handleSubmitClick = () => {
     const answeredCount = new Set(answers.map((a) => a.questionId)).size;
@@ -447,7 +460,7 @@ export default function QuizInterface({
                   </span>
                 </div>
               </div>
-              <div className="text-[24px] font-bold text-zinc-900 dark:text-white/90 font-[family-name:var(--font-inter)]">
+              <div className="text-[24px] font-bold text-zinc-900 dark:text-white/90">
                 Question {currentQuestionIndex + 1}
               </div>
             </div>
@@ -531,7 +544,7 @@ export default function QuizInterface({
 
       {/* Footer Bar */}
       <div className="w-full bg-white dark:bg-black/40 py-4 flex justify-center items-center mt-auto shrink-0">
-        <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
+        <p className=" text-[14px] text-[#374151]">
           © 2026 SkySkills. All rights reserved.
         </p>
       </div>

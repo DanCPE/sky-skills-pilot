@@ -8,6 +8,7 @@ import ResultsScreen from "./ResultsScreen";
 import QuizCompleteConfirmation from "@/components/number-series/QuizCompleteConfirmation";
 import QuizSidebar from "@/components/shared/QuizSidebar";
 import QuizFooterNav from "@/components/shared/QuizFooterNav";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type {
   ScanningPracticeQuizResponse,
   ScanningPracticeSubmitResult,
@@ -161,6 +162,18 @@ export default function QuizInterface({
     return Math.round((correct / questions.length) * 100);
   };
 
+  const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
+  useRecordRealModeScore({
+    completed: quizComplete,
+    mode,
+    topicSlug: "string-comparison",
+    topicTitle: "String Comparison",
+    score: correctCount,
+    maxScore: questions.length,
+    questionCount: questions.length,
+    timeTakenSeconds: totalTimeTaken || undefined,
+  });
+
   // Handle submit quiz (real mode)
   const handleSubmitQuiz = async () => {
     if (mode !== "real") {
@@ -288,12 +301,12 @@ export default function QuizInterface({
                     String Comparison
                   </h1>
                   <div className="flex items-center gap-2">
-                    <span className="font-[family-name:var(--font-inter)] uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                    <span className=" uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
                       LEARN MODE
                     </span>
                   </div>
                 </div>
-                <div className="text-[24px] font-bold text-zinc-900 dark:text-white/90 font-[family-name:var(--font-inter)]">
+                <div className="text-[24px] font-bold text-zinc-900 dark:text-white/90">
                   Question {currentQuestionIndex + 1}
                 </div>
               </div>
@@ -350,7 +363,7 @@ export default function QuizInterface({
 
         {/* Footer Bar */}
         <div className="w-full bg-white dark:bg-black/40 py-4 flex justify-center items-center mt-auto shrink-0">
-          <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
+          <p className=" text-[14px] text-[#374151]">
             © 2026 SkySkills. All rights reserved.
           </p>
         </div>
@@ -376,7 +389,7 @@ export default function QuizInterface({
                   String Comparison
                 </h1>
                 <div className="flex items-center gap-2">
-                  <span className="font-[family-name:var(--font-inter)] uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
+                  <span className=" uppercase text-[12px] font-bold tracking-[0.2em] bg-amber-400 text-zinc-900 px-2.5 py-1 rounded-md">
                     REAL MODE
                   </span>
                 </div>
@@ -400,11 +413,11 @@ export default function QuizInterface({
                     }`}
                   >
                     <div className="mb-3 flex items-center justify-between">
-                      <h3 className="text-sm font-black text-zinc-900 dark:text-zinc-300 tracking-widest">
+                      <h3 className="text-sm font-bold text-zinc-900 dark:text-zinc-300 ">
                         Question {index + 1}
                       </h3>
                       {selectedAnswers[index] && (
-                        <span className="uppercase tracking-widest rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-black text-brand-purple">
+                        <span className="uppercase  rounded-full bg-brand-purple/20 border border-brand-purple/40 px-3 py-0.5 text-[10px] font-bold text-brand-purple">
                           Answered
                         </span>
                       )}
@@ -468,7 +481,7 @@ export default function QuizInterface({
       )}
       {/* Footer Bar */}
       <div className="w-full bg-white py-4 flex justify-center items-center mt-auto shrink-0">
-        <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
+        <p className=" text-[14px] text-[#374151]">
           © 2026 SkySkills. All rights reserved.
         </p>
       </div>

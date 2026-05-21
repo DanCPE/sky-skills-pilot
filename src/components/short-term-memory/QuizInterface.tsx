@@ -4,6 +4,7 @@ import Image from "next/image";
 import { useEffect, useMemo, useRef, useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "@/components/shared/ResultsScreen";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type {
   ShortTermMemoryCell,
   ShortTermMemoryMathQuestion,
@@ -47,7 +48,7 @@ function renderCellContent(cell: ShortTermMemoryCell, compact = false) {
 
   return (
     <span
-      className={`font-mono font-bold tracking-[0.25em] text-zinc-900 dark:text-zinc-100 ${
+      className={` font-bold tracking-[0.25em] text-zinc-900 dark:text-zinc-100 ${
         compact ? "text-base" : "text-lg"
       }`}
     >
@@ -71,7 +72,7 @@ function renderOptionContent(option: ShortTermMemoryOption) {
     );
   }
 
-  return <span className="font-mono text-sm font-bold tracking-[0.2em]">{option.label}</span>;
+  return <span className=" text-sm font-bold tracking-[0.2em]">{option.label}</span>;
 }
 
 function MathQuestionCard({
@@ -85,7 +86,7 @@ function MathQuestionCard({
 }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
-      <p className="mb-4 text-center font-[family-name:var(--font-space-grotesk)] text-2xl font-black text-zinc-900 dark:text-zinc-100">
+      <p className="mb-4 text-center text-2xl font-bold text-zinc-900 dark:text-zinc-100">
         {question.prompt}
       </p>
       <div className="grid grid-cols-2 gap-3">
@@ -186,6 +187,19 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
 
   const answeredMathCount = mathReview.filter((answer) => answer.answer !== "").length;
   const allMathAnswered = answeredMathCount === mathQuestions.length;
+  const correctCount = allReviewAnswers.filter((answerData) => answerData.isCorrect).length;
+
+  useRecordRealModeScore({
+    completed: phase === "results",
+    mode,
+    topicSlug: "short-term-memory",
+    topicTitle: "Short-Term Memory Table",
+    score: correctCount,
+    maxScore: rows * columns + mathQuestions.length,
+    questionCount: rows * columns + mathQuestions.length,
+    timeTakenSeconds: completedTime,
+    metadata: { rows, columns },
+  });
 
   const handleStartMemorizing = () => {
     startTimeRef.current = Date.now();
@@ -307,7 +321,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                           className="h-9 w-9 object-contain dark:invert"
                         />
                     ) : (
-                      <p className="font-mono text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                      <p className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
                         {cell.answer || "---"}
                       </p>
                     )}
@@ -324,7 +338,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                           className="inline-block h-8 w-8 object-contain align-middle dark:invert"
                         />
                       ) : (
-                        <span className="font-mono font-bold">{cell.expected}</span>
+                        <span className=" font-bold">{cell.expected}</span>
                       )}
                     </div>
                   )}
@@ -352,13 +366,13 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
             <p className="mb-3 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
               {mode === "real" ? "REAL MODE" : "LEARN MODE"}
             </p>
-            <h2 className="text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
+            <h2 className="text-3xl font-bold text-zinc-900 dark:text-zinc-100">
               Ready to Start?
             </h2>
-            <p className="mt-3 max-w-xl text-sm font-[family-name:var(--font-inter)] text-zinc-600 dark:text-zinc-400">
+            <p className="mt-3 max-w-xl text-sm text-zinc-600 dark:text-zinc-400">
               Press start when you are ready. The memory table will appear first, then you will solve 3 math questions before recall.
             </p>
-            <div className="mt-6 grid w-full gap-3 rounded-2xl bg-zinc-50 p-4 text-left text-sm font-[family-name:var(--font-inter)] text-zinc-700 dark:bg-white/5 dark:text-zinc-300">
+            <div className="mt-6 grid w-full gap-3 rounded-2xl bg-zinc-50 p-4 text-left text-sm text-zinc-700 dark:bg-white/5 dark:text-zinc-300">
               <p>
                 Grid size: <span className="font-bold">{columns} x {rows}</span>
               </p>
@@ -402,14 +416,14 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                   <p className="mb-2 inline-flex rounded-full bg-amber-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-amber-700 dark:bg-amber-500/10 dark:text-amber-300">
                     {mode === "real" ? "REAL MODE" : "LEARN MODE"}
                   </p>
-                  <h2 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
+                  <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                     {phase === "memorize"
                       ? "Memorize the Grid"
                       : phase === "math"
                         ? "Solve the Math Questions"
                         : "Recall the Grid"}
                   </h2>
-                  <p className="mt-2 text-sm font-[family-name:var(--font-inter)] text-zinc-600 dark:text-zinc-400">
+                  <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                     {phase === "memorize"
                       ? mode === "real"
                         ? "Study each cell carefully before the grid is hidden."
@@ -431,7 +445,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                     <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
                       {phase === "memorize" ? (mode === "real" ? "Time Remaining" : "Mode") : "Status"}
                     </p>
-                    <p className="mt-1 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-[#4F12A6] dark:text-brand-gold">
+                    <p className="mt-1 text-3xl font-bold text-[#4F12A6] dark:text-brand-gold">
                       {phase === "memorize"
                         ? (mode === "real" ? formatTime(timeRemaining) : "LEARNING")
                         : phase === "math"

@@ -10,6 +10,7 @@ interface ModeSelectionProps {
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   return (
     <SharedModeSelection<SpatialOrientationQuizResponse>
+      topicSlug="aircraft-rotation"
       subtitle="Calculate aircraft heading changes and rotations"
       defaultQuestionCount={20}
       timePerQuestion={15}

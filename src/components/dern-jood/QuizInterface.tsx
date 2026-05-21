@@ -11,6 +11,7 @@ import {
 import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "./ResultsScreen";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type { DernJoodQuizResponse } from "@/types";
 import DernJoodPapers from "./DernJoodPapers";
 
@@ -232,7 +233,11 @@ export default function QuizInterface({
   const autoMicEnabledRef = useRef(false);
   const quizStartedRef = useRef(false);
   const quizCompleteRef = useRef(false);
-  const startVoiceRecognitionRef = useRef<(() => void) | null>(null);
+  const startVoiceRecognitionRef = useRef<((cancelSpeech?: boolean) => void) | null>(
+    null,
+  );
+  const voiceSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const pendingVoiceTranscriptRef = useRef("");
 
   const currentQuestion = questions[currentQuestionIndex];
   const effectiveBpm = mode === "learn" ? learnBpm : realBpm;
@@ -251,7 +256,12 @@ export default function QuizInterface({
     }
   };
 
-  const randomBpm = () => Math.round((Math.floor(Math.random() * 131) + 50) / 5) * 5;
+  const smoothRandomBpm = (currentBpm: number) => {
+    const step = ([-20, -15, -10, -5, 5, 10, 15, 20] as const)[
+      Math.floor(Math.random() * 8)
+    ];
+    return Math.min(180, Math.max(50, currentBpm + step));
+  };
 
   const stopRealBpmTimer = () => {
     if (realBpmTimerRef.current) {
@@ -306,7 +316,7 @@ export default function QuizInterface({
     }
 
     setTimeout(() => {
-      startVoiceRecognitionRef.current?.();
+      startVoiceRecognitionRef.current?.(false);
     }, 250);
   }, []);
 
@@ -383,6 +393,10 @@ export default function QuizInterface({
   };
 
   const stopVoiceRecognition = () => {
+    if (voiceSubmitTimerRef.current) {
+      clearTimeout(voiceSubmitTimerRef.current);
+      voiceSubmitTimerRef.current = null;
+    }
     recognitionRef.current?.abort();
     recognitionRef.current = null;
     setIsListening(false);
@@ -402,6 +416,10 @@ export default function QuizInterface({
 
     const nextIndex = currentQuestionIndex + 1;
     const nextQuestion = questions[nextIndex];
+    if (voiceSubmitTimerRef.current) {
+      clearTimeout(voiceSubmitTimerRef.current);
+      voiceSubmitTimerRef.current = null;
+    }
     recognitionRef.current?.abort();
     setAnswer("");
     setRemainingSeconds(nextQuestion.timeLimitSeconds);
@@ -439,9 +457,18 @@ export default function QuizInterface({
     recordAnswer(answer);
   };
 
-  const startVoiceRecognition = useCallback(async () => {
+  const startVoiceRecognition = useCallback(async (cancelSpeech = false) => {
     if (!quizStarted || quizComplete || !currentQuestion || isListening) return;
     if (typeof window === "undefined") return;
+
+    if (
+      !cancelSpeech &&
+      (window.speechSynthesis?.speaking || window.speechSynthesis?.pending)
+    ) {
+      setVoiceInputStatus("Waiting for question voice...");
+      setTimeout(() => startVoiceRecognitionRef.current?.(false), 250);
+      return;
+    }
 
     const Recognition =
       window.SpeechRecognition ?? window.webkitSpeechRecognition;
@@ -471,10 +498,20 @@ export default function QuizInterface({
     };
 
     const runRecognition = (processLocally: boolean) => {
-      window.speechSynthesis?.cancel();
+      if (cancelSpeech) {
+        window.speechSynthesis?.cancel();
+      }
       const recognition = createRecognition(processLocally);
 
+      const clearPendingVoiceSubmit = () => {
+        if (voiceSubmitTimerRef.current) {
+          clearTimeout(voiceSubmitTimerRef.current);
+          voiceSubmitTimerRef.current = null;
+        }
+      };
+
       const fallbackToRepeat = (message: string) => {
+        clearPendingVoiceSubmit();
         recognition.abort();
         recognitionRef.current = null;
         setIsListening(false);
@@ -489,6 +526,7 @@ export default function QuizInterface({
         );
       };
       recognition.onerror = (event) => {
+        clearPendingVoiceSubmit();
         setIsListening(false);
 
         if (event.error === "language-not-supported" && processLocally) {
@@ -520,15 +558,31 @@ export default function QuizInterface({
       };
       recognition.onresult = (event) => {
         const result = event.results[event.resultIndex];
-        const transcript = result[0]?.transcript.trim() ?? "";
+        const transcriptParts: string[] = [];
+        for (let index = 0; index < event.results.length; index += 1) {
+          const part = event.results[index][0]?.transcript.trim();
+          if (part) {
+            transcriptParts.push(part);
+          }
+        }
+        const transcript =
+          transcriptParts.join(" ").trim() || result[0]?.transcript.trim() || "";
         if (!transcript) {
           fallbackToRepeat("Heard nothing. Repeating question");
           return;
         }
 
-        setVoiceInputStatus(`Heard: ${transcript}`);
+        pendingVoiceTranscriptRef.current = transcript;
+        setVoiceInputStatus(
+          result.isFinal ? `Heard: ${transcript}` : `Hearing: ${transcript}`,
+        );
+
+        if (!result.isFinal) {
+          return;
+        }
 
         if (isRepeatCommand(transcript)) {
+          clearPendingVoiceSubmit();
           recognitionRef.current?.abort();
           recognitionRef.current = null;
           setIsListening(false);
@@ -537,21 +591,27 @@ export default function QuizInterface({
           return;
         }
 
-        const parsedAnswer =
-          currentQuestion.prompt === "Read back the numbers"
-            ? parseSpokenDigitSequence(transcript)
-            : parseSpokenNumber(transcript);
-        if (!parsedAnswer) {
-          fallbackToRepeat(`Could not answer: ${transcript}. Repeating question`);
-          return;
-        }
+        clearPendingVoiceSubmit();
+        voiceSubmitTimerRef.current = setTimeout(() => {
+          const settledTranscript = pendingVoiceTranscriptRef.current.trim();
+          const parsedAnswer =
+            currentQuestion.prompt === "Read back the numbers"
+              ? parseSpokenDigitSequence(settledTranscript)
+              : parseSpokenNumber(settledTranscript);
+          if (!parsedAnswer) {
+            fallbackToRepeat(
+              `Could not answer: ${settledTranscript}. Repeating question`,
+            );
+            return;
+          }
 
-        setAnswer(parsedAnswer);
-        setVoiceInputStatus(`Submitting: ${parsedAnswer}`);
-        recognition.abort();
-        recognitionRef.current = null;
-        setIsListening(false);
-        recordAnswer(parsedAnswer);
+          setAnswer(parsedAnswer);
+          setVoiceInputStatus(`Submitting: ${parsedAnswer}`);
+          recognition.abort();
+          recognitionRef.current = null;
+          setIsListening(false);
+          recordAnswer(parsedAnswer);
+        }, 450);
       };
 
       recognitionRef.current = recognition;
@@ -563,7 +623,7 @@ export default function QuizInterface({
       }
     };
 
-    runRecognition(true);
+    runRecognition(cancelSpeech);
   }, [
     currentQuestion,
     isListening,
@@ -585,7 +645,7 @@ export default function QuizInterface({
     if (speechEnabled) {
       speechTimer = setTimeout(() => speakQuestion(), 80);
     } else if (autoMicEnabled) {
-      speechTimer = setTimeout(() => startVoiceRecognitionRef.current?.(), 250);
+      speechTimer = setTimeout(() => startVoiceRecognitionRef.current?.(false), 250);
     }
 
     return () => {
@@ -644,7 +704,7 @@ export default function QuizInterface({
     const scheduleNextBpmChange = () => {
       const nextDelayMs = (Math.floor(Math.random() * 9) + 8) * 1000;
       realBpmTimerRef.current = setTimeout(() => {
-        setRealBpm(randomBpm());
+        setRealBpm((prev) => smoothRandomBpm(prev));
         scheduleNextBpmChange();
       }, nextDelayMs);
     };
@@ -676,16 +736,32 @@ export default function QuizInterface({
   }, [quizComplete]);
 
   useEffect(() => {
-    startVoiceRecognitionRef.current = () => {
-      void startVoiceRecognition();
+    startVoiceRecognitionRef.current = (cancelSpeech = false) => {
+      void startVoiceRecognition(cancelSpeech);
     };
   }, [startVoiceRecognition]);
+
+  const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
+  useRecordRealModeScore({
+    completed: quizComplete,
+    mode,
+    topicSlug: "dern-jood",
+    topicTitle: "Dern-Jood",
+    score: correctCount,
+    maxScore: questions.length,
+    questionCount: questions.length,
+    timeTakenSeconds: totalTimeTaken,
+    metadata: { bpm: mode === "real" ? realBpm : learnBpm },
+  });
 
   useEffect(() => {
     return () => {
       stopMetronome();
       audioContextRef.current?.close();
       window.speechSynthesis?.cancel();
+      if (voiceSubmitTimerRef.current) {
+        clearTimeout(voiceSubmitTimerRef.current);
+      }
       recognitionRef.current?.abort();
       stopRealBpmTimer();
       speechUtteranceRef.current = null;
@@ -730,7 +806,7 @@ export default function QuizInterface({
       <div className="mx-auto mb-20 w-full max-w-[980px] flex-1 p-4 pt-12 sm:p-6 sm:pt-16">
         <div className="mb-4 flex flex-col gap-4 rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 dark:border-white/5 dark:bg-black/40 sm:flex-row sm:items-center sm:justify-between">
           <div>
-            <h1 className="font-[family-name:var(--font-space-grotesk)] text-[30px] font-bold tracking-tight text-zinc-900 dark:text-white">
+            <h1 className=" text-[30px] font-bold tracking-tight text-zinc-900 dark:text-white">
               Dern-Jood
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -742,7 +818,7 @@ export default function QuizInterface({
               </span>
             </div>
           </div>
-          <div className="font-[family-name:var(--font-inter)] text-[24px] font-bold text-zinc-900 dark:text-white/90">
+          <div className=" text-[24px] font-bold text-zinc-900 dark:text-white/90">
             {currentQuestionIndex + 1} / {questions.length}
           </div>
         </div>
@@ -813,7 +889,7 @@ export default function QuizInterface({
             {showQuestionPopup ? (
               <div className="mb-8 flex min-h-[160px] items-center justify-center rounded-2xl border-2 border-[#4F12A6] bg-white px-4 py-6 dark:border-white/90 dark:bg-zinc-900/80">
                 <span
-                  className={`break-words text-center font-[family-name:var(--font-space-grotesk)] font-black text-zinc-900 dark:text-white ${questionTextSize}`}
+                  className={`break-words text-center font-bold text-zinc-900 dark:text-white ${questionTextSize}`}
                 >
                   {currentQuestion.expression}
                 </span>
@@ -866,7 +942,7 @@ export default function QuizInterface({
                     typeof window === "undefined" ||
                     !window.speechSynthesis?.speaking
                   ) {
-                    void startVoiceRecognition();
+                    void startVoiceRecognition(true);
                   }
                 }}
                 disabled={!quizStarted}
@@ -913,7 +989,7 @@ export default function QuizInterface({
                   >
                     BPM
                   </label>
-                  <span className="font-[family-name:var(--font-space-grotesk)] text-lg font-black text-zinc-900 dark:text-white">
+                  <span className=" text-lg font-bold text-zinc-900 dark:text-white">
                     {learnBpm}
                   </span>
                 </div>
@@ -934,7 +1010,7 @@ export default function QuizInterface({
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
                 Time Left
               </p>
-              <p className="mt-1 font-[family-name:var(--font-space-grotesk)] text-4xl font-black text-zinc-900 dark:text-white">
+              <p className="mt-1 text-4xl font-bold text-zinc-900 dark:text-white">
                 {remainingSeconds}s
               </p>
             </div>
@@ -943,7 +1019,7 @@ export default function QuizInterface({
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
                 Score
               </p>
-              <p className="mt-1 font-[family-name:var(--font-space-grotesk)] text-3xl font-black text-zinc-900 dark:text-white">
+              <p className="mt-1 text-3xl font-bold text-zinc-900 dark:text-white">
                 {answers.filter((item) => item.isCorrect).length}/{answers.length}
               </p>
             </div>
@@ -985,7 +1061,7 @@ export default function QuizInterface({
       </div>
 
       <div className="mt-auto flex w-full shrink-0 items-center justify-center bg-white py-4 dark:bg-black/40">
-        <p className="font-[family-name:var(--font-space-grotesk)] text-[14px] text-[#374151]">
+        <p className=" text-[14px] text-[#374151]">
           © 2026 SkySkills. All rights reserved.
         </p>
       </div>

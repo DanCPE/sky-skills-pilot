@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "@/components/shared/ResultsScreen";
 import QuestionCard from "./QuestionCard";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type { PassageRecallQuizResponse, ShortTermMemoryMathQuestion } from "@/types";
 
 type Phase = "reading" | "math" | "evaluation" | "results";
@@ -37,7 +38,7 @@ function MathQuestionCard({
 }) {
   return (
     <div className="rounded-2xl border border-zinc-200 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
-      <p className="mb-4 text-center font-[family-name:var(--font-space-grotesk)] text-2xl font-black text-zinc-900 dark:text-zinc-100">
+      <p className="mb-4 text-center text-2xl font-bold text-zinc-900 dark:text-zinc-100">
         {question.prompt}
       </p>
       <div className="grid grid-cols-2 gap-3">
@@ -116,6 +117,30 @@ export default function QuizInterface({
       })),
     [mathAnswers, mathQuestions]
   );
+  const scoreReview = useMemo(
+    () => [
+      ...answerEntries,
+      ...mathReview.map((mathAnswer) => ({
+        questionId: mathAnswer.question.id,
+        answer: mathAnswer.answer,
+        isCorrect: mathAnswer.isCorrect,
+      })),
+    ],
+    [answerEntries, mathReview],
+  );
+  const correctCount = scoreReview.filter((answerData) => answerData.isCorrect).length;
+
+  useRecordRealModeScore({
+    completed: phase === "results",
+    mode,
+    topicSlug: "passage-recall",
+    topicTitle: "Passage Recall",
+    score: correctCount,
+    maxScore: questions.length + mathQuestions.length,
+    questionCount: questions.length + mathQuestions.length,
+    timeTakenSeconds: completedTime,
+    metadata: { readingDurationSeconds },
+  });
 
   const handleAnswerNow = () => {
     onPassageExpired();
@@ -150,10 +175,7 @@ export default function QuizInterface({
       >
         <ResultsScreen
           totalCount={questions.length + mathQuestions.length}
-          answers={[
-            ...answerEntries,
-            ...mathReview.map((m) => ({ questionId: m.question.id, answer: m.answer, isCorrect: m.isCorrect })),
-          ]}
+          answers={scoreReview}
           timeTaken={completedTime}
           onRestart={onRestart}
           restartLabel="Back to Mode Selection"
@@ -233,7 +255,7 @@ export default function QuizInterface({
                         Your answer:{" "}
                       </span>
                       <span
-                        className={`font-bold font-[family-name:var(--font-space-grotesk)] ${
+                        className={`font-bold ${
                           isCorrect
                             ? "text-green-700 dark:text-green-300"
                             : "text-red-700 dark:text-red-300"
@@ -304,10 +326,10 @@ export default function QuizInterface({
               <p className="mb-2 inline-flex rounded-full bg-violet-100 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-violet-700 dark:bg-violet-500/10 dark:text-violet-300">
                 {mode === "real" ? "REAL MODE" : "LEARN MODE"}
               </p>
-              <h2 className="text-2xl font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
+              <h2 className="text-2xl font-bold text-zinc-900 dark:text-zinc-100">
                 {phaseTitle}
               </h2>
-              <p className="mt-2 text-sm font-[family-name:var(--font-inter)] text-zinc-600 dark:text-zinc-400">
+              <p className="mt-2 text-sm text-zinc-600 dark:text-zinc-400">
                 {phaseDescription}
               </p>
             </div>
@@ -323,7 +345,7 @@ export default function QuizInterface({
                 <p className="text-xs font-semibold uppercase tracking-[0.2em] text-zinc-500 dark:text-zinc-400">
                   {statusLabel}
                 </p>
-                <p className="mt-1 text-3xl font-bold font-[family-name:var(--font-space-grotesk)] text-brand-purple dark:text-brand-gold">
+                <p className="mt-1 text-3xl font-bold text-brand-purple dark:text-brand-gold">
                   {statusValue}
                 </p>
               </div>

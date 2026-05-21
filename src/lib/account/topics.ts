@@ -54,6 +54,7 @@ const categoryDomainMap: Record<TopicCategory, AccountSkillDomainSlug> = {
   scanning: "visual-scanning",
   approximation: "numerical-agility",
   "short-term-memory": "short-term-memory",
+  multitasking: "multitasking",
 };
 
 const topicDomainOverrides: Record<string, AccountSkillDomainSlug> = {

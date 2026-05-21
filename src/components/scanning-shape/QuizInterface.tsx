@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Timer from "@/components/shared/Timer";
+import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import { useTheme } from "@/lib/use-theme";
 import { getPerformanceMessage } from "@/lib/performance-copy";
 import { generateScanningShapeSections } from "@/lib/scanning-shape-generator";
@@ -142,7 +143,7 @@ function ShapeGraphic({
         dominantBaseline="central"
         fill={textColor}
         fontSize={fontSize}
-        fontFamily="var(--font-geist-mono), 'Geist Mono', monospace"
+        fontFamily="var(--font-inter), Arial, sans-serif"
         fontWeight="bold"
       >
         {displayText}
@@ -184,7 +185,7 @@ function AnswerCard({
         : SHAPE_CARD_BORDER[shape.shape];
 
   const inputClass = [
-    "h-10 w-10 rounded-lg border-2 text-center text-base font-black uppercase outline-none transition-all",
+    "h-10 w-10 rounded-lg border-2 text-center text-base font-bold uppercase outline-none transition-all",
     isLocked
       ? "cursor-not-allowed border-green-500 bg-green-50 text-green-700 dark:bg-green-950 dark:text-green-300"
       : isRevealed
@@ -295,7 +296,7 @@ function SectionPair({
   return (
     <div className={panelClass} style={panelStyle}>
       <div className="border-b border-zinc-100 px-4 py-2 dark:border-white/5">
-        <span className="font-[family-name:var(--font-space-grotesk)] text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
+        <span className=" text-xs font-semibold uppercase tracking-wider text-zinc-400 dark:text-zinc-500">
           Section {section.id} / {numSections}
         </span>
       </div>
@@ -432,7 +433,7 @@ function ResultModal({
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-1 flex items-center justify-between">
-          <p className="font-[family-name:var(--font-space-grotesk)] text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+          <p className=" text-[10px] font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
             {title}
           </p>
           <button
@@ -447,38 +448,38 @@ function ResultModal({
         </div>
 
         <div className="mb-6 text-center">
-          <div className="font-[family-name:var(--font-space-grotesk)] text-5xl font-black text-zinc-900 dark:text-zinc-100">
+          <div className=" text-5xl font-bold text-zinc-900 dark:text-zinc-100">
             {score}
             <span className="text-2xl font-medium text-zinc-400">
               {" "}
               / {totalAnswers}
             </span>
           </div>
-          <div className="mt-1 font-[family-name:var(--font-inter)] text-xs text-zinc-500 dark:text-zinc-400">
+          <div className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
             Correct Answers
           </div>
         </div>
 
         <div className="mb-6 space-y-2.5 rounded-xl border border-zinc-100 bg-zinc-50 p-4 dark:border-white/10 dark:bg-white/5">
           <div className="flex justify-between text-sm">
-            <span className="font-[family-name:var(--font-inter)] text-zinc-500 dark:text-zinc-400">
+            <span className=" text-zinc-500 dark:text-zinc-400">
               Percentage
             </span>
-            <span className="font-[family-name:var(--font-space-grotesk)] font-bold text-zinc-900 dark:text-zinc-100">
+            <span className=" font-bold text-zinc-900 dark:text-zinc-100">
               {percentageDisplay}%
             </span>
           </div>
           <div className="flex justify-between text-sm">
-            <span className="font-[family-name:var(--font-inter)] text-zinc-500 dark:text-zinc-400">
+            <span className=" text-zinc-500 dark:text-zinc-400">
               {isLearnMode || trigger === "complete" ? "Time Taken" : "Time Limit"}
             </span>
-            <span className="font-[family-name:var(--font-space-grotesk)] font-bold text-zinc-900 dark:text-zinc-100">
+            <span className=" font-bold text-zinc-900 dark:text-zinc-100">
               {formatTime(elapsed)}
             </span>
           </div>
           <div className="border-t border-zinc-200 pt-2.5 dark:border-white/10">
             <div
-              className={`text-center font-[family-name:var(--font-space-grotesk)] text-sm font-bold ${performanceColor}`}
+              className={`text-center text-sm font-bold ${performanceColor}`}
             >
               {performance}
             </div>
@@ -488,13 +489,13 @@ function ResultModal({
         <div className="flex gap-3">
           <button
             onClick={onTryAgain}
-            className="flex-1 rounded-xl bg-[#4F12A6] px-4 py-3 font-[family-name:var(--font-space-grotesk)] text-sm font-bold tracking-wider text-white shadow-lg shadow-[#4F12A6]/20 transition-all hover:opacity-90 active:scale-[0.98]"
+            className="flex-1 rounded-xl bg-[#4F12A6] px-4 py-3 text-sm font-bold tracking-wider text-white shadow-lg shadow-[#4F12A6]/20 transition-all hover:opacity-90 active:scale-[0.98]"
           >
             TRY AGAIN
           </button>
           <button
             onClick={onRestart}
-            className="rounded-xl bg-zinc-100 px-4 py-3 font-[family-name:var(--font-space-grotesk)] text-sm font-bold text-zinc-600 transition-all hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10"
+            className="rounded-xl bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-600 transition-all hover:bg-zinc-200 dark:bg-white/5 dark:text-zinc-400 dark:hover:bg-white/10"
           >
             EXIT
           </button>
@@ -547,6 +548,19 @@ export default function QuizInterface({
   const liveLocked = quizEnded ? locked : computeLockedFromAnswers();
   const score = liveLocked.size;
   const progressPercent = (score / totalAnswers) * 100;
+
+  useRecordRealModeScore({
+    completed: quizEnded,
+    mode,
+    topicSlug: "scanning-shape",
+    topicTitle: "Scanning Shape",
+    score,
+    maxScore: totalAnswers,
+    questionCount: totalAnswers,
+    timeTakenSeconds: elapsed,
+    difficulty,
+    metadata: { sectionCount, trigger },
+  });
 
   useEffect(() => {
     startRef.current = Date.now();
@@ -618,7 +632,7 @@ export default function QuizInterface({
         <div className="mx-auto max-w-[1200px] px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <div className="flex min-w-0 items-center gap-2">
-              <h1 className="font-[family-name:var(--font-space-grotesk)] text-xs font-bold uppercase tracking-[0.15em] text-[#4F12A6] sm:text-sm dark:text-brand-gold">
+              <h1 className=" text-xs font-bold uppercase tracking-[0.15em] text-[#4F12A6] sm:text-sm dark:text-brand-gold">
                 Scanning Shape
               </h1>
               <span className="hidden rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-bold uppercase tracking-[0.15em] text-zinc-900 sm:inline-flex">
@@ -628,13 +642,13 @@ export default function QuizInterface({
 
             {isLearnMode ? (
               <div className="flex items-center gap-2">
-                <span className="hidden font-[family-name:var(--font-inter)] text-xs font-medium text-zinc-400 sm:inline">
+                <span className="hidden text-xs font-medium text-zinc-400 sm:inline">
                   View
                 </span>
                 <div className="inline-flex rounded-full border border-zinc-200 bg-zinc-50 p-1 dark:border-white/10 dark:bg-white/5">
                   <button
                     onClick={() => setLearnDisplayMode("color")}
-                    className={`rounded-full px-3 py-1 font-[family-name:var(--font-inter)] text-[11px] font-semibold transition-colors ${
+                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
                       learnDisplayMode === "color"
                         ? "bg-[#4F12A6] text-white"
                         : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -644,7 +658,7 @@ export default function QuizInterface({
                   </button>
                   <button
                     onClick={() => setLearnDisplayMode("mono")}
-                    className={`rounded-full px-3 py-1 font-[family-name:var(--font-inter)] text-[11px] font-semibold transition-colors ${
+                    className={`rounded-full px-3 py-1 text-[11px] font-semibold transition-colors ${
                       learnDisplayMode === "mono"
                         ? "bg-zinc-900 text-white dark:bg-zinc-100 dark:text-zinc-900"
                         : "text-zinc-500 hover:text-zinc-900 dark:text-zinc-400 dark:hover:text-zinc-100"
@@ -678,7 +692,7 @@ export default function QuizInterface({
                 />
               </div>
             ) : (
-              <span className="font-[family-name:var(--font-inter)] text-xs font-medium text-zinc-400 dark:text-zinc-500">
+              <span className=" text-xs font-medium text-zinc-400 dark:text-zinc-500">
                 No Limit
               </span>
             )}
@@ -687,7 +701,7 @@ export default function QuizInterface({
               {!quizEnded && (
                 <button
                   onClick={handleSubmit}
-                  className="rounded-lg bg-[#4F12A6] px-3 py-1.5 font-[family-name:var(--font-space-grotesk)] text-xs font-bold uppercase tracking-wider text-white shadow-md shadow-[#4F12A6]/20 transition-all hover:opacity-90 active:scale-[0.98]"
+                  className="rounded-lg bg-[#4F12A6] px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-white shadow-md shadow-[#4F12A6]/20 transition-all hover:opacity-90 active:scale-[0.98]"
                 >
                   {isLearnMode ? "Check Answers" : "Submit"}
                 </button>
@@ -695,12 +709,12 @@ export default function QuizInterface({
               {quizEnded && !showModal && (
                 <button
                   onClick={() => setShowModal(true)}
-                  className="rounded-lg border border-[#4F12A6] px-3 py-1.5 font-[family-name:var(--font-space-grotesk)] text-xs font-bold uppercase tracking-wider text-[#4F12A6] transition-all hover:bg-[#4F12A6]/10 dark:border-brand-gold dark:text-brand-gold"
+                  className="rounded-lg border border-[#4F12A6] px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-[#4F12A6] transition-all hover:bg-[#4F12A6]/10 dark:border-brand-gold dark:text-brand-gold"
                 >
                   Results
                 </button>
               )}
-              <div className="flex items-center gap-1 whitespace-nowrap font-[family-name:var(--font-space-grotesk)] text-sm font-bold">
+              <div className="flex items-center gap-1 whitespace-nowrap text-sm font-bold">
                 <span className="text-[#4F12A6] dark:text-brand-gold">{score}</span>
                 <span className="text-zinc-300 dark:text-zinc-600">/</span>
                 <span className="text-zinc-500 dark:text-zinc-400">
@@ -720,7 +734,7 @@ export default function QuizInterface({
           <div className="mt-1">
             <button
               onClick={onRestart}
-              className="font-[family-name:var(--font-inter)] text-[10px] text-zinc-400 transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
+              className=" text-[10px] text-zinc-400 transition-colors hover:text-zinc-700 dark:hover:text-zinc-200"
             >
               ← Back to Setup
             </button>

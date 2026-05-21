@@ -106,13 +106,13 @@ export default function ResultsScreen({
                       </div>
                       <div className="mb-2 text-sm">
                         <span className="font-medium text-zinc-700 dark:text-zinc-300">Sequence: </span>
-                        <span className="font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
+                        <span className=" text-zinc-900 dark:text-zinc-100">
                           {question.sequence.join(", ")}, ?, {question.nextNumberAfterAnswer}
                         </span>
                       </div>
                       <div className="mb-2 text-sm">
                         <span className="font-medium text-zinc-700 dark:text-zinc-300">Your answer: </span>
-                        <span className={`font-bold font-[family-name:var(--font-space-grotesk)] ${isCorrect ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
+                        <span className={`font-bold ${isCorrect ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"}`}>
                           {answer?.answer ?? "Not answered"}
                         </span>
                       </div>
@@ -134,7 +134,7 @@ export default function ResultsScreen({
                     <svg className="h-5 w-5 text-[#4F12A6] dark:text-violet-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
-                    <h4 className="text-sm font-bold font-[family-name:var(--font-space-grotesk)] text-zinc-900 dark:text-zinc-100">
+                    <h4 className="text-sm font-bold text-zinc-900 dark:text-zinc-100">
                       Explanation
                     </h4>
                   </div>
