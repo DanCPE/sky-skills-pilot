@@ -28,6 +28,12 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Sky Skills",
   description: "Cognitive skills practice platform",
+  icons: {
+    icon: [
+      { url: "/favicon.ico", sizes: "any" },
+      { url: "/icon.png", type: "image/png", sizes: "512x512" },
+    ],
+  },
 };
 
 export default function RootLayout({
