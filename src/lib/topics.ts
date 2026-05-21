@@ -79,8 +79,8 @@ export const topics: Topic[] = [
     description: "Control a top-view aircraft marker, capture color targets, avoid moving obstacles, and answer math questions.",
     category: "multitasking",
     isLocked: false,
-    coverImage: "/images/icons/SkyQuests/Takeoff.png",
-    coverImageDark: "/images/icons/SkyQuests/Takeoff.png",
+    coverImage: "/images/icons/SkyQuests/joy.png",
+    coverImageDark: "/images/icons/SkyQuests/joy dark.png",
   },
   {
     slug: "pattern-recognition",

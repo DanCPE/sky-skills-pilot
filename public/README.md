@@ -8,8 +8,7 @@ This directory contains all static images used in the Sky Skills application.
 public/
 ├── README.md                    (this file)
 ├── favicon.ico                  (app icon)
-├── next.svg                     (Next.js logo - can be removed)
-├── vercel.svg                   (Vercel logo - can be removed)
+├── icon.png                     (search and browser icon)
 └── images/                      (custom images)
     ├── backgrounds/             (hero sections, page backgrounds)
     ├── topics/                  (topic category images/icons)

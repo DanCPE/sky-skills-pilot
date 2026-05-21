@@ -12,12 +12,26 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Sky Skills",
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || "https://sky-skills.vercel.app",
+  ),
+  title: {
+    default: "SkySkills",
+    template: "%s | SkySkills",
+  },
+  applicationName: "SkySkills",
   description: "Cognitive skills practice platform",
+  openGraph: {
+    siteName: "SkySkills",
+    title: "SkySkills",
+    description: "Cognitive skills practice platform",
+    url: "/",
+    type: "website",
+  },
   icons: {
     icon: [
+      { url: "/icon.png", type: "image/png", sizes: "192x192" },
       { url: "/favicon.ico", sizes: "any" },
-      { url: "/icon.png", type: "image/png", sizes: "512x512" },
     ],
   },
 };
@@ -33,6 +47,21 @@ export default function RootLayout({
         className={`${inter.variable} ${inter.className} antialiased`}
       >
         <ThemeProvider>
+          <script
+            type="application/ld+json"
+            suppressHydrationWarning
+            dangerouslySetInnerHTML={{
+              __html: JSON.stringify({
+                "@context": "https://schema.org",
+                "@type": "WebSite",
+                name: "SkySkills",
+                alternateName: ["Sky Skills"],
+                url:
+                  process.env.NEXT_PUBLIC_APP_URL ||
+                  "https://sky-skills.vercel.app",
+              }),
+            }}
+          />
           <FrontendUsageTracker />
           <Navbar />
           {children}
