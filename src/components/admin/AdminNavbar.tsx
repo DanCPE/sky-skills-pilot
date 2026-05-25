@@ -8,6 +8,7 @@ const adminNavItems = [
   { href: "/admin/accounts", label: "Accounts" },
   { href: "/admin/billing", label: "Billing" },
   { href: "/admin/free-resources", label: "Free Resources" },
+  { href: "/admin/news", label: "News" },
 ];
 
 export default function AdminNavbar() {
