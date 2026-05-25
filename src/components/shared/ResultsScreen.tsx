@@ -50,13 +50,13 @@ export default function ResultsScreen({
   return (
     <div className="mx-auto max-w-4xl">
       {/* Score Card */}
-      <div className="mb-8 rounded-2xl border-2 bg-zinc-50 p-8 text-center dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
+      <div className="mb-6 rounded-2xl border-2 bg-zinc-50 p-5 text-center dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md">
         {/* Stars */}
-        <div className="mb-4 flex justify-center gap-1">
+        <div className="mb-3 flex justify-center gap-1">
           {Array.from({ length: performance.starCount }).map((_, i) => (
             <svg
               key={i}
-              className="h-14 w-14"
+              className="h-10 w-10"
               fill="none"
               stroke="#FACC15"
               strokeWidth={1.5}
@@ -71,36 +71,36 @@ export default function ResultsScreen({
           ))}
         </div>
 
-        <h2 className="mb-2 text-3xl font-bold text-zinc-900 dark:text-brand-gold">
+        <h2 className="mb-1.5 text-2xl font-bold text-zinc-900 dark:text-brand-gold">
           {performance.text}
         </h2>
-        <p className="mb-6 text-base text-zinc-500 dark:text-zinc-400">
+        <p className="mb-5 text-sm text-zinc-500 dark:text-zinc-400">
           You got {correctCount} out of {totalCount} correct
         </p>
 
         {/* Stats Row */}
-        <div className="mb-4 flex justify-center gap-8">
+        <div className="mb-3 flex justify-center gap-8">
           <div className="flex flex-col items-center">
-            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold">
+            <span className="text-3xl font-bold text-[#4F12A6] dark:text-brand-gold">
               {attemptedCount}
             </span>
-            <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            <span className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
               Attempted
             </span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold">
+            <span className="text-3xl font-bold text-[#4F12A6] dark:text-brand-gold">
               {correctCount}
             </span>
-            <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            <span className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
               Correct
             </span>
           </div>
           <div className="flex flex-col items-center">
-            <span className="text-4xl font-bold text-[#4F12A6] dark:text-brand-gold">
+            <span className="text-3xl font-bold text-[#4F12A6] dark:text-brand-gold">
               {accuracy}%
             </span>
-            <span className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+            <span className="mt-0.5 text-xs text-zinc-500 dark:text-zinc-400">
               Accuracy
             </span>
           </div>
@@ -117,10 +117,10 @@ export default function ResultsScreen({
       {children && <div className="mb-8">{children}</div>}
 
       {/* Action Buttons */}
-      <div className="flex flex-col gap-4 sm:flex-row sm:justify-center">
+      <div className="flex flex-col gap-3 sm:flex-row sm:justify-center">
         <button
           onClick={onRestart}
-          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4F12A6] px-10 py-4 text-lg font-bold text-white shadow-lg shadow-[#4F12A6]/20 transition-all hover:opacity-90 active:scale-95"
+          className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#4F12A6] px-7 py-3 text-base font-bold text-white shadow-lg shadow-[#4F12A6]/20 transition-all hover:opacity-90 active:scale-95"
         >
           <svg
             className="h-5 w-5"
@@ -140,7 +140,7 @@ export default function ResultsScreen({
         {showBackButton && (
           <Link
             href="/sky-quest"
-            className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-300 px-8 py-4 font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            className="inline-flex items-center justify-center gap-2 rounded-xl border-2 border-zinc-300 px-6 py-3 text-base font-semibold text-zinc-700 transition-colors hover:bg-zinc-50 dark:border-zinc-700 dark:text-zinc-300 dark:hover:bg-zinc-800"
           >
             <svg
               className="h-5 w-5"

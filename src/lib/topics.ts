@@ -7,7 +7,7 @@ export const topics: Topic[] = [
     title: "Box Folding",
     description: "Visualize how 2D nets fold into 3D shapes.",
     category: "spatial",
-    isLocked: true,
+    isLocked: false,
     coverImage: "/images/icons/SkyQuests/box.png",
     coverImageDark: "/images/icons/SkyQuests/box dark.png",
   },

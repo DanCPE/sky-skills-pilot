@@ -1,14 +1,26 @@
+"use client";
+
+import { useState } from "react";
 import TopicLayout from "@/components/TopicLayout";
+import ModeSelection from "@/components/box-folding/ModeSelection";
+import QuizInterface from "@/components/box-folding/QuizInterface";
+import type { BoxFoldingQuizResponse } from "@/types";
 
 export default function BoxFoldingPage() {
+  const [quizData, setQuizData] = useState<BoxFoldingQuizResponse | null>(null);
+
+  if (quizData) {
+    return <QuizInterface quizData={quizData} onRestart={() => setQuizData(null)} />;
+  }
+
   return (
     <TopicLayout
       title="Box Folding"
       description="Visualize how 2D nets fold into 3D shapes."
+      fullWidth={true}
+      showBackLink={true}
     >
-      <div className="flex min-h-[300px] items-center justify-center rounded-2xl border-2 border-dashed border-zinc-200 dark:border-zinc-800">
-        <p className="text-sm text-zinc-400 dark:text-zinc-600">Exercises coming soon</p>
-      </div>
+      <ModeSelection onStart={setQuizData} />
     </TopicLayout>
   );
 }

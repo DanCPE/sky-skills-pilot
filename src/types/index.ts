@@ -355,6 +355,64 @@ export interface MissingCubeQuizResponse {
   timeLimit?: number;
 }
 
+// --- Box Folding Types ---
+
+export type BoxFoldingDifficulty = "easy" | "medium" | "hard";
+
+export type BoxFoldingFaceName =
+  | "front"
+  | "back"
+  | "top"
+  | "bottom"
+  | "left"
+  | "right";
+
+export type BoxFoldingFaceOrientation = "A" | "B" | "C" | "D";
+
+export interface BoxFoldingCube {
+  faces: Record<BoxFoldingFaceName, string>;
+  orientations: Record<BoxFoldingFaceName, BoxFoldingFaceOrientation>;
+}
+
+export interface BoxFoldingView {
+  name: string;
+  rotX: number;
+  rotY: number;
+  visibleFaces: BoxFoldingFaceName[];
+}
+
+export interface BoxFoldingOption {
+  id: string;
+  label: string;
+  cube: BoxFoldingCube;
+  netImages: Record<number, string>;
+  netImageRotations: Record<number, number>;
+  view: BoxFoldingView;
+  isValidFold: boolean;
+  strategyName: string;
+  strategyReason: string;
+}
+
+export interface BoxFoldingQuestion {
+  id: string;
+  prompt: string;
+  difficulty: BoxFoldingDifficulty;
+  pattern: number[][];
+  images: Record<number, string>;
+  faceAssignments: Record<number, BoxFoldingFaceName>;
+  faceOrientations: Record<number, BoxFoldingFaceOrientation>;
+  canonicalCube: BoxFoldingCube;
+  options: BoxFoldingOption[];
+  correctOptionId: string;
+  explanation: string;
+}
+
+export interface BoxFoldingQuizResponse {
+  questions: BoxFoldingQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
 // --- Short-Term Memory Table Types ---
 
 export type ShortTermMemoryContentType =
