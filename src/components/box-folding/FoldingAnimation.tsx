@@ -15,49 +15,6 @@ interface FoldNode {
   children: FoldNode[];
 }
 
-const ORIENTATION_DEGREES: Record<BoxFoldingFaceOrientation, number> = {
-  A: 0,
-  B: 90,
-  C: 180,
-  D: 270,
-};
-
-function TransparentDebugOverlay({
-  faceIndex,
-  faceName,
-  orientation,
-}: {
-  faceIndex: number;
-  faceName: BoxFoldingFaceName;
-  orientation: BoxFoldingFaceOrientation;
-}) {
-  return (
-    <div className="pointer-events-none absolute inset-0 z-10 opacity-50">
-      <div className="absolute left-1/2 top-0 -translate-x-1/2 rounded-b bg-red-500/45 px-1 text-[6px] font-black uppercase leading-tight text-white">
-        head
-      </div>
-      <div className="absolute bottom-0 left-1/2 -translate-x-1/2 rounded-t bg-blue-600/45 px-1 text-[6px] font-black uppercase leading-tight text-white">
-        bottom
-      </div>
-      <div className="absolute left-0 top-1/2 -translate-y-1/2 rounded-r bg-emerald-600/45 px-1 text-[6px] font-black uppercase leading-tight text-white">
-        left
-      </div>
-      <div className="absolute right-0 top-1/2 -translate-y-1/2 rounded-l bg-amber-400/45 px-1 text-[6px] font-black uppercase leading-tight text-zinc-950">
-        right
-      </div>
-      <div className="absolute left-1 top-1 rounded bg-zinc-950/35 px-1 py-0.5 text-[7px] font-black uppercase leading-none text-white">
-        #{faceIndex}
-      </div>
-      <div className="absolute inset-x-1 top-1/2 -translate-y-1/2 rounded bg-white/45 px-1 py-0.5 text-center text-[8px] font-black uppercase leading-tight text-zinc-950 shadow-sm">
-        {faceName}
-        <span className="ml-1 text-[6px] text-zinc-700">
-          {orientation}/{ORIENTATION_DEGREES[orientation]}°
-        </span>
-      </div>
-    </div>
-  );
-}
-
 function easeOutCubic(value: number) {
   return 1 - Math.pow(1 - value, 3);
 }
@@ -133,6 +90,39 @@ function childGroupTransform(direction: Direction, progress: number, half: numbe
   return `translate3d(${half}px, 0, 0) rotateY(${angle}deg) translate3d(${half}px, 0, 0)`;
 }
 
+function getFlatNetMetrics(pattern: number[][], cellSize: number) {
+  const positions = new Map<number, { row: number; col: number }>();
+
+  pattern.forEach((row, rowIndex) => {
+    row.forEach((faceIndex, colIndex) => {
+      if (faceIndex === 0) return;
+      positions.set(faceIndex, { row: rowIndex, col: colIndex });
+    });
+  });
+
+  const rootFaceIndex = positions.has(1)
+    ? 1
+    : Math.min(...positions.keys());
+  const rootPosition = positions.get(rootFaceIndex) ?? { row: 0, col: 0 };
+  const centers = [...positions.values()].map((position) => ({
+    x: (position.col - rootPosition.col) * cellSize,
+    y: (position.row - rootPosition.row) * cellSize,
+  }));
+
+  const half = cellSize / 2;
+  const minX = Math.min(...centers.map((position) => position.x - half));
+  const maxX = Math.max(...centers.map((position) => position.x + half));
+  const minY = Math.min(...centers.map((position) => position.y - half));
+  const maxY = Math.max(...centers.map((position) => position.y + half));
+
+  return {
+    width: maxX - minX,
+    height: maxY - minY,
+    centerOffsetX: -(minX + maxX) / 2,
+    centerOffsetY: -(minY + maxY) / 2,
+  };
+}
+
 export default function FoldingAnimation({
   pattern,
   images,
@@ -148,6 +138,8 @@ export default function FoldingAnimation({
 }) {
   const [progress, setProgress] = useState(0);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [frameSize, setFrameSize] = useState({ width: 260, height: 192 });
   const [dragStart, setDragStart] = useState<{
     pointerId: number;
     x: number;
@@ -160,19 +152,36 @@ export default function FoldingAnimation({
   const cellSize = 54;
   const cubeHalf = cellSize / 2;
   const foldTree = useMemo(() => buildFoldTree(pattern), [pattern]);
+  const flatNetMetrics = useMemo(
+    () => getFlatNetMetrics(pattern, cellSize),
+    [pattern, cellSize],
+  );
 
-  // Scale that fits the flat net (progress=0) within the 260×192 container.
+  // Scale that fits the occupied flat net within the measured animation frame.
   // Interpolates up to the normal cube scale (0.88) as progress→1.
   const netFitScale = useMemo(() => {
-    const rows = pattern.length;
-    const cols = pattern[0]?.length ?? 1;
     return Math.min(
-      (260 * 0.85) / (cols * cellSize),
-      (192 * 0.85) / (rows * cellSize),
+      (frameSize.width * 0.86) / flatNetMetrics.width,
+      (frameSize.height * 0.86) / flatNetMetrics.height,
       0.88,
     );
-  }, [pattern, cellSize]);
+  }, [flatNetMetrics.height, flatNetMetrics.width, frameSize.height, frameSize.width]);
   const effectiveScale = netFitScale + (0.88 - netFitScale) * progress;
+  const flatCenterX = flatNetMetrics.centerOffsetX * (1 - progress);
+  const flatCenterY = flatNetMetrics.centerOffsetY * (1 - progress);
+
+  useEffect(() => {
+    const el = frameRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setFrameSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      });
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
   useEffect(() => {
     return () => {
@@ -208,7 +217,7 @@ export default function FoldingAnimation({
   };
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/10 dark:bg-zinc-950">
+    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/15 dark:bg-slate-100">
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
           Fold Preview
@@ -224,7 +233,7 @@ export default function FoldingAnimation({
           <button
             type="button"
             onClick={() => animateTo(0)}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100 active:scale-95 dark:border-white/15 dark:bg-zinc-900 dark:text-zinc-200"
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100 active:scale-95 dark:border-zinc-300 dark:bg-white dark:text-zinc-700"
           >
             Deflip
           </button>
@@ -232,7 +241,8 @@ export default function FoldingAnimation({
       </div>
 
       <div
-        className={`relative mx-auto h-48 w-full max-w-[260px] overflow-hidden rounded-lg bg-white dark:bg-black/20 ${
+        ref={frameRef}
+        className={`relative mx-auto h-48 w-full max-w-[260px] overflow-hidden rounded-lg bg-white dark:bg-white ${
           interactive ? "cursor-grab touch-none active:cursor-grabbing" : ""
         }`}
         style={{ perspective: "720px" }}
@@ -261,7 +271,7 @@ export default function FoldingAnimation({
           className="absolute left-1/2 top-1/2"
           style={{
             transformStyle: "preserve-3d",
-            transform: `scale(${effectiveScale}) rotateX(${tilt.x - 45 * progress}deg) rotateY(${tilt.y - 45 * progress}deg)`,
+            transform: `scale(${effectiveScale}) translate3d(${flatCenterX}px, ${flatCenterY}px, 0) rotateX(${tilt.x - 45 * progress}deg) rotateY(${tilt.y - 45 * progress}deg)`,
           }}
         >
           <FoldFaceNode
@@ -326,7 +336,7 @@ export function FoldedCubeSnapshot({
   return (
     <div
       className={`${heightClass} flex items-center justify-center overflow-hidden ${
-        bare ? "" : "rounded-xl bg-[radial-gradient(circle_at_50%_35%,rgba(79,18,166,0.10),transparent_55%)] dark:bg-[radial-gradient(circle_at_50%_35%,rgba(251,191,36,0.10),transparent_55%)]"
+          bare ? "" : "rounded-xl bg-[radial-gradient(circle_at_50%_35%,rgba(79,18,166,0.10),transparent_55%)] dark:bg-slate-100"
       } ${interactive ? "cursor-grab touch-none active:cursor-grabbing" : ""}`}
       style={{ perspective: compact ? "520px" : "720px" }}
       onPointerDown={(event) => {
@@ -391,7 +401,6 @@ function FoldFaceNode({
   cellSize: number;
   cubeHalf: number;
 }) {
-  const faceName = faceAssignments[node.faceIndex];
   const wrapperTransform = node.directionFromParent
     ? childGroupTransform(node.directionFromParent, progress, cubeHalf)
     : "translate3d(0, 0, 0)";
@@ -405,7 +414,7 @@ function FoldFaceNode({
       }}
     >
       <div
-        className="absolute flex items-center justify-center border border-zinc-300 bg-white shadow-[inset_0_0_10px_rgba(15,23,42,0.10)] dark:border-zinc-700 dark:bg-zinc-900"
+        className="absolute flex items-center justify-center border border-zinc-300 bg-white shadow-[inset_0_0_10px_rgba(15,23,42,0.10)] dark:border-zinc-500 dark:bg-white"
         style={{
           width: cellSize,
           height: cellSize,
@@ -420,11 +429,6 @@ function FoldFaceNode({
           className="h-[58%] w-[58%] object-contain"
           draggable={false}
           style={{ transform: `rotate(${imageRotations[node.faceIndex] ?? 0}deg)` }}
-        />
-        <TransparentDebugOverlay
-          faceIndex={node.faceIndex}
-          faceName={faceName}
-          orientation={faceOrientations[node.faceIndex]}
         />
       </div>
 

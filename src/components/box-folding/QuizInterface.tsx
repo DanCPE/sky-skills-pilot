@@ -8,7 +8,6 @@ import FoldingAnimation, {
 } from "@/components/box-folding/FoldingAnimation";
 import NetViewer from "@/components/box-folding/NetViewer";
 import QuizCompleteConfirmation from "@/components/shared/QuizCompleteConfirmation";
-import QuizFooterNav from "@/components/shared/QuizFooterNav";
 import QuizSidebar from "@/components/shared/QuizSidebar";
 import SharedResultsScreen from "@/components/shared/ResultsScreen";
 import { useRecordRealModeScore } from "@/lib/account/client-score-history";
@@ -36,6 +35,7 @@ function OptionCell({
   isCorrect,
   isSubmitted,
   isAnswered,
+  interactive,
   onSelect,
 }: {
   option: BoxFoldingOption;
@@ -44,17 +44,19 @@ function OptionCell({
   isCorrect: boolean;
   isSubmitted: boolean;
   isAnswered: boolean;
+  interactive: boolean;
   onSelect: () => void;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
-  const [cubeScale, setCubeScale] = useState(2.0);
+  const [cubeScale, setCubeScale] = useState(1.35);
 
   useEffect(() => {
     const el = buttonRef.current;
     if (!el) return;
     const ro = new ResizeObserver(([entry]) => {
-      const w = entry.contentRect.width;
-      setCubeScale((w * 0.82) / (CUBE_CELL_SIZE * Math.sqrt(3)));
+      const { width, height } = entry.contentRect;
+      const dim = Math.min(width, height);
+      setCubeScale((dim * 0.76) / (CUBE_CELL_SIZE * Math.sqrt(3)));
     });
     ro.observe(el);
     return () => ro.disconnect();
@@ -75,12 +77,12 @@ function OptionCell({
   }
 
   return (
-    <div className="flex flex-col items-center gap-2">
+    <div className="relative min-h-0">
       <button
         ref={buttonRef}
         disabled={isSubmitted || isAnswered}
         onClick={onSelect}
-        className={`aspect-square w-full overflow-hidden rounded-xl border-2 transition-all active:scale-[0.98] ${stateClass}`}
+        className={`h-full min-h-[84px] w-full overflow-hidden rounded-xl border-2 transition-all active:scale-[0.98] ${stateClass}`}
       >
         <FoldedCubeSnapshot
           pattern={question.pattern}
@@ -91,10 +93,11 @@ function OptionCell({
           imageRotations={option.netImageRotations}
           className="h-full"
           cubeScale={cubeScale}
+          interactive={interactive}
         />
       </button>
       <div
-        className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full border-2 text-[12px] font-bold transition-all ${
+        className={`pointer-events-none absolute left-2 top-2 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border-2 text-[11px] font-bold transition-all ${
           isSelected
             ? "border-brand-purple bg-brand-purple text-white"
             : "border-zinc-300 text-zinc-500 dark:border-white/20 dark:text-zinc-400"
@@ -161,7 +164,7 @@ function QuestionReview({
           {selected ? (
             <ReviewCube option={selected} question={question} />
           ) : (
-            <div className="flex h-32 items-center justify-center rounded-xl border border-dashed border-zinc-300 text-sm font-semibold text-zinc-400 dark:border-white/15">
+            <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 text-sm font-semibold text-zinc-400 dark:border-white/15">
               No answer
             </div>
           )}
@@ -182,7 +185,6 @@ function QuestionReview({
           <span className="font-bold text-[#4F12A6] dark:text-brand-gold">
             {correct.label}
           </span>
-          . This is the only option that matches the folded net.
         </p>
       )}
     </div>
@@ -245,9 +247,6 @@ function QuestionCard({
   isSubmitted,
   mode,
   onSelect,
-  onSkip,
-  onNext,
-  isLastQuestion,
 }: {
   question: BoxFoldingQuestion;
   index: number;
@@ -255,9 +254,6 @@ function QuestionCard({
   isSubmitted: boolean;
   mode: "learn" | "real";
   onSelect: (optionId: string) => void;
-  onSkip: () => void;
-  onNext: () => void;
-  isLastQuestion: boolean;
 }) {
   const selected = question.options.find((option) => option.id === selectedId);
   const isAnswered = Boolean(selectedId);
@@ -266,96 +262,82 @@ function QuestionCard({
   return (
     <div
       id={`question-${question.id}`}
-      className="rounded-2xl border-2 border-[#E2EAF0] bg-white px-4 py-6 dark:border-white/10 dark:bg-black/20"
+      className="h-full min-h-0 rounded-2xl border-2 border-[#E2EAF0] bg-white p-3 dark:border-white/10 dark:bg-black/20"
     >
-      <div className="mb-4 flex items-center justify-between gap-3">
-        <div>
-          <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
-            Question {index + 1}
-          </h3>
-          <p className="mt-0.5 text-xs font-semibold text-zinc-500 dark:text-zinc-400">
-            {question.prompt}
-          </p>
-        </div>
-        <span className="rounded-md bg-amber-400 px-2.5 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-900">
-          {difficultyLabel(question.difficulty)}
-        </span>
-      </div>
+      <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[minmax(340px,0.85fr)_minmax(500px,1.15fr)]">
+        <section className="flex min-h-0 flex-col overflow-hidden rounded-xl bg-white dark:bg-zinc-900/80">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-3 py-2 dark:border-white/10">
+            <div>
+              <h3 className="text-sm font-bold text-zinc-900 dark:text-white">
+                Question {index + 1}
+              </h3>
+              <p className="mt-0.5 text-xs font-semibold leading-snug text-zinc-500 dark:text-zinc-400">
+                {question.prompt}
+              </p>
+            </div>
+            <span className="shrink-0 rounded-md bg-amber-400 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-zinc-900">
+              {difficultyLabel(question.difficulty)}
+            </span>
+          </div>
 
-      <div className="mb-3 flex items-center justify-center overflow-hidden rounded-[1rem] border-2 border-[#4F12A6] bg-white px-4 py-6 dark:border-white/60 dark:bg-zinc-900/80">
-        <NetViewer
-          pattern={question.pattern}
-          images={question.images}
-          faceAssignments={question.faceAssignments}
-          faceOrientations={question.faceOrientations}
-          large
-        />
-      </div>
+          <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 py-2">
+            <NetViewer
+              pattern={question.pattern}
+              images={question.images}
+              faceAssignments={question.faceAssignments}
+              faceOrientations={question.faceOrientations}
+              large
+            />
+          </div>
 
-      <div className="mb-4 flex justify-end gap-2">
-        {!isAnswered && !isSubmitted && (
-          <button
-            type="button"
-            onClick={onSkip}
-            className="rounded-xl border border-zinc-200 bg-white px-6 py-2 text-sm font-bold text-zinc-600 transition hover:bg-zinc-50 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:bg-white/10"
-          >
-            Skip
-          </button>
-        )}
-        <button
-          type="button"
-          onClick={onNext}
-          disabled={!isAnswered}
-          className="rounded-xl bg-[#4F12A6] px-8 py-2 text-sm font-bold text-white shadow shadow-[#4F12A6]/20 transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
-        >
-          {isLastQuestion ? "Finish" : "Next"}
-        </button>
-      </div>
-
-      <div className="grid grid-cols-3 gap-3">
-        {question.options.map((option) => (
-          <OptionCell
-            key={option.id}
-            option={option}
-            question={question}
-            isSelected={selectedId === option.id}
-            isCorrect={option.id === question.correctOptionId}
-            isSubmitted={isSubmitted}
-            isAnswered={isAnswered}
-            onSelect={() => onSelect(option.id)}
-          />
-        ))}
-      </div>
-
-      {mode === "learn" && selected && (
-        <div
-          className={`mt-3 rounded-xl border-2 p-3 ${
-            isCorrect
-              ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950"
-              : "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950"
-          }`}
-        >
-          <div className="mb-2 flex items-center justify-between gap-3">
-            <span
-              className={`text-sm font-bold ${
-                isCorrect ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
+          {mode === "learn" && selected && (
+            <div
+              className={`m-3 mt-0 shrink-0 rounded-xl border-2 p-3 ${
+                isCorrect
+                  ? "border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950"
+                  : "border-red-200 bg-red-50 dark:border-red-900 dark:bg-red-950"
               }`}
             >
-              {isCorrect ? "Correct" : `Correct answer: ${question.options.find((option) => option.id === question.correctOptionId)?.label}`}
+              <span
+                className={`block text-sm font-bold ${
+                  isCorrect ? "text-green-700 dark:text-green-300" : "text-red-700 dark:text-red-300"
+                }`}
+              >
+                {isCorrect ? "Correct" : `Correct answer: ${question.options.find((option) => option.id === question.correctOptionId)?.label}`}
+              </span>
+              <p className="mt-1 line-clamp-2 text-xs text-zinc-700 dark:text-zinc-300">
+                {question.explanation}
+              </p>
+            </div>
+          )}
+        </section>
+
+        <section className="flex min-h-0 flex-col rounded-xl bg-zinc-50 p-3 dark:bg-zinc-950">
+          <div className="mb-2 flex shrink-0 items-center justify-between">
+            <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+              Answer Choices
+            </h4>
+            <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+              3 x 3
             </span>
-            <button
-              type="button"
-              onClick={onNext}
-              className="rounded-lg bg-[#4F12A6] px-4 py-2 text-sm font-bold text-white transition hover:bg-violet-700 active:scale-95"
-            >
-              {isLastQuestion ? "Finish" : "Next"}
-            </button>
           </div>
-          <p className="text-sm text-zinc-700 dark:text-zinc-300">
-            {question.explanation}
-          </p>
-        </div>
-      )}
+          <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-3 gap-2">
+            {question.options.map((option) => (
+              <OptionCell
+                key={option.id}
+                option={option}
+                question={question}
+                isSelected={selectedId === option.id}
+                isCorrect={option.id === question.correctOptionId}
+                isSubmitted={isSubmitted}
+                isAnswered={isAnswered}
+                interactive={mode === "learn" && !isSubmitted}
+                onSelect={() => onSelect(option.id)}
+              />
+            ))}
+          </div>
+        </section>
+      </div>
     </div>
   );
 }
@@ -496,10 +478,10 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
   }
 
   return (
-    <div className="flex min-h-screen w-full flex-col bg-[#F1F5F9] dark:bg-transparent">
-      <div className="mx-auto flex w-full max-w-[1200px] flex-1 flex-col p-3 pt-4 sm:p-4 sm:pt-5">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_24rem]">
-          <div className="flex flex-col gap-4">
+    <div className="flex h-[calc(100vh-65px)] w-full flex-col overflow-hidden bg-[#F1F5F9] dark:bg-transparent">
+      <div className="mx-auto flex h-full w-full max-w-[1200px] flex-col gap-3 p-3 sm:p-4">
+        <div className="grid min-h-0 flex-1 grid-cols-1 gap-4 lg:grid-cols-[1fr_17rem]">
+          <div className="flex min-h-0 flex-col gap-3">
             <div className="flex items-center justify-between rounded-2xl border-2 border-zinc-200 bg-white px-6 py-2 dark:border-white/15 dark:bg-zinc-900/80">
               <div>
                 <h1 className="text-[26px] font-bold tracking-tight text-zinc-900 dark:text-white">
@@ -514,7 +496,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
               </div>
             </div>
 
-            <div className="rounded-2xl border-2 border-zinc-200 bg-white p-3 dark:border-white/15 dark:bg-black/20">
+            <div className="min-h-0 flex-1">
               {currentQuestion && (
                 <QuestionCard
                   key={currentQuestion.id}
@@ -524,38 +506,81 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                   isSubmitted={isSubmitted}
                   mode={quizData.mode}
                   onSelect={handleSelectAnswer}
-                  onSkip={handleSkip}
-                  onNext={moveToNextQuestion}
-                  isLastQuestion={
-                    answeredCount >= questions.length ||
-                    !questions.some((question) => !answers[question.id])
-                  }
                 />
               )}
             </div>
+
           </div>
 
-          <QuizSidebar
-            timeLimit={timeLimit}
-            onTimeUp={handleSubmitQuiz}
-            isPaused={isSubmitted}
-            answeredCount={answeredCount}
-            totalQuestions={questions.length}
-            currentIndex={currentQuestionIndex}
-            answeredIndices={answeredSet}
-            skippedIndices={skippedSet}
-            onSelectQuestion={(index) => {
-              setCurrentQuestionIndex(index);
-            }}
-            onSubmit={handleSubmitClick}
-          />
+          <div className="[&>div]:gap-3 [&>div>button]:px-10 [&>div>div]:p-4 [&>div>div:first-child]:gap-4">
+            <QuizSidebar
+              timeLimit={timeLimit}
+              onTimeUp={handleSubmitQuiz}
+              isPaused={isSubmitted}
+              answeredCount={answeredCount}
+              totalQuestions={questions.length}
+              currentIndex={currentQuestionIndex}
+              answeredIndices={answeredSet}
+              skippedIndices={skippedSet}
+              onSelectQuestion={(index) => {
+                setCurrentQuestionIndex(index);
+              }}
+              onSubmit={handleSubmitClick}
+            />
+          </div>
         </div>
 
-        <QuizFooterNav
-          onExit={() => router.back()}
-          onPrevious={() => setCurrentQuestionIndex((previous) => Math.max(0, previous - 1))}
-          previousDisabled={currentQuestionIndex === 0}
-        />
+        <div className="grid shrink-0 grid-cols-1 gap-4 lg:grid-cols-[1fr_17rem]">
+          <div className="flex items-center gap-3">
+            <button
+              type="button"
+              onClick={() => router.back()}
+              className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-200 hover:text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white"
+            >
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="15"
+                height="15"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+                <polyline points="16 17 21 12 16 7" />
+                <line x1="21" y1="12" x2="9" y2="12" />
+              </svg>
+              Exit
+            </button>
+            <button
+              type="button"
+              onClick={() => setCurrentQuestionIndex((previous) => Math.max(0, previous - 1))}
+              disabled={currentQuestionIndex === 0}
+              className="rounded-xl border border-[#E0E0E0] bg-white px-8 py-3 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              Previous
+            </button>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={handleSkip}
+              className="rounded-xl border border-[#E0E0E0] bg-white px-10 py-3 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+            >
+              Skip
+            </button>
+            <button
+              type="button"
+              onClick={moveToNextQuestion}
+              disabled={currentQuestionIndex === questions.length - 1}
+              className="rounded-xl border border-[#4F12A6] bg-[#4F12A6] px-12 py-3 text-sm font-bold text-white shadow-lg shadow-[#4F12A6]/20 transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
+            >
+              Next
+            </button>
+          </div>
+          <div aria-hidden="true" />
+        </div>
       </div>
 
       {showConfirmation && (
