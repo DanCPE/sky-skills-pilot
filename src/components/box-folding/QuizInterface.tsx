@@ -36,6 +36,7 @@ function OptionCell({
   isSubmitted,
   isAnswered,
   interactive,
+  selectOnDoubleClick,
   onSelect,
 }: {
   option: BoxFoldingOption;
@@ -45,6 +46,7 @@ function OptionCell({
   isSubmitted: boolean;
   isAnswered: boolean;
   interactive: boolean;
+  selectOnDoubleClick: boolean;
   onSelect: () => void;
 }) {
   const buttonRef = useRef<HTMLButtonElement>(null);
@@ -79,9 +81,15 @@ function OptionCell({
   return (
     <div className="relative min-h-0">
       <button
+        type="button"
         ref={buttonRef}
         disabled={isSubmitted || isAnswered}
-        onClick={onSelect}
+        onClick={() => {
+          if (!selectOnDoubleClick) onSelect();
+        }}
+        onDoubleClick={() => {
+          if (selectOnDoubleClick) onSelect();
+        }}
         className={`h-full min-h-[84px] w-full overflow-hidden rounded-xl border-2 transition-all active:scale-[0.98] ${stateClass}`}
       >
         <FoldedCubeSnapshot
@@ -313,11 +321,18 @@ function QuestionCard({
         </section>
 
         <section className="flex min-h-0 flex-col rounded-xl bg-zinc-50 p-3 dark:bg-zinc-950">
-          <div className="mb-2 flex shrink-0 items-center justify-between">
-            <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
-              Answer Choices
-            </h4>
-            <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">
+          <div className="mb-2 flex shrink-0 items-start justify-between gap-3">
+            <div>
+              <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+                Answer Choices
+              </h4>
+              {mode === "learn" && !isAnswered && (
+                <p className="mt-0.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
+                  Drag to tilt. Double-click a cube to choose it.
+                </p>
+              )}
+            </div>
+            <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
               3 x 3
             </span>
           </div>
@@ -332,6 +347,7 @@ function QuestionCard({
                 isSubmitted={isSubmitted}
                 isAnswered={isAnswered}
                 interactive={mode === "learn" && !isSubmitted}
+                selectOnDoubleClick={mode === "learn"}
                 onSelect={() => onSelect(option.id)}
               />
             ))}
