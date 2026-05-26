@@ -33,37 +33,6 @@ function relativeRotationDegrees(
   return (ORIENTATION_DEGREES[current] - ORIENTATION_DEGREES[baseline] + 360) % 360;
 }
 
-function TransparentDebugOverlay({
-  faceName,
-  compact,
-}: {
-  faceName: BoxFoldingFaceName;
-  compact: boolean;
-}) {
-  const edgeClass = compact ? "text-[6px]" : "text-[8px]";
-  const centerClass = compact ? "text-[9px]" : "text-[11px]";
-
-  return (
-    <div className="pointer-events-none absolute inset-0 z-10 opacity-50">
-      <div className={`absolute left-1/2 top-0 -translate-x-1/2 rounded-b bg-red-500/45 px-1 font-black uppercase leading-tight text-white ${edgeClass}`}>
-        head
-      </div>
-      <div className={`absolute bottom-0 left-1/2 -translate-x-1/2 rounded-t bg-blue-600/45 px-1 font-black uppercase leading-tight text-white ${edgeClass}`}>
-        bottom
-      </div>
-      <div className={`absolute left-0 top-1/2 -translate-y-1/2 rounded-r bg-emerald-600/45 px-1 font-black uppercase leading-tight text-white ${edgeClass}`}>
-        left
-      </div>
-      <div className={`absolute right-0 top-1/2 -translate-y-1/2 rounded-l bg-amber-400/45 px-1 font-black uppercase leading-tight text-zinc-950 ${edgeClass}`}>
-        right
-      </div>
-      <div className={`absolute inset-x-1 top-1/2 -translate-y-1/2 rounded bg-white/45 px-1 py-0.5 text-center font-black uppercase leading-tight text-zinc-950 shadow-sm ${centerClass}`}>
-        {faceName}
-      </div>
-    </div>
-  );
-}
-
 export default function CubeViewer({
   cube,
   view,
@@ -135,7 +104,7 @@ export default function CubeViewer({
           return (
             <div
               key={faceName}
-              className={`absolute inset-0 flex items-center justify-center border border-zinc-300 bg-white shadow-[inset_0_0_16px_rgba(15,23,42,0.10)] dark:border-zinc-700 dark:bg-zinc-900 ${
+              className={`absolute inset-0 flex items-center justify-center border border-zinc-300 bg-white shadow-[inset_0_0_16px_rgba(15,23,42,0.10)] dark:border-zinc-500 dark:bg-white ${
                 isVisible ? "opacity-100" : "opacity-25"
               }`}
               style={{
@@ -156,7 +125,6 @@ export default function CubeViewer({
                   )}deg)`,
                 }}
               />
-              <TransparentDebugOverlay faceName={faceName} compact={compact} />
             </div>
           );
         })}

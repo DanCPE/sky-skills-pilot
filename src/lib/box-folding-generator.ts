@@ -856,8 +856,7 @@ function createQuestion(
     canonicalCube,
     options,
     correctOptionId: correctOption.id,
-    explanation:
-      "The correct answer is the only view whose visible faces and image rotations match the folded net.",
+    explanation: "",
   };
 }
 
