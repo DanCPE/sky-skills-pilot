@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import type { FreeResource } from "@/types/free-resource";
 import type { NewsItem } from "@/types/news";
 
-type HubCategory = "news" | "free-resources" | "patch-notes";
+type HubCategory = "news" | "free-resources";
 
 interface FreeResourcesResponse {
   resources: FreeResource[];
@@ -17,29 +17,6 @@ interface NewsResponse {
 const categories: { value: HubCategory; label: string }[] = [
   { value: "news", label: "News" },
   { value: "free-resources", label: "Free Resources" },
-  { value: "patch-notes", label: "Updates Patch Note" },
-];
-
-const patchNotes = [
-  {
-    id: "admin-resource-manager",
-    version: "Resource Admin",
-    date: "May 21, 2026",
-    notes: [
-      "Added admin-managed free resource entries.",
-      "Added image, download link, publish state, and sort order controls.",
-      "Combined news, resources, and update notes into one public hub.",
-    ],
-  },
-  {
-    id: "dern-jood-updates",
-    version: "Dern-Jood",
-    date: "May 21, 2026",
-    notes: [
-      "Added downloadable Dern-Jood paper assets.",
-      "Updated Dern-Jood topic cover art.",
-    ],
-  },
 ];
 
 export default function NewsPage() {
@@ -59,8 +36,7 @@ export default function NewsPage() {
 
     if (
       requestedCategory === "news" ||
-      requestedCategory === "free-resources" ||
-      requestedCategory === "patch-notes"
+      requestedCategory === "free-resources"
     ) {
       setSelectedCategory(requestedCategory);
     }
@@ -143,10 +119,6 @@ export default function NewsPage() {
   const categoryDescription = useMemo(() => {
     if (selectedCategory === "free-resources") {
       return "Download printable papers and practice assets published by the SkySkills team.";
-    }
-
-    if (selectedCategory === "patch-notes") {
-      return "Track product updates, fixes, and new practice materials in one place.";
     }
 
     return "Read the latest SkySkills announcements and study resource releases.";
@@ -285,33 +257,6 @@ export default function NewsPage() {
           </section>
         )}
 
-        {selectedCategory === "patch-notes" && (
-          <section className="mx-auto grid max-w-4xl gap-5">
-            {patchNotes.map((patchNote) => (
-              <article
-                key={patchNote.id}
-                className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-black/40"
-              >
-                <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-                  <h2 className="font-[family-name:var(--font-space-grotesk)] text-2xl font-bold">
-                    {patchNote.version}
-                  </h2>
-                  <span className="rounded-lg bg-violet-50 px-3 py-1 text-xs font-bold text-violet-700 dark:bg-white/10 dark:text-brand-gold">
-                    {patchNote.date}
-                  </span>
-                </div>
-                <ul className="space-y-2 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
-                  {patchNote.notes.map((note) => (
-                    <li key={note} className="flex gap-2">
-                      <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-brand-purple dark:bg-brand-gold" />
-                      <span>{note}</span>
-                    </li>
-                  ))}
-                </ul>
-              </article>
-            ))}
-          </section>
-        )}
       </main>
     </div>
   );
