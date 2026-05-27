@@ -17,6 +17,7 @@ const navItems = [
   { href: "/", label: "Home" },
   { href: "/sky-quest", label: "Sky Quests" },
   { href: "/dashboard", label: "Dashboard" },
+  { href: "/subscription", label: "Subscription" },
   { href: "/news", label: "News" },
 ];
 
@@ -142,7 +143,7 @@ export default function Navbar() {
                 <Link
                   key={item.href}
                   href={item.href}
-                  className={`transition-colors ${
+                  className={`whitespace-nowrap transition-colors ${
                     isActive
                       ? "text-brand-gold hover:text-amber-300"
                       : "text-violet-800 hover:text-violet-600 dark:text-zinc-400 dark:hover:text-zinc-200"

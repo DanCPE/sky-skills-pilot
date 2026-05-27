@@ -1,13 +1,23 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AdminBillingFleet, QuizAccessRule } from "@/lib/account/db";
+import type {
+  AdminBillingFleet,
+  ManualPaymentConfig,
+  ManualPaymentSlip,
+  QuizAccessRule,
+  SubscriptionPackage,
+} from "@/lib/account/db";
+import SlipViewerModal from "@/components/account/SlipViewerModal";
 import { topics } from "@/lib/topics";
 
 interface AdminBillingResponse {
   generatedAt: string;
   fleets: AdminBillingFleet[];
   quizAccess: QuizAccessRule[];
+  manualPaymentSlips: ManualPaymentSlip[];
+  manualPaymentConfig: ManualPaymentConfig;
+  subscriptionPackages: SubscriptionPackage[];
 }
 
 function formatDate(value: string | null) {
@@ -19,6 +29,23 @@ function paidLabel(status: string) {
   return status === "active" || status === "trialing" ? "Paid" : "Free";
 }
 
+function formatAmount(value: number) {
+  return new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+  }).format(value);
+}
+
+function slipStatusClass(status: ManualPaymentSlip["status"]) {
+  if (status === "approved") {
+    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
+  }
+  if (status === "rejected") {
+    return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200";
+  }
+  return "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100";
+}
+
 export default function AdminBillingPage() {
   const [data, setData] = useState<AdminBillingResponse | null>(null);
   const [query, setQuery] = useState("");
@@ -26,6 +53,9 @@ export default function AdminBillingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [selectedSlip, setSelectedSlip] = useState<ManualPaymentSlip | null>(
+    null,
+  );
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -118,6 +148,64 @@ export default function AdminBillingPage() {
   const rulesBySlug = new Map(
     (data?.quizAccess ?? []).map((rule) => [rule.topicSlug, rule]),
   );
+  const pendingSlipCount =
+    data?.manualPaymentSlips.filter((slip) => slip.status === "pending").length ??
+    0;
+
+  async function reviewSlip(
+    slip: ManualPaymentSlip,
+    action: "approve" | "reject",
+  ) {
+    const rejectionReason =
+      action === "reject"
+        ? window.prompt("Reason for rejecting this slip?") || "Rejected by admin"
+        : undefined;
+
+    await patchBilling(
+      {
+        type: "slip",
+        slipId: slip.id,
+        action,
+        reviewedBy: "admin",
+        rejectionReason,
+      },
+      `slip:${slip.id}:${action}`,
+    );
+  }
+
+  async function updatePackage(
+    event: React.FormEvent<HTMLFormElement>,
+    packageKey: string,
+  ) {
+    event.preventDefault();
+    setPendingKey(`package:${packageKey}`);
+    setError(null);
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      const response = await fetch(`/api/admin/billing/packages/${packageKey}`, {
+        method: "PATCH",
+        body: formData,
+      });
+      const json = (await response.json().catch(() => null)) as
+        | { overview?: AdminBillingResponse; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(json?.error ?? "Failed to update package.");
+      }
+
+      if (json?.overview) setData(json.overview);
+    } catch (packageError) {
+      setError(
+        packageError instanceof Error
+          ? packageError.message
+          : "Failed to update package.",
+      );
+    } finally {
+      setPendingKey(null);
+    }
+  }
 
   return (
     <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">
@@ -159,7 +247,7 @@ export default function AdminBillingPage() {
           </section>
         ) : null}
 
-        <section className="grid gap-4 md:grid-cols-3">
+        <section className="grid gap-4 md:grid-cols-4">
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
             <p className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
               Registered Fleets
@@ -182,6 +270,264 @@ export default function AdminBillingPage() {
             <p className="mt-2 text-3xl font-bold">
               {data?.quizAccess.filter((rule) => rule.isLocked).length ?? 0}
             </p>
+          </div>
+          <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+            <p className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
+              Pending Slips
+            </p>
+            <p className="mt-2 text-3xl font-bold">{pendingSlipCount}</p>
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
+          <div className="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
+            <h2 className="text-lg font-bold">Payment Slip Approvals</h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Approving a slip marks the fleet email as paid through a manual
+              slip subscription.
+            </p>
+            {data?.manualPaymentConfig ? (
+              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                Receiving account: {data.manualPaymentConfig.bankName} ·{" "}
+                {data.manualPaymentConfig.accountName || "No account name"} ·{" "}
+                {data.manualPaymentConfig.accountNumber || "No account number"}
+              </p>
+            ) : null}
+          </div>
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-left text-sm">
+              <thead className="bg-zinc-50 dark:bg-white/5">
+                <tr>
+                  <th className="px-4 py-3 font-bold">Submitted</th>
+                  <th className="px-4 py-3 font-bold">Fleet</th>
+                  <th className="px-4 py-3 font-bold">Package</th>
+                  <th className="px-4 py-3 font-bold">Amount</th>
+                  <th className="px-4 py-3 font-bold">Reference</th>
+                  <th className="px-4 py-3 font-bold">Status</th>
+                  <th className="px-4 py-3 font-bold">Slip</th>
+                  <th className="px-4 py-3 font-bold">Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.manualPaymentSlips ?? []).length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="border-t border-zinc-100 px-4 py-6 text-center text-zinc-500 dark:border-white/10 dark:text-zinc-400"
+                    >
+                      No payment slips submitted yet.
+                    </td>
+                  </tr>
+                ) : (
+                  data?.manualPaymentSlips.map((slip) => {
+                    const approveKey = `slip:${slip.id}:approve`;
+                    const rejectKey = `slip:${slip.id}:reject`;
+                    return (
+                      <tr
+                        key={slip.id}
+                        className="border-t border-zinc-100 dark:border-white/10"
+                      >
+                        <td className="px-4 py-3">{formatDate(slip.createdAt)}</td>
+                        <td className="px-4 py-3">
+                          <p className="font-bold">{slip.email}</p>
+                          <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                            {slip.callSign ?? "-"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          {slip.planTitle ?? slip.planKey}
+                        </td>
+                        <td className="px-4 py-3">
+                          {formatAmount(slip.amountThb)}
+                        </td>
+                        <td className="max-w-xs px-4 py-3">
+                          <p className="truncate">
+                            {slip.transferReference ||
+                              slip.miniQrPayload ||
+                              "-"}
+                          </p>
+                        </td>
+                        <td className="px-4 py-3">
+                          <span
+                            className={`rounded-full px-2.5 py-1 text-xs font-bold ${slipStatusClass(slip.status)}`}
+                          >
+                            {slip.status}
+                          </span>
+                        </td>
+                        <td className="px-4 py-3">
+                          <button
+                            type="button"
+                            onClick={() => setSelectedSlip(slip)}
+                            className="font-bold text-violet-700 hover:text-violet-500 dark:text-violet-300"
+                          >
+                            View
+                          </button>
+                        </td>
+                        <td className="px-4 py-3">
+                          {slip.status === "pending" ? (
+                            <div className="flex gap-2">
+                              <button
+                                type="button"
+                                disabled={pendingKey !== null}
+                                onClick={() => void reviewSlip(slip, "approve")}
+                                className="rounded-lg border border-emerald-200 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                              >
+                                {pendingKey === approveKey
+                                  ? "Saving..."
+                                  : "Approve"}
+                              </button>
+                              <button
+                                type="button"
+                                disabled={pendingKey !== null}
+                                onClick={() => void reviewSlip(slip, "reject")}
+                                className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/30 dark:text-red-200 dark:hover:bg-red-500/10"
+                              >
+                                {pendingKey === rejectKey
+                                  ? "Saving..."
+                                  : "Reject"}
+                              </button>
+                            </div>
+                          ) : (
+                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
+                              {slip.reviewedAt
+                                ? `Reviewed ${formatDate(slip.reviewedAt)}`
+                                : "-"}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
+          <div className="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
+            <h2 className="text-lg font-bold">Package Management</h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Adjust subscription card text, price, package image, and the QR
+              image shown after a user selects a package.
+            </p>
+          </div>
+          <div className="grid gap-4 p-5 lg:grid-cols-3">
+            {(data?.subscriptionPackages ?? []).map((pkg) => {
+              const key = `package:${pkg.key}`;
+              return (
+                <form
+                  key={pkg.key}
+                  onSubmit={(event) => void updatePackage(event, pkg.key)}
+                  className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10"
+                >
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={pkg.imageUrl}
+                        alt=""
+                        className="h-28 w-full object-cover"
+                      />
+                    </div>
+                    <div className="overflow-hidden rounded-xl bg-zinc-100 p-2 dark:bg-white/5">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img
+                        src={pkg.qrImageUrl}
+                        alt=""
+                        className="h-24 w-full object-contain"
+                      />
+                    </div>
+                  </div>
+
+                  <label className="block">
+                    <span className="text-xs font-bold">Title</span>
+                    <input
+                      name="title"
+                      defaultValue={pkg.title}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold">Description</span>
+                    <textarea
+                      name="description"
+                      defaultValue={pkg.description}
+                      rows={2}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold">
+                      Details (one per line)
+                    </span>
+                    <textarea
+                      name="details"
+                      defaultValue={pkg.details.join("\n")}
+                      rows={4}
+                      className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                    />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    <label className="block">
+                      <span className="text-xs font-bold">Price THB</span>
+                      <input
+                        name="priceThb"
+                        defaultValue={String(pkg.priceThb)}
+                        inputMode="decimal"
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                      />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-bold">Sort</span>
+                      <input
+                        name="sortOrder"
+                        defaultValue={String(pkg.sortOrder)}
+                        inputMode="numeric"
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                      />
+                    </label>
+                  </div>
+                  <input type="hidden" name="currency" value={pkg.currency} />
+                  <input type="hidden" name="isActive" value="false" />
+                  <label className="flex items-center gap-2 text-sm font-bold">
+                    <input
+                      name="isActive"
+                      type="checkbox"
+                      value="true"
+                      defaultChecked={pkg.isActive}
+                      className="h-4 w-4 accent-violet-700"
+                    />
+                    Active
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold">Card Image</span>
+                    <input
+                      name="image"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="mt-1 w-full text-xs"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="text-xs font-bold">QR Image</span>
+                    <input
+                      name="qrImage"
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp"
+                      className="mt-1 w-full text-xs"
+                    />
+                  </label>
+                  <button
+                    type="submit"
+                    disabled={pendingKey !== null}
+                    className="w-full rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
+                  >
+                    {pendingKey === key ? "Saving..." : "Save Package"}
+                  </button>
+                </form>
+              );
+            })}
           </div>
         </section>
 
@@ -352,6 +698,15 @@ export default function AdminBillingPage() {
           </div>
         </section>
       </div>
+      <SlipViewerModal
+        slip={selectedSlip}
+        fileUrl={
+          selectedSlip
+            ? `/api/account/billing/slips/${selectedSlip.id}/file?admin=1`
+            : ""
+        }
+        onClose={() => setSelectedSlip(null)}
+      />
     </main>
   );
 }

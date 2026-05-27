@@ -11,6 +11,15 @@ const MAX_ACTIVE_SESSIONS_PER_FLEET = 4;
 let accountPool: Pool | null = null;
 let schemaReady = false;
 let schemaPromise: Promise<void> | null = null;
+let quizAccessRulesCache:
+  | { expiresAt: number; rules: QuizAccessRule[] }
+  | null = null;
+const subscriptionPackagesCache = new Map<
+  string,
+  { expiresAt: number; packages: SubscriptionPackage[] }
+>();
+
+const CONFIG_CACHE_MS = 60 * 1000;
 
 export interface AccountUser {
   id: string;
@@ -89,6 +98,7 @@ export interface AccountSettingsOverview {
     provider: string | null;
     currentPeriodEnd: string | null;
   } | null;
+  latestPaymentSlip: ManualPaymentSlip | null;
 }
 
 export type SubscriptionStatus =
@@ -121,6 +131,61 @@ export interface AdminBillingFleet {
   currentPeriodEnd: string | null;
   profileCount: number;
   activeSessionCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type ManualPaymentStatus = "pending" | "approved" | "rejected";
+
+export interface ManualPaymentConfig {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  promptPayId: string;
+  defaultAmountThb: number | null;
+  currency: string;
+}
+
+export interface SubscriptionPackage {
+  key: string;
+  title: string;
+  description: string;
+  details: string[];
+  priceCents: number;
+  priceThb: number;
+  currency: string;
+  imageUrl: string;
+  qrImageUrl: string;
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ManualPaymentSlip {
+  id: string;
+  fleetId: string;
+  profileId: string | null;
+  email: string;
+  callSign: string | null;
+  planKey: string;
+  planTitle: string | null;
+  amountCents: number;
+  amountThb: number;
+  currency: string;
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  promptPayId: string | null;
+  transferReference: string | null;
+  miniQrPayload: string | null;
+  slipFileName: string;
+  slipContentType: string;
+  note: string | null;
+  status: ManualPaymentStatus;
+  reviewedAt: string | null;
+  reviewedBy: string | null;
+  rejectionReason: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -260,6 +325,23 @@ function accountError(
   });
 }
 
+async function canUseExistingAccountSchema(pool: Pool) {
+  const result = await pool.query(
+    `
+      SELECT
+        to_regclass('public.account_users') IS NOT NULL AS has_users,
+        to_regclass('public.account_sessions') IS NOT NULL AS has_sessions,
+        to_regclass('public.account_profiles') IS NOT NULL AS has_profiles,
+        to_regclass('public.account_subscriptions') IS NOT NULL AS has_subscriptions,
+        to_regclass('public.account_quiz_access') IS NOT NULL AS has_quiz_access,
+        to_regclass('public.account_manual_payment_slips') IS NOT NULL AS has_payment_slips,
+        to_regclass('public.account_subscription_packages') IS NOT NULL AS has_packages;
+    `,
+  );
+  const row = result.rows[0] ?? {};
+  return Object.values(row).every(Boolean);
+}
+
 export function rankScore(percentage: number) {
   if (percentage >= 90) return "Captain";
   if (percentage >= 75) return "First Officer";
@@ -277,6 +359,14 @@ export async function ensureAccountSchema() {
     const pool = getPool();
 
     try {
+      if (await canUseExistingAccountSchema(pool)) {
+        schemaReady = true;
+        accountDebug("schema ready from existing tables", {
+          durationMs: Date.now() - startedAt,
+        });
+        return;
+      }
+
       await pool.query('CREATE EXTENSION IF NOT EXISTS "pgcrypto";');
 
       await pool.query(`
@@ -417,6 +507,129 @@ export async function ensureAccountSchema() {
     `);
 
       await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_manual_payment_slips (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+        profile_id UUID REFERENCES account_profiles(id) ON DELETE SET NULL,
+        plan_key TEXT NOT NULL DEFAULT 'full_access',
+        amount_cents INT NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'THB',
+        bank_name TEXT NOT NULL,
+        account_name TEXT NOT NULL,
+        account_number TEXT NOT NULL,
+        promptpay_id TEXT,
+        transfer_reference TEXT,
+        mini_qr_payload TEXT,
+        slip_file_name TEXT NOT NULL,
+        slip_content_type TEXT NOT NULL,
+        slip_bytes BYTEA NOT NULL,
+        note TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        reviewed_at TIMESTAMPTZ,
+        reviewed_by TEXT,
+        rejection_reason TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+      await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_subscription_packages (
+        key TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        description TEXT NOT NULL,
+        details JSONB NOT NULL DEFAULT '[]'::jsonb,
+        price_cents INT NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'THB',
+        image_file_name TEXT,
+        image_content_type TEXT,
+        image_bytes BYTEA,
+        qr_file_name TEXT,
+        qr_content_type TEXT,
+        qr_bytes BYTEA,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+      const packageMigration = await pool.query(
+        "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
+        ["subscription_packages_v1"],
+      );
+
+      if (packageMigration.rowCount === 0) {
+        const defaultPackages = [
+          {
+            key: "cadet",
+            title: "Cadet",
+            description: "Start practicing with selected paid quizzes.",
+            details: ["Paid quiz access", "Score history", "Skill dashboard"],
+            priceCents: 19900,
+            sortOrder: 10,
+          },
+          {
+            key: "first-officer",
+            title: "First Officer",
+            description: "Balanced package for regular aptitude preparation.",
+            details: [
+              "All paid quizzes",
+              "Score history",
+              "Skill dashboard",
+              "Priority feature access",
+            ],
+            priceCents: 49900,
+            sortOrder: 20,
+          },
+          {
+            key: "captain",
+            title: "Captain",
+            description: "Full preparation package for serious assessment runs.",
+            details: [
+              "All paid quizzes",
+              "Score history",
+              "Skill dashboard",
+              "Future premium tools",
+            ],
+            priceCents: 99900,
+            sortOrder: 30,
+          },
+        ];
+
+        for (const item of defaultPackages) {
+          await pool.query(
+            `
+              INSERT INTO account_subscription_packages (
+                key,
+                title,
+                description,
+                details,
+                price_cents,
+                currency,
+                sort_order
+              )
+              VALUES ($1, $2, $3, $4, $5, 'THB', $6)
+              ON CONFLICT (key) DO NOTHING;
+            `,
+            [
+              item.key,
+              item.title,
+              item.description,
+              JSON.stringify(item.details),
+              item.priceCents,
+              item.sortOrder,
+            ],
+          );
+        }
+
+        await pool.query(
+          "INSERT INTO account_schema_migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING;",
+          ["subscription_packages_v1"],
+        );
+      }
+
+      await pool.query(`
       CREATE TABLE IF NOT EXISTS account_quiz_access (
         topic_slug TEXT PRIMARY KEY,
         is_locked BOOLEAN NOT NULL DEFAULT FALSE,
@@ -485,6 +698,12 @@ export async function ensureAccountSchema() {
       );
       await pool.query(
         "CREATE INDEX IF NOT EXISTS account_subscriptions_user_idx ON account_subscriptions(user_id);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_manual_payment_slips_user_created_idx ON account_manual_payment_slips(user_id, created_at DESC);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_manual_payment_slips_status_created_idx ON account_manual_payment_slips(status, created_at DESC);",
       );
 
       schemaReady = true;
@@ -1019,6 +1238,89 @@ function mapQuizAccessRule(row: Record<string, unknown>): QuizAccessRule {
   };
 }
 
+function mapManualPaymentSlip(row: Record<string, unknown>): ManualPaymentSlip {
+  return {
+    id: String(row.id),
+    fleetId: String(row.user_id),
+    profileId: row.profile_id ? String(row.profile_id) : null,
+    email: String(row.email ?? ""),
+    callSign: row.call_sign ? String(row.call_sign) : null,
+    planKey: String(row.plan_key),
+    planTitle: row.plan_title ? String(row.plan_title) : null,
+    amountCents: Number(row.amount_cents),
+    amountThb: Number(row.amount_cents) / 100,
+    currency: String(row.currency),
+    bankName: String(row.bank_name),
+    accountName: String(row.account_name),
+    accountNumber: String(row.account_number),
+    promptPayId: row.promptpay_id ? String(row.promptpay_id) : null,
+    transferReference: row.transfer_reference
+      ? String(row.transfer_reference)
+      : null,
+    miniQrPayload: row.mini_qr_payload ? String(row.mini_qr_payload) : null,
+    slipFileName: String(row.slip_file_name),
+    slipContentType: String(row.slip_content_type),
+    note: row.note ? String(row.note) : null,
+    status: String(row.status) as ManualPaymentStatus,
+    reviewedAt: row.reviewed_at
+      ? new Date(String(row.reviewed_at)).toISOString()
+      : null,
+    reviewedBy: row.reviewed_by ? String(row.reviewed_by) : null,
+    rejectionReason: row.rejection_reason
+      ? String(row.rejection_reason)
+      : null,
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
+function getRowsFromJsonArray(value: unknown) {
+  if (Array.isArray(value)) return value.map(String);
+  if (typeof value === "string") {
+    try {
+      const parsed = JSON.parse(value) as unknown;
+      return Array.isArray(parsed) ? parsed.map(String) : [];
+    } catch {
+      return [];
+    }
+  }
+  return [];
+}
+
+function mapSubscriptionPackage(row: Record<string, unknown>): SubscriptionPackage {
+  const key = String(row.key);
+  return {
+    key,
+    title: String(row.title),
+    description: String(row.description),
+    details: getRowsFromJsonArray(row.details),
+    priceCents: Number(row.price_cents),
+    priceThb: Number(row.price_cents) / 100,
+    currency: String(row.currency),
+    imageUrl: `/api/billing/packages/${key}/image`,
+    qrImageUrl: `/api/billing/packages/${key}/qr`,
+    isActive: Boolean(row.is_active),
+    sortOrder: Number(row.sort_order ?? 0),
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
+export function getManualPaymentConfig(): ManualPaymentConfig {
+  const amountFromEnv = process.env.MANUAL_PAYMENT_AMOUNT_THB;
+  const parsedAmount = amountFromEnv ? Number(amountFromEnv) : NaN;
+
+  return {
+    bankName: process.env.MANUAL_PAYMENT_BANK_NAME || "Krungthai Bank",
+    accountName: process.env.MANUAL_PAYMENT_ACCOUNT_NAME || "",
+    accountNumber: process.env.MANUAL_PAYMENT_ACCOUNT_NUMBER || "",
+    promptPayId: process.env.MANUAL_PAYMENT_PROMPTPAY_ID || "",
+    defaultAmountThb:
+      Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : null,
+    currency: process.env.MANUAL_PAYMENT_CURRENCY || "THB",
+  };
+}
+
 export async function getAccountSettingsOverview(
   user: AccountUser,
 ): Promise<AccountSettingsOverview> {
@@ -1040,19 +1342,40 @@ export async function getAccountSettingsOverview(
         WHERE s.user_id = $1
         ORDER BY s.created_at DESC
         LIMIT 1
+      ),
+      latest_payment_slip AS (
+        SELECT to_jsonb(slip_row) AS row
+        FROM (
+          SELECT
+            s.*,
+            $2::text AS email,
+            p.call_sign,
+            pkg.title AS plan_title
+          FROM account_manual_payment_slips s
+          LEFT JOIN account_profiles p ON p.id = s.profile_id
+          LEFT JOIN account_subscription_packages pkg ON pkg.key = s.plan_key
+          WHERE s.user_id = $1
+          ORDER BY s.created_at DESC
+          LIMIT 1
+        ) slip_row
       )
       SELECT
         fleet_profiles.rows AS profiles,
-        latest_subscription.row AS subscription
+        latest_subscription.row AS subscription,
+        latest_payment_slip.row AS latest_payment_slip
       FROM fleet_profiles
-      LEFT JOIN latest_subscription ON TRUE;
+      LEFT JOIN latest_subscription ON TRUE
+      LEFT JOIN latest_payment_slip ON TRUE;
     `,
-    [user.fleetId],
+    [user.fleetId, user.email],
   );
 
   const row = result.rows[0] ?? {};
   const profiles = asRows(row.profiles);
   const subscriptionRow = row.subscription as Record<string, unknown> | null;
+  const latestPaymentSlipRow = row.latest_payment_slip as
+    | Record<string, unknown>
+    | null;
 
   accountDebug("account settings overview loaded", {
     fleetId: user.fleetId,
@@ -1065,6 +1388,9 @@ export async function getAccountSettingsOverview(
     user,
     profiles: profiles.map(mapProfile),
     subscription: mapSubscription(subscriptionRow),
+    latestPaymentSlip: latestPaymentSlipRow
+      ? mapManualPaymentSlip(latestPaymentSlipRow)
+      : null,
   };
 }
 
@@ -1535,6 +1861,11 @@ export async function getQuizAccessRules(): Promise<QuizAccessRule[]> {
     }));
   }
 
+  const now = Date.now();
+  if (quizAccessRulesCache && quizAccessRulesCache.expiresAt > now) {
+    return quizAccessRulesCache.rules;
+  }
+
   await ensureAccountSchema();
   const result = await getPool().query(
     `
@@ -1548,7 +1879,7 @@ export async function getQuizAccessRules(): Promise<QuizAccessRule[]> {
     result.rows.map((row) => [String(row.topic_slug), mapQuizAccessRule(row)]),
   );
 
-  return quizTopics.map((topic) => {
+  const rules = quizTopics.map((topic) => {
     const rule = rulesBySlug.get(topic.slug);
     return (
       rule ?? {
@@ -1558,6 +1889,13 @@ export async function getQuizAccessRules(): Promise<QuizAccessRule[]> {
       }
     );
   });
+
+  quizAccessRulesCache = {
+    rules,
+    expiresAt: now + CONFIG_CACHE_MS,
+  };
+
+  return rules;
 }
 
 export async function getTopicAccessState(
@@ -1641,6 +1979,7 @@ export async function setQuizAccessRule(input: {
     [input.topicSlug, input.isLocked],
   );
 
+  quizAccessRulesCache = null;
   return mapQuizAccessRule(result.rows[0]);
 }
 
@@ -1695,10 +2034,454 @@ export async function setFleetManualSubscription(input: {
   return mapSubscription(result.rows[0]);
 }
 
+export async function createManualPaymentSlip(input: {
+  user: AccountUser;
+  amountThb: number;
+  planKey?: string;
+  transferReference?: string | null;
+  miniQrPayload?: string | null;
+  note?: string | null;
+  slipFileName: string;
+  slipContentType: string;
+  slipBytes: Buffer;
+}) {
+  await ensureAccountSchema();
+
+  if (!Number.isFinite(input.amountThb) || input.amountThb <= 0) {
+    throw new Error("Payment amount must be greater than zero.");
+  }
+
+  const config = getManualPaymentConfig();
+  const amountCents = Math.round(input.amountThb * 100);
+
+  const result = await getPool().query(
+    `
+      INSERT INTO account_manual_payment_slips (
+        user_id,
+        profile_id,
+        plan_key,
+        amount_cents,
+        currency,
+        bank_name,
+        account_name,
+        account_number,
+        promptpay_id,
+        transfer_reference,
+        mini_qr_payload,
+        slip_file_name,
+        slip_content_type,
+        slip_bytes,
+        note
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
+      RETURNING
+        account_manual_payment_slips.*,
+        $16::text AS email,
+        $17::text AS call_sign,
+        (
+          SELECT title
+          FROM account_subscription_packages pkg
+          WHERE pkg.key = account_manual_payment_slips.plan_key
+          LIMIT 1
+        ) AS plan_title;
+    `,
+    [
+      input.user.fleetId,
+      input.user.profileId,
+      input.planKey ?? "full_access",
+      amountCents,
+      config.currency,
+      config.bankName,
+      config.accountName,
+      config.accountNumber,
+      config.promptPayId || null,
+      input.transferReference?.trim() || null,
+      input.miniQrPayload?.trim() || null,
+      input.slipFileName,
+      input.slipContentType,
+      input.slipBytes,
+      input.note?.trim() || null,
+      input.user.email,
+      input.user.name,
+    ],
+  );
+
+  accountDebug("manual payment slip created", {
+    slipId: result.rows[0].id,
+    fleetId: input.user.fleetId,
+    amountCents,
+  });
+
+  return mapManualPaymentSlip(result.rows[0]);
+}
+
+export async function getSubscriptionPackages(input?: { includeInactive?: boolean }) {
+  if (!hasAccountDatabase()) return [];
+  const cacheKey = input?.includeInactive ? "all" : "active";
+  const now = Date.now();
+  const cached = subscriptionPackagesCache.get(cacheKey);
+  if (cached && cached.expiresAt > now) {
+    return cached.packages;
+  }
+
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT *
+      FROM account_subscription_packages
+      WHERE $1::boolean = TRUE OR is_active = TRUE
+      ORDER BY sort_order ASC, price_cents ASC, key ASC;
+    `,
+    [Boolean(input?.includeInactive)],
+  );
+
+  const packages = result.rows.map(mapSubscriptionPackage);
+  subscriptionPackagesCache.set(cacheKey, {
+    packages,
+    expiresAt: now + CONFIG_CACHE_MS,
+  });
+  return packages;
+}
+
+export async function getSubscriptionPackage(packageKey: string) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT *
+      FROM account_subscription_packages
+      WHERE key = $1
+      LIMIT 1;
+    `,
+    [packageKey],
+  );
+
+  if (result.rowCount === 0) return null;
+  subscriptionPackagesCache.clear();
+  return mapSubscriptionPackage(result.rows[0]);
+}
+
+export async function getSubscriptionPackageFile(
+  packageKey: string,
+  kind: "image" | "qr",
+) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        ${kind === "image" ? "image_file_name" : "qr_file_name"} AS file_name,
+        ${kind === "image" ? "image_content_type" : "qr_content_type"} AS content_type,
+        ${kind === "image" ? "image_bytes" : "qr_bytes"} AS bytes
+      FROM account_subscription_packages
+      WHERE key = $1
+      LIMIT 1;
+    `,
+    [packageKey],
+  );
+
+  if (result.rowCount === 0 || !result.rows[0].bytes) return null;
+  return {
+    fileName: result.rows[0].file_name
+      ? String(result.rows[0].file_name)
+      : `${packageKey}-${kind}`,
+    contentType: result.rows[0].content_type
+      ? String(result.rows[0].content_type)
+      : "image/png",
+    bytes: result.rows[0].bytes as Buffer,
+  };
+}
+
+export async function updateSubscriptionPackage(input: {
+  key: string;
+  title: string;
+  description: string;
+  details: string[];
+  priceThb: number;
+  currency?: string;
+  isActive: boolean;
+  sortOrder: number;
+  image?: {
+    fileName: string;
+    contentType: string;
+    bytes: Buffer;
+  } | null;
+  qrImage?: {
+    fileName: string;
+    contentType: string;
+    bytes: Buffer;
+  } | null;
+}) {
+  await ensureAccountSchema();
+
+  if (!input.key.trim()) throw new Error("Package key is required.");
+  if (!input.title.trim()) throw new Error("Package title is required.");
+  if (!Number.isFinite(input.priceThb) || input.priceThb <= 0) {
+    throw new Error("Package price must be greater than zero.");
+  }
+
+  const result = await getPool().query(
+    `
+      INSERT INTO account_subscription_packages (
+        key,
+        title,
+        description,
+        details,
+        price_cents,
+        currency,
+        is_active,
+        sort_order,
+        image_file_name,
+        image_content_type,
+        image_bytes,
+        qr_file_name,
+        qr_content_type,
+        qr_bytes,
+        updated_at
+      )
+      VALUES (
+        $1,
+        $2,
+        $3,
+        $4,
+        $5,
+        $6,
+        $7,
+        $8,
+        $9,
+        $10,
+        $11,
+        $12,
+        $13,
+        $14,
+        NOW()
+      )
+      ON CONFLICT (key)
+      DO UPDATE SET
+        title = EXCLUDED.title,
+        description = EXCLUDED.description,
+        details = EXCLUDED.details,
+        price_cents = EXCLUDED.price_cents,
+        currency = EXCLUDED.currency,
+        is_active = EXCLUDED.is_active,
+        sort_order = EXCLUDED.sort_order,
+        image_file_name = COALESCE(EXCLUDED.image_file_name, account_subscription_packages.image_file_name),
+        image_content_type = COALESCE(EXCLUDED.image_content_type, account_subscription_packages.image_content_type),
+        image_bytes = COALESCE(EXCLUDED.image_bytes, account_subscription_packages.image_bytes),
+        qr_file_name = COALESCE(EXCLUDED.qr_file_name, account_subscription_packages.qr_file_name),
+        qr_content_type = COALESCE(EXCLUDED.qr_content_type, account_subscription_packages.qr_content_type),
+        qr_bytes = COALESCE(EXCLUDED.qr_bytes, account_subscription_packages.qr_bytes),
+        updated_at = NOW()
+      RETURNING *;
+    `,
+    [
+      input.key.trim(),
+      input.title.trim(),
+      input.description.trim(),
+      JSON.stringify(input.details.map((item) => item.trim()).filter(Boolean)),
+      Math.round(input.priceThb * 100),
+      input.currency || "THB",
+      input.isActive,
+      input.sortOrder,
+      input.image?.fileName ?? null,
+      input.image?.contentType ?? null,
+      input.image?.bytes ?? null,
+      input.qrImage?.fileName ?? null,
+      input.qrImage?.contentType ?? null,
+      input.qrImage?.bytes ?? null,
+    ],
+  );
+
+  return mapSubscriptionPackage(result.rows[0]);
+}
+
+export async function getManualPaymentSlipsForFleet(fleetId: string) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        s.*,
+        u.email,
+        p.call_sign,
+        pkg.title AS plan_title
+      FROM account_manual_payment_slips s
+      JOIN account_users u ON u.id = s.user_id
+      LEFT JOIN account_profiles p ON p.id = s.profile_id
+      LEFT JOIN account_subscription_packages pkg ON pkg.key = s.plan_key
+      WHERE s.user_id = $1
+      ORDER BY s.created_at DESC;
+    `,
+    [fleetId],
+  );
+
+  return result.rows.map(mapManualPaymentSlip);
+}
+
+export async function getManualPaymentSlipFile(slipId: string) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        user_id,
+        slip_file_name,
+        slip_content_type,
+        slip_bytes
+      FROM account_manual_payment_slips
+      WHERE id = $1
+      LIMIT 1;
+    `,
+    [slipId],
+  );
+
+  if (result.rowCount === 0) return null;
+
+  const row = result.rows[0];
+  return {
+    fleetId: String(row.user_id),
+    fileName: String(row.slip_file_name),
+    contentType: String(row.slip_content_type),
+    bytes: row.slip_bytes as Buffer,
+  };
+}
+
+export async function getAdminManualPaymentSlips() {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        s.*,
+        u.email,
+        p.call_sign,
+        pkg.title AS plan_title
+      FROM account_manual_payment_slips s
+      JOIN account_users u ON u.id = s.user_id
+      LEFT JOIN account_profiles p ON p.id = s.profile_id
+      LEFT JOIN account_subscription_packages pkg ON pkg.key = s.plan_key
+      ORDER BY
+        CASE s.status
+          WHEN 'pending' THEN 0
+          WHEN 'rejected' THEN 1
+          ELSE 2
+        END,
+        s.created_at DESC;
+    `,
+  );
+
+  return result.rows.map(mapManualPaymentSlip);
+}
+
+export async function reviewManualPaymentSlip(input: {
+  slipId: string;
+  action: "approve" | "reject";
+  reviewedBy?: string | null;
+  rejectionReason?: string | null;
+}) {
+  await ensureAccountSchema();
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const slipResult = await client.query(
+      `
+        SELECT *
+        FROM account_manual_payment_slips
+        WHERE id = $1
+        FOR UPDATE;
+      `,
+      [input.slipId],
+    );
+
+    if (slipResult.rowCount === 0) {
+      throw new Error("Payment slip not found.");
+    }
+
+    const currentStatus = String(slipResult.rows[0].status);
+    if (currentStatus !== "pending") {
+      throw new Error(`Payment slip has already been ${currentStatus}.`);
+    }
+
+    const status = input.action === "approve" ? "approved" : "rejected";
+    const updateResult = await client.query(
+      `
+        UPDATE account_manual_payment_slips
+        SET status = $2,
+            reviewed_at = NOW(),
+            reviewed_by = $3,
+            rejection_reason = $4,
+            updated_at = NOW()
+        WHERE id = $1
+        RETURNING *;
+      `,
+      [
+        input.slipId,
+        status,
+        input.reviewedBy?.trim() || null,
+        input.action === "reject" ? input.rejectionReason?.trim() || null : null,
+      ],
+    );
+
+    if (input.action === "approve") {
+      await client.query(
+        `
+          INSERT INTO account_subscriptions (
+            user_id,
+            provider,
+            provider_subscription_id,
+            status,
+            current_period_end,
+            updated_at
+          )
+          VALUES ($1, 'manual-slip', $2, 'active', NULL, NOW());
+        `,
+        [slipResult.rows[0].user_id, input.slipId],
+      );
+    }
+
+    await client.query("COMMIT");
+
+    accountDebug("manual payment slip reviewed", {
+      slipId: input.slipId,
+      action: input.action,
+      fleetId: slipResult.rows[0].user_id,
+    });
+
+    const decoratedResult = await pool.query(
+      `
+        SELECT
+          s.*,
+          u.email,
+          p.call_sign,
+          pkg.title AS plan_title
+        FROM account_manual_payment_slips s
+        JOIN account_users u ON u.id = s.user_id
+        LEFT JOIN account_profiles p ON p.id = s.profile_id
+        LEFT JOIN account_subscription_packages pkg ON pkg.key = s.plan_key
+        WHERE s.id = $1
+        LIMIT 1;
+      `,
+      [input.slipId],
+    );
+
+    return mapManualPaymentSlip(decoratedResult.rows[0] ?? updateResult.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
 export async function getAdminBillingOverview() {
   await ensureAccountSchema();
 
-  const [fleetResult, quizAccess] = await Promise.all([
+  const [fleetResult, quizAccess, manualPaymentSlips, subscriptionPackages] =
+    await Promise.all([
     getPool().query(
       `
         SELECT
@@ -1731,6 +2514,8 @@ export async function getAdminBillingOverview() {
       `,
     ),
     getQuizAccessRules(),
+    getAdminManualPaymentSlips(),
+    getSubscriptionPackages({ includeInactive: true }),
   ]);
 
   const fleets: AdminBillingFleet[] = fleetResult.rows.map((row) => ({
@@ -1753,5 +2538,8 @@ export async function getAdminBillingOverview() {
     generatedAt: new Date().toISOString(),
     fleets,
     quizAccess,
+    manualPaymentSlips,
+    manualPaymentConfig: getManualPaymentConfig(),
+    subscriptionPackages,
   };
 }
