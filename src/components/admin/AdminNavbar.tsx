@@ -7,6 +7,7 @@ const adminNavItems = [
   { href: "/admin/analytics", label: "Analytics" },
   { href: "/admin/accounts", label: "Accounts" },
   { href: "/admin/billing", label: "Billing" },
+  { href: "/admin/broadcast", label: "Broadcast" },
   { href: "/admin/free-resources", label: "Free Resources" },
   { href: "/admin/news", label: "News" },
 ];

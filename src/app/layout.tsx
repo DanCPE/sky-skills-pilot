@@ -4,6 +4,7 @@ import "./globals.css";
 import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/lib/use-theme";
 import FrontendUsageTracker from "@/components/analytics/FrontendUsageTracker";
+import BroadcastBand from "@/components/BroadcastBand";
 
 const inter = Inter({
   display: "swap",
@@ -64,6 +65,7 @@ export default function RootLayout({
           />
           <FrontendUsageTracker />
           <Navbar />
+          <BroadcastBand />
           {children}
         </ThemeProvider>
       </body>
