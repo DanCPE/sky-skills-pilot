@@ -278,6 +278,16 @@ function netOptionSignature(
     .join("|");
 }
 
+function visibleNetOptionSignature(
+  visibleNetFaceIndices: number[],
+  netImages: Record<number, string>,
+  netImageRotations: Record<number, number>,
+) {
+  return visibleNetFaceIndices
+    .map((faceIndex) => `${faceIndex}:${netImages[faceIndex]}:${netImageRotations[faceIndex] ?? 0}`)
+    .join("|");
+}
+
 function cloneNetImages(images: Record<number, string>) {
   return { ...images };
 }
@@ -288,82 +298,99 @@ function emptyNetRotations() {
 
 function createNetLevelDistractors(
   images: Record<number, string>,
+  visibleNetFaceIndices: number[],
   rng: () => number,
 ) {
+  const hiddenNetFaceIndices = [1, 2, 3, 4, 5, 6].filter(
+    (faceIndex) => !visibleNetFaceIndices.includes(faceIndex),
+  );
   const mutations: {
     name: string;
     reason: string;
+    mutatedFaceIndices: number[];
     apply: (
       netImages: Record<number, string>,
       netImageRotations: Record<number, number>,
     ) => void;
-  }[] = [
-    {
-      name: "net_adjacent_swap_1_2",
-      reason: "Net faces #1 and #2 are swapped before folding.",
-      apply: (netImages) => {
-        [netImages[1], netImages[2]] = [netImages[2], netImages[1]];
+  }[] = [];
+
+  visibleNetFaceIndices.forEach((faceIndex) => {
+    [90, 180, 270].forEach((degrees) => {
+      mutations.push({
+        name: `net_rotate_${faceIndex}_${degrees}`,
+        reason: `Visible net face #${faceIndex} image is rotated before folding.`,
+        mutatedFaceIndices: [faceIndex],
+        apply: (_netImages, netImageRotations) => {
+          netImageRotations[faceIndex] = degrees;
+        },
+      });
+    });
+  });
+
+  visibleNetFaceIndices.forEach((first, firstIndex) => {
+    visibleNetFaceIndices.slice(firstIndex + 1).forEach((second) => {
+      mutations.push({
+        name: `net_visible_swap_${first}_${second}`,
+        reason: `Visible net faces #${first} and #${second} are swapped before folding.`,
+        mutatedFaceIndices: [first, second],
+        apply: (netImages) => {
+          [netImages[first], netImages[second]] = [netImages[second], netImages[first]];
+        },
+      });
+    });
+  });
+
+  visibleNetFaceIndices.forEach((visible) => {
+    hiddenNetFaceIndices.forEach((hidden) => {
+      mutations.push({
+        name: `net_hidden_replace_${hidden}_to_${visible}`,
+        reason: `Visible net face #${visible} is replaced with hidden net face #${hidden}.`,
+        mutatedFaceIndices: [visible],
+        apply: (netImages) => {
+          netImages[visible] = netImages[hidden];
+        },
+      });
+    });
+  });
+
+  if (visibleNetFaceIndices.length >= 3) {
+    const [first, second, third] = visibleNetFaceIndices;
+    mutations.push(
+      {
+        name: `net_visible_cycle_${first}_${second}_${third}`,
+        reason: "The three visible net faces are cycled before folding.",
+        mutatedFaceIndices: [first, second, third],
+        apply: (netImages) => {
+          [netImages[first], netImages[second], netImages[third]] = [
+            netImages[third],
+            netImages[first],
+            netImages[second],
+          ];
+        },
       },
-    },
-    {
-      name: "net_adjacent_swap_1_3",
-      reason: "Net faces #1 and #3 are swapped before folding.",
-      apply: (netImages) => {
-        [netImages[1], netImages[3]] = [netImages[3], netImages[1]];
+      {
+        name: `net_visible_cycle_${third}_${second}_${first}`,
+        reason: "The three visible net faces are cycled before folding.",
+        mutatedFaceIndices: [first, second, third],
+        apply: (netImages) => {
+          [netImages[first], netImages[second], netImages[third]] = [
+            netImages[second],
+            netImages[third],
+            netImages[first],
+          ];
+        },
       },
-    },
-    {
-      name: "net_adjacent_swap_2_3",
-      reason: "Net faces #2 and #3 are swapped before folding.",
-      apply: (netImages) => {
-        [netImages[2], netImages[3]] = [netImages[3], netImages[2]];
-      },
-    },
-    {
-      name: "net_opposite_swap_4_5",
-      reason: "Net faces #4 and #5 are swapped before folding.",
-      apply: (netImages) => {
-        [netImages[4], netImages[5]] = [netImages[5], netImages[4]];
-      },
-    },
-    {
-      name: "net_rotate_3",
-      reason: "Net face #3 image is rotated before folding.",
-      apply: (_netImages, netImageRotations) => {
-        netImageRotations[3] = 90;
-      },
-    },
-    {
-      name: "net_rotate_2",
-      reason: "Net face #2 image is rotated before folding.",
-      apply: (_netImages, netImageRotations) => {
-        netImageRotations[2] = 180;
-      },
-    },
-    {
-      name: "net_duplicate_1_to_3",
-      reason: "Net face #3 duplicates net face #1 before folding.",
-      apply: (netImages) => {
-        netImages[3] = netImages[1];
-      },
-    },
-    {
-      name: "net_duplicate_6_to_1",
-      reason: "Net face #1 is replaced with net face #6 before folding.",
-      apply: (netImages) => {
-        netImages[1] = netImages[6];
-      },
-    },
-    {
-      name: "net_cycle_1_2_3",
-      reason: "Net faces #1, #2, and #3 are cycled before folding.",
-      apply: (netImages) => {
-        [netImages[1], netImages[2], netImages[3]] = [netImages[3], netImages[1], netImages[2]];
-      },
-    },
-  ];
+    );
+  }
+
   const correctSignature = netOptionSignature(images, emptyNetRotations());
+  const correctVisibleSignature = visibleNetOptionSignature(
+    visibleNetFaceIndices,
+    images,
+    emptyNetRotations(),
+  );
   const seen = new Set([correctSignature]);
+  const seenVisible = new Set([correctVisibleSignature]);
 
   return shuffle(mutations, rng)
     .map((mutation) => {
@@ -378,8 +405,19 @@ function createNetLevelDistractors(
       };
     })
     .filter((candidate) => {
+      const mutatesVisibleFace = candidate.mutatedFaceIndices.some((faceIndex) =>
+        visibleNetFaceIndices.includes(faceIndex),
+      );
+      if (!mutatesVisibleFace) return false;
       if (seen.has(candidate.signature)) return false;
+      const visibleSignature = visibleNetOptionSignature(
+        visibleNetFaceIndices,
+        candidate.netImages,
+        candidate.netImageRotations,
+      );
+      if (seenVisible.has(visibleSignature)) return false;
       seen.add(candidate.signature);
+      seenVisible.add(visibleSignature);
       return true;
     })
     .slice(0, 8);
@@ -810,7 +848,16 @@ function createQuestion(
     rotX: selectedViewAngle.rotX,
     rotY: selectedViewAngle.rotY,
   };
-  const wrongCandidates = createNetLevelDistractors(images, rng);
+  const visibleNetFaceIndices = choiceView.visibleFaces.map((faceName) => {
+    const entry = Object.entries(foldResult.faceAssignments).find(
+      ([, assignedFaceName]) => assignedFaceName === faceName,
+    );
+    if (!entry) {
+      throw new Error(`Could not find net face assigned to visible face ${faceName}.`);
+    }
+    return Number(entry[0]);
+  });
+  const wrongCandidates = createNetLevelDistractors(images, visibleNetFaceIndices, rng);
 
   if (wrongCandidates.length < 8) {
     throw new Error("Could not generate enough net-level box-folding choices.");

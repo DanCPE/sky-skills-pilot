@@ -326,9 +326,11 @@ function QuestionCard({
               <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
                 Answer Choices
               </h4>
-              {mode === "learn" && !isAnswered && (
+              {!isAnswered && (
                 <p className="mt-0.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                  Drag to tilt. Double-click a cube to choose it.
+                  {mode === "learn"
+                    ? "Drag to tilt. Double-click a cube to choose it."
+                    : "Click a cube to choose it."}
                 </p>
               )}
             </div>
