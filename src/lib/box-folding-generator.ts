@@ -180,12 +180,7 @@ const OPPOSITE_FACE: Record<BoxFoldingFaceName, BoxFoldingFaceName> = {
   right: "left",
 };
 
-const VIEW_ANGLES = [
-  { rotX: -35, rotY: -45 },
-  { rotX: -35, rotY: 45 },
-  { rotX: -35, rotY: -135 },
-  { rotX: -35, rotY: 135 },
-] as const;
+const EXTRA_CHOICE_FRONT_NET_FACE_INDICES = [1, 2, 3, 4, 5, 6] as const;
 
 function random(seed: number) {
   let state = seed >>> 0;
@@ -286,6 +281,82 @@ function visibleNetOptionSignature(
   return visibleNetFaceIndices
     .map((faceIndex) => `${faceIndex}:${netImages[faceIndex]}:${netImageRotations[faceIndex] ?? 0}`)
     .join("|");
+}
+
+function visibleNetFaceIndicesForView(
+  faceAssignments: Record<number, BoxFoldingFaceName>,
+  view: BoxFoldingView,
+) {
+  return view.visibleFaces.map((faceName) => {
+    const entry = Object.entries(faceAssignments).find(
+      ([, assignedFaceName]) => assignedFaceName === faceName,
+    );
+    if (!entry) {
+      throw new Error(`Could not find net face assigned to visible face ${faceName}.`);
+    }
+    return Number(entry[0]);
+  });
+}
+
+function viewWithNetFaceAtFront(
+  netFaceIndex: number,
+  faceAssignments: Record<number, BoxFoldingFaceName>,
+): BoxFoldingView {
+  const cubeFace = faceAssignments[netFaceIndex];
+  const baseView = {
+    ...BOX_FOLDING_CHOICE_VIEW,
+    name: `Net face #${netFaceIndex} front`,
+    rotX: BOX_FOLDING_CHOICE_VIEW.rotX,
+    rotY: BOX_FOLDING_CHOICE_VIEW.rotY,
+  };
+
+  if (cubeFace === "front") {
+    return {
+      ...baseView,
+      anchorRotX: 0,
+      anchorRotY: 0,
+      visibleFaces: ["top", "front", "right"],
+    };
+  }
+  if (cubeFace === "right") {
+    return {
+      ...baseView,
+      anchorRotX: 0,
+      anchorRotY: -90,
+      visibleFaces: ["top", "right", "back"],
+    };
+  }
+  if (cubeFace === "back") {
+    return {
+      ...baseView,
+      anchorRotX: 0,
+      anchorRotY: 180,
+      visibleFaces: ["top", "back", "left"],
+    };
+  }
+  if (cubeFace === "left") {
+    return {
+      ...baseView,
+      anchorRotX: 0,
+      anchorRotY: 90,
+      visibleFaces: ["top", "left", "front"],
+    };
+  }
+  if (cubeFace === "top") {
+    return {
+      ...baseView,
+      anchorRotX: 90,
+      anchorRotY: 0,
+      visibleFaces: ["back", "top", "right"],
+    };
+  }
+
+  return {
+    ...baseView,
+    anchorRotX: -90,
+    anchorRotY: 0,
+    visibleFaces: ["front", "bottom", "right"],
+  };
 }
 
 function cloneNetImages(images: Record<number, string>) {
@@ -842,55 +913,69 @@ function createQuestion(
   const images = chooseImages(activeDifficulty, rng);
   const foldResult = foldCubeNet(pattern, images);
   const canonicalCube = foldResult.cube;
-  const selectedViewAngle = item(VIEW_ANGLES, rng);
-  const choiceView: BoxFoldingView = {
-    ...BOX_FOLDING_CHOICE_VIEW,
-    rotX: selectedViewAngle.rotX,
-    rotY: selectedViewAngle.rotY,
-  };
-  const visibleNetFaceIndices = choiceView.visibleFaces.map((faceName) => {
-    const entry = Object.entries(foldResult.faceAssignments).find(
-      ([, assignedFaceName]) => assignedFaceName === faceName,
+  const frontNetFaceSlots = [
+    1,
+    2,
+    3,
+    4,
+    5,
+    6,
+    ...shuffle(EXTRA_CHOICE_FRONT_NET_FACE_INDICES, rng).slice(0, 3),
+  ];
+  const correctOptionIndex = Math.floor(rng() * frontNetFaceSlots.length);
+  const usedWrongSignatures = new Set<string>();
+
+  const options = frontNetFaceSlots.map((frontNetFaceIndex, index) => {
+    const view = viewWithNetFaceAtFront(frontNetFaceIndex, foldResult.faceAssignments);
+    const visibleNetFaceIndices = visibleNetFaceIndicesForView(
+      foldResult.faceAssignments,
+      view,
     );
-    if (!entry) {
-      throw new Error(`Could not find net face assigned to visible face ${faceName}.`);
+    const label = String.fromCharCode(65 + index);
+
+    if (index === correctOptionIndex) {
+      return {
+        id: crypto.randomUUID(),
+        label,
+        cube: cloneCube(canonicalCube),
+        netImages: { ...images },
+        netImageRotations: Object.fromEntries(
+          Object.keys(images).map((faceIndex) => [Number(faceIndex), 0]),
+        ) as Record<number, number>,
+        view,
+        isValidFold: true,
+        strategyName: "correct_view",
+        strategyReason: `Original net folded with net face #${frontNetFaceIndex} facing front.`,
+      };
     }
-    return Number(entry[0]);
+
+    const candidate = createNetLevelDistractors(
+      images,
+      visibleNetFaceIndices,
+      rng,
+    ).find((wrongCandidate) => {
+      if (usedWrongSignatures.has(wrongCandidate.signature)) return false;
+      usedWrongSignatures.add(wrongCandidate.signature);
+      return true;
+    });
+
+    if (!candidate) {
+      throw new Error("Could not generate a visible net-level box-folding choice.");
+    }
+
+    return {
+      id: crypto.randomUUID(),
+      label,
+      cube: cloneCube(canonicalCube),
+      netImages: candidate.netImages,
+      netImageRotations: candidate.netImageRotations,
+      view,
+      isValidFold: false,
+      strategyName: candidate.name,
+      strategyReason: `${candidate.reason} Displayed with net face #${frontNetFaceIndex} facing front.`,
+    };
   });
-  const wrongCandidates = createNetLevelDistractors(images, visibleNetFaceIndices, rng);
-
-  if (wrongCandidates.length < 8) {
-    throw new Error("Could not generate enough net-level box-folding choices.");
-  }
-
-  const correctOption = {
-    id: crypto.randomUUID(),
-    label: "",
-    cube: cloneCube(canonicalCube),
-    netImages: { ...images },
-    netImageRotations: Object.fromEntries(
-      Object.keys(images).map((faceIndex) => [Number(faceIndex), 0]),
-    ) as Record<number, number>,
-    view: choiceView,
-    isValidFold: true,
-    strategyName: "correct_view",
-    strategyReason: "Original net folded exactly by the hinge animation.",
-  };
-  const wrongOptions = wrongCandidates.map((candidate) => ({
-    id: crypto.randomUUID(),
-    label: "",
-    cube: cloneCube(canonicalCube),
-    netImages: candidate.netImages,
-    netImageRotations: candidate.netImageRotations,
-    view: choiceView,
-    isValidFold: false,
-    strategyName: candidate.name,
-    strategyReason: candidate.reason,
-  }));
-  const options = shuffle([correctOption, ...wrongOptions], rng).map((option, index) => ({
-    ...option,
-    label: String.fromCharCode(65 + index),
-  }));
+  const correctOption = options[correctOptionIndex];
 
   return {
     id: crypto.randomUUID(),

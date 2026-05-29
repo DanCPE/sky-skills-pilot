@@ -378,6 +378,8 @@ export interface BoxFoldingView {
   name: string;
   rotX: number;
   rotY: number;
+  anchorRotX?: number;
+  anchorRotY?: number;
   visibleFaces: BoxFoldingFaceName[];
 }
 
