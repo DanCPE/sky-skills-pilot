@@ -12,6 +12,7 @@ interface VoxelViewerProps {
   interactive?: boolean;
   opacity?: number;
   shellSize?: number;
+  exteriorGrid?: boolean;
   assemblyProgress?: number;
 }
 
@@ -21,6 +22,10 @@ const PART_COLORS = [
   ["#f59e0b", "#d97706", "#92400e"],
   ["#16a34a", "#15803d", "#14532d"],
 ];
+
+const SHELL_GRID_SHADOW = "rgba(12, 16, 28, 0.95)";
+const SHELL_GRID_HIGHLIGHT = "rgba(239, 239, 232, 0.95)";
+const INNER_GRID_LINE = "rgba(255, 255, 255, 0.32)";
 
 const FACE_DEFS = [
   {
@@ -173,7 +178,13 @@ function transformPartPoint(
   ] as [number, number, number];
 }
 
-function isShellFace(cell: CubeCell, neighbor: CubeCell, shellSize?: number) {
+function isShellFace(
+  cell: CubeCell,
+  neighbor: CubeCell,
+  shellSize?: number,
+  exteriorGrid?: boolean,
+) {
+  if (exteriorGrid) return true;
   if (!shellSize) return false;
   const next = {
     x: cell.x + neighbor.x,
@@ -198,8 +209,9 @@ export default function VoxelViewer({
   className = "",
   compact = false,
   interactive = true,
-  opacity = 0.78,
+  opacity = 1,
   shellSize,
+  exteriorGrid = false,
   assemblyProgress = 0,
 }: VoxelViewerProps) {
   const [dragRotation, setDragRotation] = useState<{
@@ -300,7 +312,7 @@ export default function VoxelViewer({
             points: rotated.map((point) => [point[0], -point[1]]),
             depth: rotated.reduce((sum, point) => sum + point[2], 0) / rotated.length,
             color: PART_COLORS[partIndex % PART_COLORS.length][face.shade],
-            shellFace: isShellFace(cell, face.neighbor, shellSize),
+            shellFace: isShellFace(cell, face.neighbor, shellSize, exteriorGrid),
           });
         });
       });
@@ -318,7 +330,14 @@ export default function VoxelViewer({
       faces: sortedFaces,
       viewBox: `${minPx - pad} ${minPy - pad} ${maxPx - minPx + pad * 2} ${maxPy - minPy + pad * 2}`,
     };
-  }, [parts, rotation.pitch, rotation.yaw, shellSize, assemblyProgress]);
+  }, [
+    parts,
+    rotation.pitch,
+    rotation.yaw,
+    shellSize,
+    exteriorGrid,
+    assemblyProgress,
+  ]);
 
   return (
     <div
@@ -350,17 +369,50 @@ export default function VoxelViewer({
         role="img"
         aria-label="Tiltable cube model"
       >
-        {renderData.faces.map((face, index) => (
-          <polygon
-            key={`${index}-${face.depth}`}
-            points={face.points.map((point) => point.join(",")).join(" ")}
-            fill={face.color}
-            fillOpacity={opacity}
-            stroke={face.shellFace ? "rgba(252, 211, 77, 0.9)" : "none"}
-            strokeWidth={face.shellFace ? 0.035 : 0}
-            vectorEffect="non-scaling-stroke"
-          />
-        ))}
+        {renderData.faces.map((face, index) => {
+          const points = face.points.map((point) => point.join(",")).join(" ");
+
+          return (
+            <g key={`${index}-${face.depth}`}>
+              <polygon
+                points={points}
+                fill={face.color}
+                fillOpacity={opacity}
+                stroke="none"
+              />
+              {!face.shellFace && (
+                <polygon
+                  points={points}
+                  fill="none"
+                  stroke={INNER_GRID_LINE}
+                  strokeLinejoin="round"
+                  strokeWidth={0.08}
+                  vectorEffect="non-scaling-stroke"
+                />
+              )}
+              {face.shellFace && (
+                <>
+                  <polygon
+                    points={points}
+                    fill="none"
+                    stroke={SHELL_GRID_SHADOW}
+                    strokeLinejoin="round"
+                    strokeWidth={0.5}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                  <polygon
+                    points={points}
+                    fill="none"
+                    stroke={SHELL_GRID_HIGHLIGHT}
+                    strokeLinejoin="round"
+                    strokeWidth={0.5}
+                    vectorEffect="non-scaling-stroke"
+                  />
+                </>
+              )}
+            </g>
+          );
+        })}
       </svg>
       {interactive && (
         <div className="pointer-events-none absolute bottom-2 right-3 rounded-md bg-black/55 px-2 py-1 text-[10px] font-bold uppercase tracking-wide text-white">

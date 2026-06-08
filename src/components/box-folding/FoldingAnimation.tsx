@@ -306,7 +306,7 @@ export function FoldedCubeSnapshot({
   images: Record<number, string>;
   faceAssignments: Record<number, BoxFoldingFaceName>;
   faceOrientations: Record<number, BoxFoldingFaceOrientation>;
-  view?: Pick<BoxFoldingView, "rotX" | "rotY">;
+  view?: Pick<BoxFoldingView, "rotX" | "rotY" | "anchorRotX" | "anchorRotY">;
   imageRotations?: Record<number, number>;
   compact?: boolean;
   interactive?: boolean;
@@ -332,6 +332,8 @@ export function FoldedCubeSnapshot({
   const activeScale = cubeScale ?? (compact ? 0.62 : 0.92);
   const heightClass = className ?? (compact ? "h-[72px]" : "h-56");
   const bare = className !== undefined;
+  const anchorRotX = view?.anchorRotX ?? 0;
+  const anchorRotY = view?.anchorRotY ?? 0;
 
   return (
     <div
@@ -364,7 +366,7 @@ export function FoldedCubeSnapshot({
         className="relative"
         style={{
           transformStyle: "preserve-3d",
-          transform: `scale(${activeScale}) rotateX(${activeTilt.x}deg) rotateY(${activeTilt.y}deg) translateZ(${cubeHalf}px)`,
+          transform: `scale(${activeScale}) rotateX(${activeTilt.x}deg) rotateY(${activeTilt.y}deg) rotateX(${anchorRotX}deg) rotateY(${anchorRotY}deg) translateZ(${cubeHalf}px)`,
         }}
       >
         <FoldFaceNode

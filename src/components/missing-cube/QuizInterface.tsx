@@ -165,6 +165,8 @@ function QuestionReview({
               parts={[selected]}
               yaw={question.initialRotation.yaw}
               pitch={question.initialRotation.pitch}
+              opacity={1}
+              exteriorGrid
               compact
             />
           ) : (
@@ -268,7 +270,7 @@ function QuestionCard({
             } else if (isSelected) {
               stateClass = "border-red-500 bg-red-500/10";
             } else {
-              stateClass = "border-zinc-200 bg-white opacity-55 dark:border-white/10 dark:bg-zinc-950";
+              stateClass = "border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-950";
             }
           } else if (isSelected) {
             stateClass = "border-brand-purple bg-brand-purple/10 shadow-lg shadow-brand-purple/10";
@@ -289,6 +291,8 @@ function QuestionCard({
                 yaw={45}
                 pitch={45}
                 interactive={canTilt}
+                opacity={1}
+                exteriorGrid
                 compact
               />
             </button>
