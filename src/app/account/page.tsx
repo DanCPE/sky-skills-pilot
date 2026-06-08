@@ -15,6 +15,22 @@ function monotonicMs() {
   return Number(process.hrtime.bigint() / BigInt(1000000));
 }
 
+function isPaidStatus(status: string | null | undefined) {
+  return status === "active" || status === "trialing";
+}
+
+function formatAmount(value: number) {
+  return new Intl.NumberFormat("th-TH", {
+    style: "currency",
+    currency: "THB",
+  }).format(value);
+}
+
+function formatDate(value: string | null) {
+  if (!value) return "-";
+  return new Date(value).toLocaleString();
+}
+
 export default async function AccountPage() {
   const pageStartedAt = monotonicMs();
   if (!hasAccountDatabase()) {
@@ -48,6 +64,8 @@ export default async function AccountPage() {
     durationMs: monotonicMs() - settingsStartedAt,
     totalMs: monotonicMs() - pageStartedAt,
   });
+  const isPaid = isPaidStatus(overview.subscription?.status);
+  const latestSlip = overview.latestPaymentSlip;
 
   return (
     <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">
@@ -110,13 +128,62 @@ export default async function AccountPage() {
 
           <aside className="space-y-6">
             <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-              <h2 className="text-xl font-bold">Subscription</h2>
-              <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-                Payment records are prepared for future checkout integration.
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold">Subscription</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                    Manage package payment and manual slip approval.
+                  </p>
+                </div>
+                <span
+                  className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                    isPaid
+                      ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                      : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
+                  }`}
+                >
+                  {isPaid ? "Paid" : "Free"}
+                </span>
+              </div>
+              {latestSlip ? (
+                <div className="mt-5 space-y-3 rounded-xl bg-zinc-50 p-4 text-sm dark:bg-white/5">
+                  <div className="flex justify-between gap-4">
+                    <span className="font-bold">Package</span>
+                    <span className="text-right text-zinc-500 dark:text-zinc-400">
+                      {latestSlip.planTitle ?? latestSlip.planKey}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="font-bold">Amount</span>
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      {formatAmount(latestSlip.amountThb)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="font-bold">Slip status</span>
+                    <span className="text-zinc-500 dark:text-zinc-400">
+                      {latestSlip.status}
+                    </span>
+                  </div>
+                  <div className="flex justify-between gap-4">
+                    <span className="font-bold">Submitted</span>
+                    <span className="text-right text-zinc-500 dark:text-zinc-400">
+                      {formatDate(latestSlip.createdAt)}
+                    </span>
+                  </div>
+                </div>
+              ) : (
+                <div className="mt-5 rounded-xl bg-zinc-50 p-4 text-sm dark:bg-white/5">
+                  <p className="font-bold">No payment slip submitted</p>
+                  <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+                    Choose a package and upload a Krungthai transfer slip to
+                    request paid access.
+                  </p>
+                </div>
+              )}
               <div className="mt-5 rounded-xl bg-zinc-50 p-4 text-sm dark:bg-white/5">
                 <div className="flex justify-between gap-4">
-                  <span className="font-bold">Status</span>
+                  <span className="font-bold">Access status</span>
                   <span className="text-zinc-500 dark:text-zinc-400">
                     {overview.subscription?.status ?? "not_started"}
                   </span>
@@ -124,17 +191,16 @@ export default async function AccountPage() {
                 <div className="mt-2 flex justify-between gap-4">
                   <span className="font-bold">Provider</span>
                   <span className="text-zinc-500 dark:text-zinc-400">
-                    {overview.subscription?.provider ?? "pending"}
+                    {overview.subscription?.provider ?? "manual slip"}
                   </span>
                 </div>
               </div>
-              <button
-                type="button"
-                disabled
-                className="mt-5 w-full rounded-xl bg-zinc-200 px-4 py-2.5 text-sm font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+              <Link
+                href="/subscription"
+                className="mt-5 flex w-full justify-center rounded-xl bg-violet-700 px-4 py-2.5 text-sm font-bold text-white transition hover:bg-violet-600"
               >
-                Checkout coming soon
-              </button>
+                {isPaid ? "View subscription packages" : "Choose subscription"}
+              </Link>
             </section>
           </aside>
         </div>

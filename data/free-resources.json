@@ -1,0 +1,14 @@
+[
+  {
+    "id": "dern-jood-paper",
+    "title": "Dern-Jood Paper",
+    "description": "Printable Dern-Jood practice sheet for rhythm-based mental math practice.",
+    "imageUrl": "/images/dern-jood/mix.png",
+    "downloadUrl": "/images/dern-jood/circle%20pdf.pdf",
+    "buttonLabel": "Download Free Paper",
+    "isPublished": true,
+    "sortOrder": 1,
+    "createdAt": "2026-05-21T00:00:00.000Z",
+    "updatedAt": "2026-05-21T00:00:00.000Z"
+  }
+]

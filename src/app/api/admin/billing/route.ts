@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getAdminBillingOverview,
   hasAccountDatabase,
+  reviewManualPaymentSlip,
   setFleetManualSubscription,
   setQuizAccessRule,
   type SubscriptionStatus,
@@ -57,6 +58,10 @@ export async function PATCH(request: Request) {
           status?: SubscriptionStatus;
           topicSlug?: string;
           isLocked?: boolean;
+          slipId?: string;
+          action?: "approve" | "reject";
+          reviewedBy?: string;
+          rejectionReason?: string;
         }
       | null;
 
@@ -106,6 +111,27 @@ export async function PATCH(request: Request) {
 
       return NextResponse.json({
         quizAccess,
+        overview: await getAdminBillingOverview(),
+      });
+    }
+
+    if (body.type === "slip") {
+      if (!body.slipId || (body.action !== "approve" && body.action !== "reject")) {
+        return NextResponse.json(
+          { error: "slipId and action are required." },
+          { status: 400 },
+        );
+      }
+
+      const slip = await reviewManualPaymentSlip({
+        slipId: body.slipId,
+        action: body.action,
+        reviewedBy: body.reviewedBy,
+        rejectionReason: body.rejectionReason,
+      });
+
+      return NextResponse.json({
+        slip,
         overview: await getAdminBillingOverview(),
       });
     }
