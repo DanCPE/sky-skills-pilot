@@ -32,6 +32,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/jigsaw dark.png",
   },
   {
+    slug: "find-similar-shape",
+    icon: "🔷",
+    title: "Find Similar Shape",
+    description: "Find the answer choice that exactly matches the target shape.",
+    category: "spatial",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/shape.png",
+    coverImageDark: "/images/icons/SkyQuests/shape dark.png",
+  },
+  {
     slug: "number-series",
     icon: "🔢",
     title: "Number Series",
