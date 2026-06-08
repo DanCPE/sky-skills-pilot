@@ -355,6 +355,45 @@ export interface MissingCubeQuizResponse {
   timeLimit?: number;
 }
 
+// --- Jigsaw Types ---
+
+export interface JigsawPoint {
+  x: number;
+  y: number;
+}
+
+export interface JigsawPiece {
+  id: string;
+  label: string;
+  polygon: JigsawPoint[];
+  color: string;
+  displayRotation: number;
+  displayOffset: JigsawPoint;
+}
+
+export interface JigsawOption {
+  id: string;
+  label: string;
+  polygons: JigsawPoint[][];
+}
+
+export interface JigsawQuestion {
+  id: string;
+  prompt: string;
+  difficulty: "easy" | "medium" | "hard";
+  targetFamily: string;
+  pieces: JigsawPiece[];
+  options: JigsawOption[];
+  correctOptionId: string;
+  explanation: string;
+}
+
+export interface JigsawQuizResponse {
+  questions: JigsawQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
 // --- Box Folding Types ---
 
 export type BoxFoldingDifficulty = "easy" | "medium" | "hard";

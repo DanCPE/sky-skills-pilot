@@ -1,25 +1,24 @@
 import type {
-  JigsawCell,
   JigsawOption,
   JigsawPiece,
+  JigsawPoint,
   JigsawQuestion,
   JigsawQuizResponse,
 } from "@/types";
 
 export type JigsawDifficulty = "easy" | "medium" | "hard" | "mixed";
 
-const NEIGHBORS: JigsawCell[] = [
-  { x: 1, y: 0 },
-  { x: -1, y: 0 },
-  { x: 0, y: 1 },
-  { x: 0, y: -1 },
-];
+type Polygon = JigsawPoint[];
+type CutLine = { point: JigsawPoint; normal: JigsawPoint };
 
-const PIECE_COLORS = ["#4F12A6", "#FACC15", "#14B8A6", "#F97316", "#2563EB"];
-
-function key(cell: JigsawCell) {
-  return `${cell.x},${cell.y}`;
+interface DifficultySettings {
+  pieceCounts: number[];
+  families: string[];
+  rotations: number[];
 }
+
+const PIECE_COLORS = ["#4F12A6", "#FACC15", "#14B8A6", "#F97316", "#2563EB", "#DC2626"];
+const EPSILON = 1e-6;
 
 function randomItem<T>(items: T[]) {
   return items[Math.floor(Math.random() * items.length)];
@@ -34,234 +33,402 @@ function shuffle<T>(items: T[]) {
   return copy;
 }
 
-function normalize(cells: JigsawCell[]) {
-  const minX = Math.min(...cells.map((cell) => cell.x));
-  const minY = Math.min(...cells.map((cell) => cell.y));
-
-  return cells
-    .map((cell) => ({ x: cell.x - minX, y: cell.y - minY }))
-    .sort((a, b) => a.y - b.y || a.x - b.x);
+function area(poly: Polygon) {
+  return Math.abs(
+    poly.reduce((sum, point, index) => {
+      const next = poly[(index + 1) % poly.length];
+      return sum + point.x * next.y - next.x * point.y;
+    }, 0) / 2,
+  );
 }
 
-function serialize(cells: JigsawCell[]) {
-  return normalize(cells).map(key).join("|");
+function bounds(polygons: Polygon[]) {
+  const points = polygons.flat();
+  return {
+    minX: Math.min(...points.map((point) => point.x)),
+    minY: Math.min(...points.map((point) => point.y)),
+    maxX: Math.max(...points.map((point) => point.x)),
+    maxY: Math.max(...points.map((point) => point.y)),
+  };
 }
 
-function isConnected(cells: JigsawCell[]) {
-  if (cells.length === 0) return false;
+function normalizePolygon(poly: Polygon): Polygon {
+  const box = bounds([poly]);
+  return poly.map((point) => ({
+    x: point.x - box.minX,
+    y: point.y - box.minY,
+  }));
+}
 
-  const available = new Set(cells.map(key));
-  const seen = new Set<string>();
-  const stack = [cells[0]];
+function roundedKey(polygons: Polygon[]) {
+  return polygons
+    .map((poly) =>
+      normalizePolygon(poly)
+        .map((point) => `${point.x.toFixed(2)},${point.y.toFixed(2)}`)
+        .sort()
+        .join("|"),
+    )
+    .sort()
+    .join("::");
+}
 
-  while (stack.length > 0) {
-    const current = stack.pop();
-    if (!current) continue;
-    const currentKey = key(current);
-    if (seen.has(currentKey)) continue;
-    seen.add(currentKey);
+function lineValue(point: JigsawPoint, line: CutLine) {
+  return (point.x - line.point.x) * line.normal.x + (point.y - line.point.y) * line.normal.y;
+}
 
-    for (const delta of NEIGHBORS) {
-      const next = { x: current.x + delta.x, y: current.y + delta.y };
-      if (available.has(key(next))) stack.push(next);
+function intersectSegmentWithLine(a: JigsawPoint, b: JigsawPoint, line: CutLine) {
+  const va = lineValue(a, line);
+  const vb = lineValue(b, line);
+  const t = va / (va - vb);
+  return {
+    x: a.x + (b.x - a.x) * t,
+    y: a.y + (b.y - a.y) * t,
+  };
+}
+
+function clipPolygon(poly: Polygon, line: CutLine, keepPositive: boolean) {
+  const output: Polygon = [];
+
+  for (let index = 0; index < poly.length; index++) {
+    const current = poly[index];
+    const previous = poly[(index + poly.length - 1) % poly.length];
+    const currentInside = keepPositive
+      ? lineValue(current, line) >= -EPSILON
+      : lineValue(current, line) <= EPSILON;
+    const previousInside = keepPositive
+      ? lineValue(previous, line) >= -EPSILON
+      : lineValue(previous, line) <= EPSILON;
+
+    if (currentInside !== previousInside) {
+      output.push(intersectSegmentWithLine(previous, current, line));
+    }
+    if (currentInside) output.push(current);
+  }
+
+  return cleanPolygon(output);
+}
+
+function cleanPolygon(poly: Polygon) {
+  const cleaned: Polygon = [];
+  for (const point of poly) {
+    const previous = cleaned[cleaned.length - 1];
+    if (!previous || Math.hypot(previous.x - point.x, previous.y - point.y) > EPSILON) {
+      cleaned.push(point);
     }
   }
 
-  return seen.size === cells.length;
+  if (cleaned.length > 1) {
+    const first = cleaned[0];
+    const last = cleaned[cleaned.length - 1];
+    if (Math.hypot(first.x - last.x, first.y - last.y) <= EPSILON) {
+      cleaned.pop();
+    }
+  }
+
+  return cleaned;
 }
 
-function getDifficultySettings(difficulty: Exclude<JigsawDifficulty, "mixed">) {
-  if (difficulty === "easy") {
-    return { gridSize: 4, cellCount: 9, pieceCount: 3 };
-  }
-  if (difficulty === "medium") {
-    return { gridSize: 5, cellCount: 12, pieceCount: 4 };
-  }
-  return { gridSize: 6, cellCount: 16, pieceCount: 5 };
+function makeCutLine(poly: Polygon): CutLine {
+  const box = bounds([poly]);
+  const width = box.maxX - box.minX;
+  const height = box.maxY - box.minY;
+  const angle = (randomItem([0, 30, 45, 60, 90, 120, 135, 150]) * Math.PI) / 180;
+  const point = {
+    x: box.minX + width * (0.36 + Math.random() * 0.28),
+    y: box.minY + height * (0.36 + Math.random() * 0.28),
+  };
+  return {
+    point,
+    normal: { x: Math.cos(angle), y: Math.sin(angle) },
+  };
 }
 
-function generateShape(gridSize: number, cellCount: number) {
-  for (let attempt = 0; attempt < 300; attempt++) {
-    const cells: JigsawCell[] = [
-      {
-        x: Math.floor(gridSize / 2),
-        y: Math.floor(gridSize / 2),
-      },
-    ];
-    const used = new Set(cells.map(key));
+function splitPolygon(poly: Polygon, minArea: number) {
+  for (let attempt = 0; attempt < 80; attempt++) {
+    const line = makeCutLine(poly);
+    const left = clipPolygon(poly, line, true);
+    const right = clipPolygon(poly, line, false);
+    if (
+      left.length >= 3 &&
+      right.length >= 3 &&
+      area(left) >= minArea &&
+      area(right) >= minArea
+    ) {
+      return [left, right];
+    }
+  }
+  return null;
+}
 
-    while (cells.length < cellCount) {
-      const frontier = shuffle(
-        cells.flatMap((cell) =>
-          NEIGHBORS.map((delta) => ({
-            x: cell.x + delta.x,
-            y: cell.y + delta.y,
-          })),
-        ),
-      ).filter(
-        (cell) =>
-          cell.x >= 0 &&
-          cell.y >= 0 &&
-          cell.x < gridSize &&
-          cell.y < gridSize &&
-          !used.has(key(cell)),
+function cutTargetShape(target: Polygon, pieceCount: number) {
+  const minArea = area(target) * 0.08;
+
+  for (let attempt = 0; attempt < 120; attempt++) {
+    let pieces: Polygon[] = [target];
+
+    while (pieces.length < pieceCount) {
+      const largestIndex = pieces.reduce(
+        (best, piece, index) => (area(piece) > area(pieces[best]) ? index : best),
+        0,
       );
-
-      if (frontier.length === 0) break;
-      const next = frontier[0];
-      cells.push(next);
-      used.add(key(next));
+      const split = splitPolygon(pieces[largestIndex], minArea);
+      if (!split) break;
+      pieces = [
+        ...pieces.slice(0, largestIndex),
+        ...split,
+        ...pieces.slice(largestIndex + 1),
+      ];
     }
 
-    const normalized = normalize(cells);
-    const width = Math.max(...normalized.map((cell) => cell.x)) + 1;
-    const height = Math.max(...normalized.map((cell) => cell.y)) + 1;
-    if (
-      normalized.length === cellCount &&
-      width >= 3 &&
-      height >= 3 &&
-      isConnected(normalized)
-    ) {
-      return normalized;
-    }
-  }
-
-  return normalize(
-    Array.from({ length: cellCount }, (_, index) => ({
-      x: index % gridSize,
-      y: Math.floor(index / gridSize),
-    })),
-  );
-}
-
-function splitIntoPieces(shape: JigsawCell[], pieceCount: number) {
-  const remaining = new Set(shape.map(key));
-  const cellsByKey = new Map(shape.map((cell) => [key(cell), cell]));
-  const targetSizes = Array.from({ length: pieceCount }, (_, index) =>
-    Math.floor(shape.length / pieceCount) + (index < shape.length % pieceCount ? 1 : 0),
-  );
-
-  for (let attempt = 0; attempt < 200; attempt++) {
-    const pieces: JigsawCell[][] = [];
-    remaining.clear();
-    shape.forEach((cell) => remaining.add(key(cell)));
-
-    for (let pieceIndex = 0; pieceIndex < pieceCount; pieceIndex++) {
-      const targetSize = targetSizes[pieceIndex];
-      const seedKey = randomItem(Array.from(remaining));
-      const seed = cellsByKey.get(seedKey);
-      if (!seed) break;
-
-      const piece = [seed];
-      remaining.delete(seedKey);
-
-      while (piece.length < targetSize) {
-        const frontier = shuffle(
-          piece.flatMap((cell) =>
-            NEIGHBORS.map((delta) => ({
-              x: cell.x + delta.x,
-              y: cell.y + delta.y,
-            })),
-          ),
-        ).filter((cell) => remaining.has(key(cell)));
-
-        if (frontier.length === 0) break;
-        const next = frontier[0];
-        piece.push(next);
-        remaining.delete(key(next));
-      }
-
-      pieces.push(piece);
-    }
-
-    if (
-      pieces.length === pieceCount &&
-      remaining.size === 0 &&
-      pieces.every((piece) => piece.length > 1 && isConnected(piece))
-    ) {
+    if (pieces.length === pieceCount && pieces.every((piece) => area(piece) >= minArea)) {
       return pieces;
     }
   }
 
-  return targetSizes.reduce<JigsawCell[][]>((pieces, size) => {
-    const start = pieces.flat().length;
-    pieces.push(shape.slice(start, start + size));
-    return pieces;
-  }, []);
+  return splitFallback(target, pieceCount);
 }
 
-function generateDistractor(correct: JigsawCell[], gridSize: number) {
-  const correctShape = serialize(correct);
+function splitFallback(target: Polygon, pieceCount: number) {
+  let pieces = [target];
+  for (let index = 1; index < pieceCount; index++) {
+    const largestIndex = pieces.reduce(
+      (best, piece, pieceIndex) => (area(piece) > area(pieces[best]) ? pieceIndex : best),
+      0,
+    );
+    const box = bounds([pieces[largestIndex]]);
+    const line: CutLine = {
+      point: {
+        x: box.minX + ((box.maxX - box.minX) * index) / pieceCount,
+        y: box.minY + ((box.maxY - box.minY) * index) / pieceCount,
+      },
+      normal: index % 2 === 0 ? { x: 0, y: 1 } : { x: 1, y: 0 },
+    };
+    const split = [
+      clipPolygon(pieces[largestIndex], line, true),
+      clipPolygon(pieces[largestIndex], line, false),
+    ].filter((piece) => piece.length >= 3 && area(piece) > EPSILON);
+    if (split.length !== 2) break;
+    pieces = [
+      ...pieces.slice(0, largestIndex),
+      ...split,
+      ...pieces.slice(largestIndex + 1),
+    ];
+  }
+  return pieces.slice(0, pieceCount);
+}
 
-  for (let attempt = 0; attempt < 250; attempt++) {
-    const distractor = generateShape(gridSize, correct.length);
-    if (serialize(distractor) !== correctShape) return distractor;
+function rectangle(): Polygon {
+  return [
+    { x: 0, y: 0 },
+    { x: 7, y: 0 },
+    { x: 7, y: 4.5 },
+    { x: 0, y: 4.5 },
+  ];
+}
+
+function triangle(): Polygon {
+  return [
+    { x: 0, y: 0 },
+    { x: 7, y: 0 },
+    { x: 3.4, y: 5.8 },
+  ];
+}
+
+function trapezoid(): Polygon {
+  return [
+    { x: 0, y: 0 },
+    { x: 7.5, y: 0 },
+    { x: 5.8, y: 4.8 },
+    { x: 1.4, y: 4.8 },
+  ];
+}
+
+function house(): Polygon {
+  return [
+    { x: 0, y: 0 },
+    { x: 6, y: 0 },
+    { x: 6, y: 3.4 },
+    { x: 3, y: 5.7 },
+    { x: 0, y: 3.4 },
+  ];
+}
+
+function parallelogram(): Polygon {
+  return [
+    { x: 0, y: 0 },
+    { x: 6.2, y: 0 },
+    { x: 7.5, y: 4.4 },
+    { x: 1.3, y: 4.4 },
+  ];
+}
+
+function hexagon(): Polygon {
+  return [
+    { x: 1.3, y: 0 },
+    { x: 5.7, y: 0 },
+    { x: 7, y: 2.4 },
+    { x: 5.6, y: 4.8 },
+    { x: 1.4, y: 4.8 },
+    { x: 0, y: 2.4 },
+  ];
+}
+
+function arrow(): Polygon {
+  return [
+    { x: 0, y: 1.5 },
+    { x: 4.5, y: 1.5 },
+    { x: 4.5, y: 0 },
+    { x: 7.4, y: 3 },
+    { x: 4.5, y: 6 },
+    { x: 4.5, y: 4.5 },
+    { x: 0, y: 4.5 },
+  ];
+}
+
+function lShape(): Polygon {
+  return [
+    { x: 0, y: 0 },
+    { x: 6.4, y: 0 },
+    { x: 6.4, y: 2 },
+    { x: 2.4, y: 2 },
+    { x: 2.4, y: 6.2 },
+    { x: 0, y: 6.2 },
+  ];
+}
+
+function shield(): Polygon {
+  return [
+    { x: 3.4, y: 0 },
+    { x: 6.8, y: 1.4 },
+    { x: 5.8, y: 4.2 },
+    { x: 3.4, y: 6.1 },
+    { x: 1, y: 4.2 },
+    { x: 0, y: 1.4 },
+  ];
+}
+
+function star(): Polygon {
+  const center = { x: 3.5, y: 3.5 };
+  return Array.from({ length: 10 }, (_, index) => {
+    const radius = index % 2 === 0 ? 3.25 : 1.45;
+    const angle = (Math.PI * index) / 5 - Math.PI / 2;
+    return {
+      x: center.x + Math.cos(angle) * radius,
+      y: center.y + Math.sin(angle) * radius,
+    };
+  });
+}
+
+const TEMPLATES: Record<string, () => Polygon> = {
+  rectangle,
+  triangle,
+  trapezoid,
+  house,
+  parallelogram,
+  hexagon,
+  arrow,
+  l_shape: lShape,
+  shield,
+  star,
+};
+
+function getDifficultySettings(difficulty: Exclude<JigsawDifficulty, "mixed">): DifficultySettings {
+  if (difficulty === "easy") {
+    return {
+      pieceCounts: [3, 4],
+      families: ["rectangle", "triangle", "trapezoid", "house"],
+      rotations: [0],
+    };
+  }
+  if (difficulty === "medium") {
+    return {
+      pieceCounts: [4, 5],
+      families: ["parallelogram", "hexagon", "house", "shield", "arrow"],
+      rotations: [0, 90, 180, 270],
+    };
+  }
+  return {
+    pieceCounts: [5, 6],
+    families: ["arrow", "l_shape", "hexagon", "shield", "star"],
+    rotations: [0, 45, 90, 135, 180, 225, 270, 315],
+  };
+}
+
+function createLoosePieces(polygons: Polygon[], rotations: number[]): JigsawPiece[] {
+  const targetBounds = bounds(polygons);
+  const spread = Math.max(targetBounds.maxX - targetBounds.minX, targetBounds.maxY - targetBounds.minY) + 2;
+
+  return polygons.map((polygon, index) => {
+    const pieceBounds = bounds([polygon]);
+    const local = polygon.map((point) => ({
+      x: point.x - pieceBounds.minX,
+      y: point.y - pieceBounds.minY,
+    }));
+    return {
+      id: crypto.randomUUID(),
+      label: String(index + 1),
+      polygon: local,
+      color: PIECE_COLORS[index % PIECE_COLORS.length],
+      displayRotation: randomItem(rotations),
+      displayOffset: {
+        x: (index - (polygons.length - 1) / 2) * spread,
+        y: index % 2 === 0 ? 0 : spread * 0.18,
+      },
+    };
+  });
+}
+
+function createDistractorOptions(target: Polygon, correctPieces: Polygon[], count: number) {
+  const correctKey = roundedKey(correctPieces);
+  const accepted = new Set([correctKey]);
+  const distractors: Polygon[][] = [];
+
+  while (distractors.length < 4) {
+    const candidate = cutTargetShape(target, count);
+    const key = roundedKey(candidate);
+    if (accepted.has(key)) continue;
+    accepted.add(key);
+    distractors.push(candidate);
   }
 
-  const shifted = correct.slice(1).concat({
-    x: Math.max(...correct.map((cell) => cell.x)) + 1,
-    y: 0,
-  });
-  return normalize(shifted);
+  return distractors;
 }
 
 function createQuestion(difficulty: JigsawDifficulty): JigsawQuestion {
   const activeDifficulty =
     difficulty === "mixed" ? randomItem(["easy", "medium", "hard"] as const) : difficulty;
   const settings = getDifficultySettings(activeDifficulty);
-  const assembledShape = generateShape(settings.gridSize, settings.cellCount);
+  const targetFamily = randomItem(settings.families);
+  const target = normalizePolygon(TEMPLATES[targetFamily]());
+  const pieceCount = randomItem(settings.pieceCounts);
+  const correctPieces = cutTargetShape(target, pieceCount);
   const correctId = crypto.randomUUID();
-  const seenShapes = new Set([serialize(assembledShape)]);
-  const distractors: JigsawOption[] = [];
-
-  while (distractors.length < 4) {
-    const cells = generateDistractor(assembledShape, settings.gridSize);
-    const shape = serialize(cells);
-    if (seenShapes.has(shape)) continue;
-    seenShapes.add(shape);
-    distractors.push({
-      id: crypto.randomUUID(),
-      label: String.fromCharCode(66 + distractors.length),
-      cells,
-    });
-  }
-
   const options = shuffle<JigsawOption>([
     {
       id: correctId,
       label: "A",
-      cells: assembledShape,
+      polygons: correctPieces,
     },
-    ...distractors,
+    ...createDistractorOptions(target, correctPieces, pieceCount).map((polygons) => ({
+      id: crypto.randomUUID(),
+      label: "A",
+      polygons,
+    })),
   ]).map((option, index) => ({
     ...option,
     label: String.fromCharCode(65 + index),
   }));
 
-  const pieces: JigsawPiece[] = splitIntoPieces(
-    assembledShape,
-    settings.pieceCount,
-  ).map((piece, index) => ({
-    id: crypto.randomUUID(),
-    label: String.fromCharCode(65 + index),
-    cells: normalize(piece),
-    color: PIECE_COLORS[index % PIECE_COLORS.length],
-    displayRotation:
-      activeDifficulty === "easy"
-        ? 0
-        : randomItem(activeDifficulty === "medium" ? [0, 90, 180, 270] : [0, 45, 90, 135, 180, 225, 270, 315]),
-  }));
-
   return {
     id: crypto.randomUUID(),
-    prompt: `Mentally assemble the ${settings.pieceCount} loose shape parts, then choose the matching completed silhouette.`,
+    prompt: "Mentally assemble the loose parts, then choose the option with the matching internal boundaries.",
     difficulty: activeDifficulty,
-    gridSize: settings.gridSize,
-    pieces,
+    targetFamily,
+    pieces: createLoosePieces(correctPieces, settings.rotations),
     options,
     correctOptionId: correctId,
     explanation:
-      "The correct silhouette preserves the outline made when every loose part is moved together. The colors help track the pieces, but the final answer is the combined outer shape.",
+      "All five answers share the same outer silhouette. The correct answer is the one whose internal cut lines match how the loose pieces fit together.",
   };
 }
 
