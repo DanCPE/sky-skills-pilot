@@ -394,6 +394,25 @@ export interface JigsawQuizResponse {
   timeLimit?: number;
 }
 
+// --- Find Similar Shape Types ---
+
+export interface FindSimilarShapeQuestion {
+  id: string;
+  prompt: string;
+  difficulty: "easy" | "medium" | "hard";
+  targetFamily: string;
+  targetPolygons: JigsawPoint[][];
+  options: JigsawOption[];
+  correctOptionId: string;
+  explanation: string;
+}
+
+export interface FindSimilarShapeQuizResponse {
+  questions: FindSimilarShapeQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
 // --- Box Folding Types ---
 
 export type BoxFoldingDifficulty = "easy" | "medium" | "hard";

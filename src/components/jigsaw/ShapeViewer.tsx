@@ -8,6 +8,7 @@ interface ShapeViewerProps {
   colored?: boolean;
   compact?: boolean;
   className?: string;
+  highContrastBoundaries?: boolean;
   fitBounds?: {
     width: number;
     height: number;
@@ -36,6 +37,7 @@ export default function ShapeViewer({
   colored = false,
   compact = false,
   className = "",
+  highContrastBoundaries = false,
   fitBounds,
 }: ShapeViewerProps) {
   const sourcePolygons = polygons ?? pieces?.map((piece) => piece.polygon) ?? [];
@@ -101,9 +103,12 @@ export default function ShapeViewer({
                 key={`${index}-${polygon.length}`}
                 d={polygonPath(polygon, minX, minY)}
                 fill="#111827"
-                opacity={0.78}
-                stroke="white"
-                strokeWidth={compact ? 0.09 : 0.12}
+                opacity={highContrastBoundaries ? 0.9 : 0.78}
+                stroke={highContrastBoundaries ? "#F8FAFC" : "white"}
+                strokeWidth={
+                  highContrastBoundaries ? (compact ? 1.4 : 1.6) : compact ? 0.09 : 0.12
+                }
+                strokeLinejoin="round"
                 vectorEffect="non-scaling-stroke"
               />
             ))}
