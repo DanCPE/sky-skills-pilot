@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
 import ShapeViewer from "@/components/jigsaw/ShapeViewer";
@@ -240,6 +240,29 @@ function QuestionReview({
   );
   const isCorrect = selectedId === question.correctOptionId;
   const fitBounds = getSharedFitBounds(question.targetPolygons);
+  const [isComparing, setIsComparing] = useState(false);
+  const [comparisonArrived, setComparisonArrived] = useState(false);
+  const canCompare = Boolean(selected && !isCorrect);
+
+  useEffect(() => {
+    if (!isComparing) return;
+
+    const frame = window.requestAnimationFrame(() => {
+      window.requestAnimationFrame(() => setComparisonArrived(true));
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, [isComparing]);
+
+  const handleCompareToggle = () => {
+    if (isComparing) {
+      setIsComparing(false);
+      setComparisonArrived(false);
+      return;
+    }
+
+    setComparisonArrived(false);
+    setIsComparing(true);
+  };
 
   return (
     <div className="rounded-2xl border-2 border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-black/30">
@@ -252,23 +275,39 @@ function QuestionReview({
             {question.explanation}
           </p>
         </div>
-        <span
-          className={`rounded-full px-3 py-1 text-xs font-bold ${
-            isCorrect
-              ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300"
-              : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
-          }`}
-        >
-          {isCorrect ? "Correct" : "Incorrect"}
-        </span>
+        <div className="flex flex-wrap items-center gap-2">
+          {canCompare && (
+            <button
+              type="button"
+              onClick={handleCompareToggle}
+              className={`rounded-lg px-3 py-2 text-xs font-bold shadow-sm transition active:scale-95 ${
+                isComparing
+                  ? "bg-red-500 text-white hover:bg-red-600"
+                  : "bg-[#4F12A6] text-white hover:bg-violet-700"
+              }`}
+            >
+              {isComparing ? "Separate Choice" : "Compare Shape"}
+            </button>
+          )}
+          <span
+            className={`rounded-full px-3 py-1 text-xs font-bold ${
+              isCorrect
+                ? "bg-green-100 text-green-700 dark:bg-green-500/15 dark:text-green-300"
+                : "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300"
+            }`}
+          >
+            {isCorrect ? "Correct" : "Incorrect"}
+          </span>
+        </div>
       </div>
 
       <div className="grid gap-4 lg:grid-cols-3">
         <div>
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-500">
-            Target
+            {isComparing ? "Target + Your Choice" : "Target"}
           </p>
           <ReviewShapeBox>
+            <div className="relative flex h-full w-full items-center justify-center">
             <ShapeViewer
               polygons={question.targetPolygons}
               compact
@@ -276,6 +315,25 @@ function QuestionReview({
               fitBounds={fitBounds}
               highContrastBoundaries
             />
+              {isComparing && selected && (
+                <div
+                  className={`pointer-events-none absolute inset-0 flex items-center justify-center transition-[transform,opacity] duration-[1800ms] ease-[cubic-bezier(0.22,1,0.36,1)] ${
+                    comparisonArrived
+                      ? "translate-x-0 translate-y-0 opacity-100"
+                      : "translate-y-[calc(100%+1rem)] opacity-80 lg:translate-x-[calc(100%+1rem)] lg:translate-y-0"
+                  }`}
+                >
+                  <ShapeViewer
+                    polygons={question.targetPolygons}
+                    overlayPolygons={selected.polygons}
+                    compact
+                    className="min-h-0"
+                    fitBounds={fitBounds}
+                    hideBaseShape
+                  />
+                </div>
+              )}
+            </div>
           </ReviewShapeBox>
         </div>
         <div>
@@ -284,13 +342,19 @@ function QuestionReview({
           </p>
           {selected ? (
             <ReviewShapeBox>
-              <ShapeViewer
-                polygons={selected.polygons}
-                compact
-                className="min-h-0"
-                fitBounds={fitBounds}
-                highContrastBoundaries
-              />
+              <div
+                className={`flex h-full w-full items-center justify-center transition-opacity duration-700 ${
+                  isComparing ? "opacity-35" : "opacity-100"
+                }`}
+              >
+                <ShapeViewer
+                  polygons={selected.polygons}
+                  compact
+                  className="min-h-0"
+                  fitBounds={fitBounds}
+                  highContrastBoundaries
+                />
+              </div>
             </ReviewShapeBox>
           ) : (
             <ReviewShapeBox>

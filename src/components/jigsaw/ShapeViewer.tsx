@@ -4,11 +4,13 @@ import type { JigsawPiece, JigsawPoint } from "@/types";
 
 interface ShapeViewerProps {
   polygons?: JigsawPoint[][];
+  overlayPolygons?: JigsawPoint[][];
   pieces?: JigsawPiece[];
   colored?: boolean;
   compact?: boolean;
   className?: string;
   highContrastBoundaries?: boolean;
+  hideBaseShape?: boolean;
   fitBounds?: {
     width: number;
     height: number;
@@ -33,16 +35,20 @@ function polygonPath(points: JigsawPoint[], minX: number, minY: number) {
 
 export default function ShapeViewer({
   polygons,
+  overlayPolygons,
   pieces,
   colored = false,
   compact = false,
   className = "",
   highContrastBoundaries = false,
+  hideBaseShape = false,
   fitBounds,
 }: ShapeViewerProps) {
   const sourcePolygons = polygons ?? pieces?.map((piece) => piece.polygon) ?? [];
+  const boundsPolygons =
+    sourcePolygons.length > 0 ? sourcePolygons : overlayPolygons ?? [];
 
-  if (sourcePolygons.length === 0) {
+  if (boundsPolygons.length === 0) {
     return (
       <div
         className={`flex items-center justify-center rounded-xl border border-dashed border-zinc-300 text-sm font-semibold text-zinc-400 dark:border-white/15 ${className}`}
@@ -52,7 +58,7 @@ export default function ShapeViewer({
     );
   }
 
-  const box = getBounds(sourcePolygons);
+  const box = getBounds(boundsPolygons);
   const padding = compact ? 1.25 : 1.5;
   const sourceWidth = box.maxX - box.minX;
   const sourceHeight = box.maxY - box.minY;
@@ -92,7 +98,7 @@ export default function ShapeViewer({
                 key={piece.id}
                 d={polygonPath(piece.polygon, minX, minY)}
                 fill={colored ? piece.color : "#111827"}
-                opacity={colored ? 0.92 : 0.88}
+                opacity={hideBaseShape ? 0 : colored ? 0.92 : 0.88}
                 stroke="#18181B"
                 strokeWidth={compact ? 0.08 : 0.1}
                 vectorEffect="non-scaling-stroke"
@@ -103,7 +109,7 @@ export default function ShapeViewer({
                 key={`${index}-${polygon.length}`}
                 d={polygonPath(polygon, minX, minY)}
                 fill="#111827"
-                opacity={highContrastBoundaries ? 0.9 : 0.78}
+                opacity={hideBaseShape ? 0 : highContrastBoundaries ? 0.9 : 0.78}
                 stroke={highContrastBoundaries ? "#F8FAFC" : "white"}
                 strokeWidth={
                   highContrastBoundaries ? (compact ? 1.4 : 1.6) : compact ? 0.09 : 0.12
@@ -112,6 +118,18 @@ export default function ShapeViewer({
                 vectorEffect="non-scaling-stroke"
               />
             ))}
+        {overlayPolygons?.map((polygon, index) => (
+          <path
+            key={`overlay-${index}-${polygon.length}`}
+            d={polygonPath(polygon, minX, minY)}
+            fill="none"
+            stroke="#EF4444"
+            strokeWidth={compact ? 1.65 : 1.85}
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
       </svg>
     </div>
   );
