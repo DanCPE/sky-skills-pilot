@@ -264,6 +264,68 @@ function orientationDegrees(orientation: BoxFoldingFaceOrientation) {
   return { A: 0, B: 90, C: 180, D: 270 }[orientation];
 }
 
+function degreesToRadians(degrees: number) {
+  return (degrees * Math.PI) / 180;
+}
+
+function rotateVectorX(vector: Vector, degrees: number): Vector {
+  const radians = degreesToRadians(degrees);
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const [x, y, z] = vector;
+  return [x, y * cos - z * sin, y * sin + z * cos];
+}
+
+function rotateVectorY(vector: Vector, degrees: number): Vector {
+  const radians = degreesToRadians(degrees);
+  const cos = Math.cos(radians);
+  const sin = Math.sin(radians);
+  const [x, y, z] = vector;
+  return [x * cos + z * sin, y, -x * sin + z * cos];
+}
+
+function applySnapshotViewToVector(vector: Vector, view: BoxFoldingView): Vector {
+  let transformed = vector;
+  transformed = rotateVectorY(transformed, view.anchorRotY ?? 0);
+  transformed = rotateVectorX(transformed, view.anchorRotX ?? 0);
+  transformed = rotateVectorY(transformed, view.rotY);
+  transformed = rotateVectorX(transformed, view.rotX);
+  return transformed;
+}
+
+function cubeVectorToCssVector(vector: Vector): Vector {
+  return [vector[0], -vector[2], vector[1]];
+}
+
+function renderedVisibleNetFaceIndices(
+  pattern: readonly (readonly number[])[],
+  view: BoxFoldingView,
+) {
+  const visible = analyzeNetFolding(pattern).map((foldedFace) => {
+    const cssNormal = cubeVectorToCssVector(foldedFace.pose.normal);
+    const normal = applySnapshotViewToVector(cssNormal, view);
+    return {
+      faceIndex: foldedFace.faceIdx,
+      depth: normal[2],
+      screenX: normal[0],
+      screenY: normal[1],
+    };
+  })
+    .filter(({ depth }) => depth > 0.001)
+    .sort((first, second) => {
+      if (Math.abs(second.depth - first.depth) > 0.001) {
+        return second.depth - first.depth;
+      }
+      if (Math.abs(first.screenY - second.screenY) > 0.001) {
+        return first.screenY - second.screenY;
+      }
+      return first.screenX - second.screenX;
+    })
+    .map(({ faceIndex }) => faceIndex);
+
+  return visible.slice(0, 3);
+}
+
 function netOptionSignature(
   netImages: Record<number, string>,
   netImageRotations: Record<number, number>,
@@ -283,19 +345,51 @@ function visibleNetOptionSignature(
     .join("|");
 }
 
+function displayOptionParts(
+  pattern: readonly (readonly number[])[],
+  view: BoxFoldingView,
+  netImages: Record<number, string>,
+  netImageRotations: Record<number, number>,
+) {
+  return renderedVisibleNetFaceIndices(pattern, view)
+    .map((faceIndex, slotIndex) => {
+      const rotation = netImageRotations[faceIndex] ?? 0;
+      return {
+        slotIndex,
+        image: netImages[faceIndex],
+        rotation,
+      };
+    });
+}
+
+function displayOptionSignature(
+  pattern: readonly (readonly number[])[],
+  view: BoxFoldingView,
+  netImages: Record<number, string>,
+  netImageRotations: Record<number, number>,
+) {
+  return displayOptionParts(pattern, view, netImages, netImageRotations)
+    .map(({ slotIndex, image, rotation }) => `${slotIndex}:${image}:${rotation}`)
+    .join("|");
+}
+
+function displayTripletSignature(
+  pattern: readonly (readonly number[])[],
+  view: BoxFoldingView,
+  netImages: Record<number, string>,
+  netImageRotations: Record<number, number>,
+) {
+  return displayOptionParts(pattern, view, netImages, netImageRotations)
+    .map(({ image, rotation }) => `${image}:${rotation}`)
+    .sort()
+    .join("|");
+}
+
 function visibleNetFaceIndicesForView(
-  faceAssignments: Record<number, BoxFoldingFaceName>,
+  pattern: readonly (readonly number[])[],
   view: BoxFoldingView,
 ) {
-  return view.visibleFaces.map((faceName) => {
-    const entry = Object.entries(faceAssignments).find(
-      ([, assignedFaceName]) => assignedFaceName === faceName,
-    );
-    if (!entry) {
-      throw new Error(`Could not find net face assigned to visible face ${faceName}.`);
-    }
-    return Number(entry[0]);
-  });
+  return renderedVisibleNetFaceIndices(pattern, view);
 }
 
 function viewWithNetFaceAtFront(
@@ -411,19 +505,6 @@ function createNetLevelDistractors(
     });
   });
 
-  visibleNetFaceIndices.forEach((visible) => {
-    hiddenNetFaceIndices.forEach((hidden) => {
-      mutations.push({
-        name: `net_hidden_replace_${hidden}_to_${visible}`,
-        reason: `Visible net face #${visible} is replaced with hidden net face #${hidden}.`,
-        mutatedFaceIndices: [visible],
-        apply: (netImages) => {
-          netImages[visible] = netImages[hidden];
-        },
-      });
-    });
-  });
-
   if (visibleNetFaceIndices.length >= 3) {
     const [first, second, third] = visibleNetFaceIndices;
     mutations.push(
@@ -487,11 +568,14 @@ function createNetLevelDistractors(
         candidate.netImageRotations,
       );
       if (seenVisible.has(visibleSignature)) return false;
+      const visibleImages = visibleNetFaceIndices.map(
+        (faceIndex) => candidate.netImages[faceIndex],
+      );
+      if (new Set(visibleImages).size !== visibleImages.length) return false;
       seen.add(candidate.signature);
       seenVisible.add(visibleSignature);
       return true;
     })
-    .slice(0, 8);
 }
 
 function rotateOrientation(
@@ -589,6 +673,7 @@ function analyzeNetFolding(pattern: readonly (readonly number[])[]) {
 function foldCubeNet(
   pattern: readonly (readonly number[])[],
   images: Record<number, string>,
+  imageRotations: Record<number, number> = {},
 ): FoldResult {
   const cube: BoxFoldingCube = {
     faces: Object.fromEntries(FACE_NAMES.map((face) => [face, ""])) as Record<
@@ -605,7 +690,10 @@ function foldCubeNet(
 
   for (const foldedFace of analyzeNetFolding(pattern)) {
     cube.faces[foldedFace.faceName] = images[foldedFace.faceIdx];
-    cube.orientations[foldedFace.faceName] = foldedFace.orientation;
+    cube.orientations[foldedFace.faceName] = rotateOrientation(
+      foldedFace.orientation,
+      Math.round((imageRotations[foldedFace.faceIdx] ?? 0) / 90) % 4,
+    );
     faceAssignments[foldedFace.faceIdx] = foldedFace.faceName;
     faceOrientations[foldedFace.faceIdx] = foldedFace.orientation;
   }
@@ -924,11 +1012,31 @@ function createQuestion(
   ];
   const correctOptionIndex = Math.floor(rng() * frontNetFaceSlots.length);
   const usedWrongSignatures = new Set<string>();
+  const correctView = viewWithNetFaceAtFront(
+    frontNetFaceSlots[correctOptionIndex],
+    foldResult.faceAssignments,
+  );
+  const usedDisplaySignatures = new Set([
+    displayOptionSignature(
+      pattern,
+      correctView,
+      images,
+      emptyNetRotations(),
+    ),
+  ]);
+  const usedDisplayTriplets = new Set([
+    displayTripletSignature(
+      pattern,
+      correctView,
+      images,
+      emptyNetRotations(),
+    ),
+  ]);
 
   const options = frontNetFaceSlots.map((frontNetFaceIndex, index) => {
     const view = viewWithNetFaceAtFront(frontNetFaceIndex, foldResult.faceAssignments);
     const visibleNetFaceIndices = visibleNetFaceIndicesForView(
-      foldResult.faceAssignments,
+      pattern,
       view,
     );
     const label = String.fromCharCode(65 + index);
@@ -955,7 +1063,23 @@ function createQuestion(
       rng,
     ).find((wrongCandidate) => {
       if (usedWrongSignatures.has(wrongCandidate.signature)) return false;
+      const displayedSignature = displayOptionSignature(
+        pattern,
+        view,
+        wrongCandidate.netImages,
+        wrongCandidate.netImageRotations,
+      );
+      const displayTriplet = displayTripletSignature(
+        pattern,
+        view,
+        wrongCandidate.netImages,
+        wrongCandidate.netImageRotations,
+      );
+      if (usedDisplaySignatures.has(displayedSignature)) return false;
+      if (usedDisplayTriplets.has(displayTriplet)) return false;
       usedWrongSignatures.add(wrongCandidate.signature);
+      usedDisplaySignatures.add(displayedSignature);
+      usedDisplayTriplets.add(displayTriplet);
       return true;
     });
 
@@ -963,10 +1087,16 @@ function createQuestion(
       throw new Error("Could not generate a visible net-level box-folding choice.");
     }
 
+    const wrongFoldResult = foldCubeNet(
+      pattern,
+      candidate.netImages,
+      candidate.netImageRotations,
+    );
+
     return {
       id: crypto.randomUUID(),
       label,
-      cube: cloneCube(canonicalCube),
+      cube: wrongFoldResult.cube,
       netImages: candidate.netImages,
       netImageRotations: candidate.netImageRotations,
       view,
