@@ -36,7 +36,7 @@ export const topics: Topic[] = [
     icon: "🔷",
     title: "Find Similar Shape",
     description: "Find the answer choice that exactly matches the target shape.",
-    category: "spatial",
+    category: "scanning",
     isLocked: false,
     coverImage: "/images/icons/SkyQuests/shape.png",
     coverImageDark: "/images/icons/SkyQuests/shape dark.png",
