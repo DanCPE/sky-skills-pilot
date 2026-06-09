@@ -247,6 +247,6 @@ export function generateFindSimilarShapeQuiz(
   return {
     questions,
     mode,
-    timeLimit: mode === "real" ? count * 45 : undefined,
+    timeLimit: mode === "real" ? count * 20 : undefined,
   };
 }
