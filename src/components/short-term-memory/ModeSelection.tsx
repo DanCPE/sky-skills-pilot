@@ -25,17 +25,6 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
     setError(null);
 
     try {
-      const accessResponse = await fetch("/api/account/access/short-term-memory", {
-        cache: "no-store",
-      });
-
-      if (!accessResponse.ok) {
-        const errorData = (await accessResponse.json().catch(() => null)) as
-          | { error?: string }
-          | null;
-        throw new Error(errorData?.error || "This quiz requires paid access.");
-      }
-
       onStart(
         generateShortTermMemoryQuiz({
         mode,
