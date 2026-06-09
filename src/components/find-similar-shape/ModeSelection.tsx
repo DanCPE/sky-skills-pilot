@@ -5,7 +5,7 @@ import { generateFindSimilarShapeQuiz } from "@/lib/find-similar-shape-generator
 import type { FindSimilarShapeQuizResponse } from "@/types";
 
 function formatRealModeTime(questionCount: number) {
-  const seconds = questionCount * 45;
+  const seconds = questionCount * 20;
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
   if (minutes === 0) return `${remaining} seconds`;
@@ -27,7 +27,7 @@ export default function ModeSelection({
       sliderMax={25}
       sliderStep={5}
       sliderLabels={[5, 10, 15, 20, 25]}
-      timePerQuestion={45}
+      timePerQuestion={20}
       formatRealModeTime={formatRealModeTime}
       learnDescription="Work without a timer. Inspect the target shape and compare its internal boundaries against each choice."
       realDescription={(count, timeDisplay) =>
