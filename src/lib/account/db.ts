@@ -179,6 +179,11 @@ export interface ManualPaymentSlip {
   promptPayId: string | null;
   transferReference: string | null;
   miniQrPayload: string | null;
+  slip2goStatus: string | null;
+  slip2goTransRef: string | null;
+  slip2goAmountThb: number | null;
+  slip2goPayload: Record<string, unknown>;
+  verificationError: string | null;
   slipFileName: string;
   slipContentType: string;
   note: string | null;
@@ -335,7 +340,15 @@ async function canUseExistingAccountSchema(pool: Pool) {
         to_regclass('public.account_subscriptions') IS NOT NULL AS has_subscriptions,
         to_regclass('public.account_quiz_access') IS NOT NULL AS has_quiz_access,
         to_regclass('public.account_manual_payment_slips') IS NOT NULL AS has_payment_slips,
-        to_regclass('public.account_subscription_packages') IS NOT NULL AS has_packages;
+        to_regclass('public.account_subscription_packages') IS NOT NULL AS has_packages,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'account_manual_payment_slips'
+            AND column_name = 'slip2go_trans_ref'
+        ) AS has_slip2go_columns,
+        to_regclass('public.account_manual_payment_slips_trans_ref_unique_idx') IS NOT NULL AS has_slip2go_unique_index;
     `,
   );
   const row = result.rows[0] ?? {};
@@ -520,6 +533,11 @@ export async function ensureAccountSchema() {
         promptpay_id TEXT,
         transfer_reference TEXT,
         mini_qr_payload TEXT,
+        slip2go_status TEXT,
+        slip2go_trans_ref TEXT,
+        slip2go_amount_cents INT,
+        slip2go_payload JSONB NOT NULL DEFAULT '{}'::jsonb,
+        verification_error TEXT,
         slip_file_name TEXT NOT NULL,
         slip_content_type TEXT NOT NULL,
         slip_bytes BYTEA NOT NULL,
@@ -532,6 +550,12 @@ export async function ensureAccountSchema() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS slip2go_status TEXT;");
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS slip2go_trans_ref TEXT;");
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS slip2go_amount_cents INT;");
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS slip2go_payload JSONB NOT NULL DEFAULT '{}'::jsonb;");
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS verification_error TEXT;");
 
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_subscription_packages (
@@ -704,6 +728,9 @@ export async function ensureAccountSchema() {
       );
       await pool.query(
         "CREATE INDEX IF NOT EXISTS account_manual_payment_slips_status_created_idx ON account_manual_payment_slips(status, created_at DESC);",
+      );
+      await pool.query(
+        "CREATE UNIQUE INDEX IF NOT EXISTS account_manual_payment_slips_trans_ref_unique_idx ON account_manual_payment_slips(slip2go_trans_ref) WHERE slip2go_trans_ref IS NOT NULL;",
       );
 
       schemaReady = true;
@@ -1258,6 +1285,22 @@ function mapManualPaymentSlip(row: Record<string, unknown>): ManualPaymentSlip {
       ? String(row.transfer_reference)
       : null,
     miniQrPayload: row.mini_qr_payload ? String(row.mini_qr_payload) : null,
+    slip2goStatus: row.slip2go_status ? String(row.slip2go_status) : null,
+    slip2goTransRef: row.slip2go_trans_ref
+      ? String(row.slip2go_trans_ref)
+      : null,
+    slip2goAmountThb:
+      row.slip2go_amount_cents === null ||
+      row.slip2go_amount_cents === undefined
+        ? null
+        : Number(row.slip2go_amount_cents) / 100,
+    slip2goPayload:
+      row.slip2go_payload && typeof row.slip2go_payload === "object"
+        ? (row.slip2go_payload as Record<string, unknown>)
+        : {},
+    verificationError: row.verification_error
+      ? String(row.verification_error)
+      : null,
     slipFileName: String(row.slip_file_name),
     slipContentType: String(row.slip_content_type),
     note: row.note ? String(row.note) : null,
@@ -2040,7 +2083,14 @@ export async function createManualPaymentSlip(input: {
   planKey?: string;
   transferReference?: string | null;
   miniQrPayload?: string | null;
+  slip2goStatus?: string | null;
+  slip2goTransRef?: string | null;
+  slip2goAmountThb?: number | null;
+  slip2goPayload?: Record<string, unknown> | null;
+  verificationError?: string | null;
   note?: string | null;
+  status?: ManualPaymentStatus;
+  reviewedBy?: string | null;
   slipFileName: string;
   slipContentType: string;
   slipBytes: Buffer;
@@ -2053,66 +2103,160 @@ export async function createManualPaymentSlip(input: {
 
   const config = getManualPaymentConfig();
   const amountCents = Math.round(input.amountThb * 100);
+  const slip2goAmountCents =
+    input.slip2goAmountThb === null || input.slip2goAmountThb === undefined
+      ? null
+      : Math.round(input.slip2goAmountThb * 100);
+  const status = input.status ?? "pending";
+  const reviewedAt = status === "pending" ? null : new Date();
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const result = await client.query(
+      `
+        INSERT INTO account_manual_payment_slips (
+          user_id,
+          profile_id,
+          plan_key,
+          amount_cents,
+          currency,
+          bank_name,
+          account_name,
+          account_number,
+          promptpay_id,
+          transfer_reference,
+          mini_qr_payload,
+          slip2go_status,
+          slip2go_trans_ref,
+          slip2go_amount_cents,
+          slip2go_payload,
+          verification_error,
+          slip_file_name,
+          slip_content_type,
+          slip_bytes,
+          note,
+          status,
+          reviewed_at,
+          reviewed_by,
+          rejection_reason
+        )
+        VALUES (
+          $1, $2, $3, $4, $5, $6, $7, $8,
+          $9, $10, $11, $12, $13, $14, $15,
+          $16, $17, $18, $19, $20, $21, $22, $23, $24
+        )
+        RETURNING
+          account_manual_payment_slips.*,
+          $25::text AS email,
+          $26::text AS call_sign,
+          (
+            SELECT title
+            FROM account_subscription_packages pkg
+            WHERE pkg.key = account_manual_payment_slips.plan_key
+            LIMIT 1
+          ) AS plan_title;
+      `,
+      [
+        input.user.fleetId,
+        input.user.profileId,
+        input.planKey ?? "full_access",
+        amountCents,
+        config.currency,
+        config.bankName,
+        config.accountName,
+        config.accountNumber,
+        config.promptPayId || null,
+        input.transferReference?.trim() || null,
+        input.miniQrPayload?.trim() || null,
+        input.slip2goStatus?.trim() || null,
+        input.slip2goTransRef?.trim() || null,
+        slip2goAmountCents,
+        JSON.stringify(input.slip2goPayload ?? {}),
+        input.verificationError?.trim() || null,
+        input.slipFileName,
+        input.slipContentType,
+        input.slipBytes,
+        input.note?.trim() || null,
+        status,
+        reviewedAt,
+        status === "pending" ? null : input.reviewedBy?.trim() || "slip2go",
+        status === "rejected" ? input.verificationError?.trim() || null : null,
+        input.user.email,
+        input.user.name,
+      ],
+    );
+
+    if (status === "approved") {
+      await client.query(
+        `
+          INSERT INTO account_subscriptions (
+            user_id,
+            provider,
+            provider_subscription_id,
+            status,
+            current_period_end,
+            updated_at
+          )
+          VALUES ($1, 'slip2go', $2, 'active', NULL, NOW());
+        `,
+        [input.user.fleetId, input.slip2goTransRef?.trim() || result.rows[0].id],
+      );
+    }
+
+    await client.query("COMMIT");
+
+    accountDebug("manual payment slip created", {
+      slipId: result.rows[0].id,
+      fleetId: input.user.fleetId,
+      amountCents,
+      status,
+      slip2goTransRef: input.slip2goTransRef ?? null,
+    });
+
+    return mapManualPaymentSlip(result.rows[0]);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      error.code === "23505"
+    ) {
+      throw new Error("This transfer reference has already been used.");
+    }
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getManualPaymentSlipBySlip2GoTransRef(transRef: string) {
+  const normalizedTransRef = transRef.trim();
+  if (!normalizedTransRef) return null;
+
+  await ensureAccountSchema();
 
   const result = await getPool().query(
     `
-      INSERT INTO account_manual_payment_slips (
-        user_id,
-        profile_id,
-        plan_key,
-        amount_cents,
-        currency,
-        bank_name,
-        account_name,
-        account_number,
-        promptpay_id,
-        transfer_reference,
-        mini_qr_payload,
-        slip_file_name,
-        slip_content_type,
-        slip_bytes,
-        note
-      )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)
-      RETURNING
-        account_manual_payment_slips.*,
-        $16::text AS email,
-        $17::text AS call_sign,
-        (
-          SELECT title
-          FROM account_subscription_packages pkg
-          WHERE pkg.key = account_manual_payment_slips.plan_key
-          LIMIT 1
-        ) AS plan_title;
+      SELECT
+        s.*,
+        u.email,
+        p.call_sign,
+        pkg.title AS plan_title
+      FROM account_manual_payment_slips s
+      JOIN account_users u ON u.id = s.user_id
+      LEFT JOIN account_profiles p ON p.id = s.profile_id
+      LEFT JOIN account_subscription_packages pkg ON pkg.key = s.plan_key
+      WHERE s.slip2go_trans_ref = $1
+      LIMIT 1;
     `,
-    [
-      input.user.fleetId,
-      input.user.profileId,
-      input.planKey ?? "full_access",
-      amountCents,
-      config.currency,
-      config.bankName,
-      config.accountName,
-      config.accountNumber,
-      config.promptPayId || null,
-      input.transferReference?.trim() || null,
-      input.miniQrPayload?.trim() || null,
-      input.slipFileName,
-      input.slipContentType,
-      input.slipBytes,
-      input.note?.trim() || null,
-      input.user.email,
-      input.user.name,
-    ],
+    [normalizedTransRef],
   );
 
-  accountDebug("manual payment slip created", {
-    slipId: result.rows[0].id,
-    fleetId: input.user.fleetId,
-    amountCents,
-  });
-
-  return mapManualPaymentSlip(result.rows[0]);
+  return result.rows[0] ? mapManualPaymentSlip(result.rows[0]) : null;
 }
 
 export async function getSubscriptionPackages(input?: { includeInactive?: boolean }) {

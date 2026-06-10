@@ -3,11 +3,17 @@ import { getCurrentAccountUser } from "@/lib/account/auth";
 import {
   createManualPaymentSlip,
   getManualPaymentConfig,
+  getManualPaymentSlipBySlip2GoTransRef,
   getManualPaymentSlipsForFleet,
   getSubscriptionPackage,
   getSubscriptionPackages,
   hasAccountDatabase,
 } from "@/lib/account/db";
+import {
+  isSlip2GoConfigured,
+  verifySlipWithSlip2Go,
+  type Slip2GoVerificationResult,
+} from "@/lib/slip2go";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -19,6 +25,42 @@ const allowedContentTypes = new Set([
   "image/webp",
   "application/pdf",
 ]);
+
+function toPayloadRecord(value: unknown): Record<string, unknown> {
+  if (value && typeof value === "object" && !Array.isArray(value)) {
+    return value as Record<string, unknown>;
+  }
+  return { value };
+}
+
+function cents(value: number | null) {
+  return value === null ? null : Math.round(value * 100);
+}
+
+function slipRejectionReason(
+  verification: Slip2GoVerificationResult,
+  expectedAmountCents: number,
+) {
+  if (!verification.ok) {
+    return verification.error ?? "Slip2Go could not validate this slip.";
+  }
+  if (!verification.verified) {
+    return `Slip2Go rejected this slip with status: ${verification.status}.`;
+  }
+  if (!verification.transRef) {
+    return "Slip2Go did not return a transaction reference.";
+  }
+
+  const verifiedAmountCents = cents(verification.amountThb);
+  if (verifiedAmountCents === null) {
+    return "Slip2Go did not return a transfer amount.";
+  }
+  if (verifiedAmountCents !== expectedAmountCents) {
+    return `Transfer amount does not match selected package. Expected ${expectedAmountCents / 100} THB, got ${verifiedAmountCents / 100} THB.`;
+  }
+
+  return null;
+}
 
 export async function GET() {
   if (!hasAccountDatabase()) {
@@ -92,19 +134,120 @@ export async function POST(request: Request) {
       );
     }
 
+    const slipBytes = Buffer.from(await slipFile.arrayBuffer());
+    const miniQrPayload = String(formData.get("miniQrPayload") ?? "");
+    const expectedAmountCents = subscriptionPackage.priceCents;
+    const manualFallbackEnabled =
+      process.env.SLIP2GO_ALLOW_MANUAL_FALLBACK === "true";
+
+    if (!isSlip2GoConfigured()) {
+      if (!manualFallbackEnabled) {
+        return NextResponse.json(
+          {
+            error:
+              "Slip2Go is not configured. Set SLIP2GO_API_URL before accepting automatic slip payments.",
+          },
+          { status: 503 },
+        );
+      }
+
+      const fallbackSlip = await createManualPaymentSlip({
+        user,
+        amountThb,
+        planKey: subscriptionPackage.key,
+        transferReference: String(formData.get("transferReference") ?? ""),
+        miniQrPayload,
+        note: String(formData.get("note") ?? ""),
+        verificationError: "Slip2Go was not configured; queued for manual review.",
+        slipFileName: slipFile.name || "payment-slip",
+        slipContentType: slipFile.type,
+        slipBytes,
+      });
+
+      return NextResponse.json(
+        {
+          slip: fallbackSlip,
+          message: "Slip2Go is not configured; slip queued for manual approval.",
+        },
+        { status: 201 },
+      );
+    }
+
+    const verification = await verifySlipWithSlip2Go({
+      miniQrPayload,
+      slipFileName: slipFile.name || "payment-slip",
+      slipContentType: slipFile.type,
+      slipBytes,
+    });
+    const rejectionReason = slipRejectionReason(
+      verification,
+      expectedAmountCents,
+    );
+
+    if (verification.transRef) {
+      const duplicate = await getManualPaymentSlipBySlip2GoTransRef(
+        verification.transRef,
+      );
+      if (duplicate) {
+        console.warn("[manual-payment] duplicate Slip2Go transRef rejected", {
+          fleetId: user.fleetId,
+          duplicateSlipId: duplicate.id,
+          transRef: verification.transRef,
+        });
+        return NextResponse.json(
+          { error: "This bank transfer slip has already been used." },
+          { status: 409 },
+        );
+      }
+    }
+
     const slip = await createManualPaymentSlip({
       user,
       amountThb,
       planKey: subscriptionPackage.key,
       transferReference: String(formData.get("transferReference") ?? ""),
-      miniQrPayload: String(formData.get("miniQrPayload") ?? ""),
+      miniQrPayload,
       note: String(formData.get("note") ?? ""),
+      status: rejectionReason ? "rejected" : "approved",
+      reviewedBy: "slip2go",
+      slip2goStatus: verification.status,
+      slip2goTransRef: verification.transRef,
+      slip2goAmountThb: verification.amountThb,
+      slip2goPayload: toPayloadRecord(verification.raw),
+      verificationError: rejectionReason,
       slipFileName: slipFile.name || "payment-slip",
       slipContentType: slipFile.type,
-      slipBytes: Buffer.from(await slipFile.arrayBuffer()),
+      slipBytes,
     });
 
-    return NextResponse.json({ slip }, { status: 201 });
+    console.log("[manual-payment] Slip2Go verification completed", {
+      fleetId: user.fleetId,
+      slipId: slip.id,
+      status: slip.status,
+      slip2goStatus: verification.status,
+      transRef: verification.transRef,
+      verifiedAmountThb: verification.amountThb,
+      expectedAmountThb: subscriptionPackage.priceThb,
+      durationMs: verification.durationMs,
+      rejected: Boolean(rejectionReason),
+      rejectionReason,
+    });
+
+    return NextResponse.json(
+      {
+        slip,
+        verification: {
+          status: verification.status,
+          transRef: verification.transRef,
+          amountThb: verification.amountThb,
+          durationMs: verification.durationMs,
+        },
+        message: rejectionReason
+          ? `Slip rejected: ${rejectionReason}`
+          : "Slip verified by Slip2Go. Paid access is active.",
+      },
+      { status: 201 },
+    );
   } catch (error) {
     console.error("[manual-payment] failed to submit slip", {
       fleetId: user.fleetId,

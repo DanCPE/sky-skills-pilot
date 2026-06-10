@@ -283,8 +283,8 @@ export default function AdminBillingPage() {
           <div className="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
             <h2 className="text-lg font-bold">Payment Slip Approvals</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Approving a slip marks the fleet email as paid through a manual
-              slip subscription.
+              Slip2Go-approved slips unlock automatically. Pending slips can
+              still be approved manually when the verifier is unavailable.
             </p>
             {data?.manualPaymentConfig ? (
               <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
@@ -342,10 +342,19 @@ export default function AdminBillingPage() {
                         </td>
                         <td className="max-w-xs px-4 py-3">
                           <p className="truncate">
-                            {slip.transferReference ||
+                            {slip.slip2goTransRef ||
+                              slip.transferReference ||
                               slip.miniQrPayload ||
                               "-"}
                           </p>
+                          {slip.slip2goStatus ? (
+                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                              Slip2Go: {slip.slip2goStatus}
+                              {slip.slip2goAmountThb
+                                ? ` · ${formatAmount(slip.slip2goAmountThb)}`
+                                : ""}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           <span
@@ -353,6 +362,11 @@ export default function AdminBillingPage() {
                           >
                             {slip.status}
                           </span>
+                          {slip.verificationError ? (
+                            <p className="mt-1 max-w-xs text-xs text-red-600 dark:text-red-300">
+                              {slip.verificationError}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           <button

@@ -140,7 +140,7 @@ export default function ManualSlipPaymentForm({
         body: formData,
       });
       const json = (await response.json().catch(() => null)) as
-        | { slip?: ManualPaymentSlip; error?: string }
+        | { slip?: ManualPaymentSlip; error?: string; message?: string }
         | null;
 
       if (!response.ok) {
@@ -153,7 +153,20 @@ export default function ManualSlipPaymentForm({
       setMiniQrPayload("");
       setNote("");
       setQrMessage(null);
-      setSuccess("Slip submitted. Your fleet will unlock after admin approval.");
+      if (json?.slip?.status === "rejected") {
+        setError(
+          json.message ??
+            json.slip.verificationError ??
+            "Slip was rejected by verification.",
+        );
+      } else {
+        setSuccess(
+          json?.message ??
+            (json?.slip?.status === "approved"
+              ? "Slip verified. Paid access is active."
+              : "Slip checked and saved."),
+        );
+      }
     } catch (submitError) {
       setError(
         submitError instanceof Error
@@ -227,8 +240,8 @@ export default function ManualSlipPaymentForm({
         </p>
         <h2 className="mt-2 text-2xl font-bold">Krungthai Manual Approval</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-          Transfer to the business account, upload your slip, then wait for
-          admin approval. Approved fleets unlock all paid quizzes.
+          Transfer to the business account, upload your slip, then Slip2Go will
+          verify the bank transaction. Verified fleets unlock all paid quizzes.
         </p>
 
         <div className="mt-6 space-y-3 rounded-2xl bg-zinc-50 p-4 text-sm dark:bg-white/5">
@@ -311,7 +324,8 @@ export default function ManualSlipPaymentForm({
                 : "Select a package before uploading"}
             </p>
             <p className="mt-1 text-zinc-500 dark:text-zinc-400">
-              The submitted slip will be reviewed against this package price.
+              Slip2Go will check the transaction reference and exact package
+              amount before access is unlocked.
             </p>
           </div>
 
@@ -392,7 +406,7 @@ export default function ManualSlipPaymentForm({
             disabled={isSubmitting}
             className="w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:disabled:bg-zinc-800"
           >
-            {isSubmitting ? "Submitting..." : "Submit Slip for Approval"}
+            {isSubmitting ? "Verifying..." : "Verify Slip & Unlock"}
           </button>
         </form>
       </section>
@@ -434,6 +448,11 @@ export default function ManualSlipPaymentForm({
                     </td>
                     <td className="px-4 py-3">
                       {slip.transferReference || slip.miniQrPayload || "-"}
+                      {slip.slip2goTransRef ? (
+                        <span className="block max-w-56 truncate text-xs text-zinc-500 dark:text-zinc-400">
+                          Slip2Go: {slip.slip2goTransRef}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">
                       <span
@@ -441,6 +460,11 @@ export default function ManualSlipPaymentForm({
                       >
                         {slip.status}
                       </span>
+                      {slip.verificationError ? (
+                        <span className="mt-1 block max-w-56 text-xs text-red-600 dark:text-red-300">
+                          {slip.verificationError}
+                        </span>
+                      ) : null}
                     </td>
                     <td className="px-4 py-3">
                       <button
