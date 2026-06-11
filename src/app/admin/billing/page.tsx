@@ -20,6 +20,8 @@ interface AdminBillingResponse {
   subscriptionPackages: SubscriptionPackage[];
 }
 
+type SlipTimeSort = "newest" | "oldest";
+
 function formatDate(value: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
@@ -60,6 +62,7 @@ export default function AdminBillingPage() {
   const [isLoading, setIsLoading] = useState(true);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [slipTimeSort, setSlipTimeSort] = useState<SlipTimeSort>("newest");
   const [selectedSlip, setSelectedSlip] = useState<ManualPaymentSlip | null>(
     null,
   );
@@ -158,6 +161,16 @@ export default function AdminBillingPage() {
   const pendingSlipCount =
     data?.manualPaymentSlips.filter((slip) => slip.status === "pending").length ??
     0;
+  const sortedManualPaymentSlips = useMemo(() => {
+    const slips = [...(data?.manualPaymentSlips ?? [])];
+    return slips.sort((first, second) => {
+      const firstTime = new Date(first.createdAt).getTime();
+      const secondTime = new Date(second.createdAt).getTime();
+      return slipTimeSort === "newest"
+        ? secondTime - firstTime
+        : firstTime - secondTime;
+    });
+  }, [data?.manualPaymentSlips, slipTimeSort]);
 
   async function reviewSlip(
     slip: ManualPaymentSlip,
@@ -319,25 +332,55 @@ export default function AdminBillingPage() {
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
-          <div className="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
-            <h2 className="text-lg font-bold">Payment Slip Approvals</h2>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Slip2Go-approved slips unlock automatically. Pending slips can
-              still be approved manually when the verifier is unavailable.
-            </p>
-            {data?.manualPaymentConfig ? (
-              <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
-                Receiving account: {data.manualPaymentConfig.bankName} ·{" "}
-                {data.manualPaymentConfig.accountName || "No account name"} ·{" "}
-                {data.manualPaymentConfig.accountNumber || "No account number"}
+          <div className="flex flex-col gap-3 border-b border-zinc-200 px-5 py-4 dark:border-white/10 lg:flex-row lg:items-start lg:justify-between">
+            <div>
+              <h2 className="text-lg font-bold">Payment Slip Approvals</h2>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Slip2Go-approved slips unlock automatically. Pending slips can
+                still be approved manually when the verifier is unavailable.
               </p>
-            ) : null}
+              {data?.manualPaymentConfig ? (
+                <p className="mt-2 text-xs text-zinc-500 dark:text-zinc-400">
+                  Receiving account: {data.manualPaymentConfig.bankName} ·{" "}
+                  {data.manualPaymentConfig.accountName || "No account name"} ·{" "}
+                  {data.manualPaymentConfig.accountNumber || "No account number"}
+                </p>
+              ) : null}
+            </div>
+            <label className="flex items-center gap-2 text-sm font-bold">
+              Time
+              <select
+                value={slipTimeSort}
+                onChange={(event) =>
+                  setSlipTimeSort(event.target.value as SlipTimeSort)
+                }
+                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
+              >
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+              </select>
+            </label>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
               <thead className="bg-zinc-50 dark:bg-white/5">
                 <tr>
-                  <th className="px-4 py-3 font-bold">Submitted</th>
+                  <th className="px-4 py-3 font-bold">
+                    <button
+                      type="button"
+                      onClick={() =>
+                        setSlipTimeSort((current) =>
+                          current === "newest" ? "oldest" : "newest",
+                        )
+                      }
+                      className="inline-flex items-center gap-1 font-bold text-zinc-950 hover:text-violet-700 dark:text-zinc-100 dark:hover:text-violet-300"
+                    >
+                      Submitted
+                      <span className="text-xs">
+                        {slipTimeSort === "newest" ? "↓" : "↑"}
+                      </span>
+                    </button>
+                  </th>
                   <th className="px-4 py-3 font-bold">Fleet</th>
                   <th className="px-4 py-3 font-bold">Package</th>
                   <th className="px-4 py-3 font-bold">Amount</th>
@@ -348,7 +391,7 @@ export default function AdminBillingPage() {
                 </tr>
               </thead>
               <tbody>
-                {(data?.manualPaymentSlips ?? []).length === 0 ? (
+                {sortedManualPaymentSlips.length === 0 ? (
                   <tr>
                     <td
                       colSpan={8}
@@ -358,7 +401,7 @@ export default function AdminBillingPage() {
                     </td>
                   </tr>
                 ) : (
-                  data?.manualPaymentSlips.map((slip) => {
+                  sortedManualPaymentSlips.map((slip) => {
                     const approveKey = `slip:${slip.id}:approve`;
                     const rejectKey = `slip:${slip.id}:reject`;
                     return (
