@@ -9,6 +9,9 @@ export interface Slip2GoVerificationResult {
   ok: boolean;
   verified: boolean;
   status: string;
+  httpStatus: number;
+  endpoint: string;
+  requestMode: string;
   transRef: string | null;
   amountThb: number | null;
   raw: unknown;
@@ -59,7 +62,7 @@ function getEnv(name: string, fallback = "") {
 }
 
 export function isSlip2GoConfigured() {
-  return Boolean(getEnv("SLIP2GO_API_URL"));
+  return Boolean(getEnv("SLIP2GO_API_URL") || getEnv("SLIP2GO_API_BASE_URL"));
 }
 
 function authHeaders() {
@@ -169,38 +172,79 @@ async function parseResponse(response: Response) {
   }
 }
 
+function joinUrl(baseUrl: string, path: string) {
+  return `${baseUrl.replace(/\/+$/, "")}/${path.replace(/^\/+/, "")}`;
+}
+
+function resolveEndpoint(mode: string) {
+  const configuredUrl = getEnv("SLIP2GO_API_URL");
+  const baseUrl = getEnv("SLIP2GO_API_BASE_URL", configuredUrl);
+
+  if (configuredUrl.includes("/api/verify-slip/")) return configuredUrl;
+
+  if (mode === "qr-code") {
+    return joinUrl(baseUrl, "/api/verify-slip/qr-code/info");
+  }
+  if (mode === "base64") {
+    return joinUrl(baseUrl, "/api/verify-slip/qr-base64/info");
+  }
+  return joinUrl(baseUrl, "/api/verify-slip/qr-image/info");
+}
+
+function resolveRequestMode(configuredMode: string, hasMiniQrPayload: boolean) {
+  if (configuredMode === "auto") {
+    return hasMiniQrPayload ? "qr-code" : "qr-image";
+  }
+  if (configuredMode === "json") return hasMiniQrPayload ? "qr-code" : "base64";
+  if (configuredMode === "multipart") return "qr-image";
+  return configuredMode;
+}
+
+function dataUrlBase64(contentType: string, bytes: Buffer) {
+  return `data:${contentType};base64,${bytes.toString("base64")}`;
+}
+
+function summarizeRaw(value: unknown) {
+  const text =
+    typeof value === "string" ? value : JSON.stringify(value ?? null, null, 2);
+  return text.length > 600 ? `${text.slice(0, 600)}...` : text;
+}
+
 export async function verifySlipWithSlip2Go(
   input: Slip2GoVerificationInput,
 ): Promise<Slip2GoVerificationResult> {
-  const apiUrl = getEnv("SLIP2GO_API_URL");
-  if (!apiUrl) {
-    throw new Error("SLIP2GO_API_URL is not configured.");
+  if (!isSlip2GoConfigured()) {
+    throw new Error("SLIP2GO_API_URL or SLIP2GO_API_BASE_URL is not configured.");
   }
 
   const startedAt = Date.now();
-  const mode = getEnv("SLIP2GO_REQUEST_MODE", "multipart").toLowerCase();
+  const configuredMode = getEnv("SLIP2GO_REQUEST_MODE", "auto").toLowerCase();
   const qrField = getEnv("SLIP2GO_QR_FIELD", "qrCode");
-  const imageField = getEnv("SLIP2GO_IMAGE_FIELD", "image");
-  const base64Field = getEnv("SLIP2GO_BASE64_FIELD", "image");
+  const imageField = getEnv("SLIP2GO_IMAGE_FIELD", "file");
+  const base64Field = getEnv("SLIP2GO_BASE64_FIELD", "imageBase64");
   const miniQrPayload = input.miniQrPayload?.trim() || "";
+  const mode = resolveRequestMode(configuredMode, Boolean(miniQrPayload));
+  const endpoint = resolveEndpoint(mode);
 
   const headers: HeadersInit = authHeaders();
   let body: BodyInit;
 
-  if (mode === "json") {
+  if (mode === "qr-code") {
     headers["Content-Type"] = "application/json";
-    body = JSON.stringify(
-      miniQrPayload
-        ? { [qrField]: miniQrPayload }
-        : {
-            [base64Field]: input.slipBytes.toString("base64"),
-            fileName: input.slipFileName,
-            mimeType: input.slipContentType,
-          },
-    );
-  } else {
+    body = JSON.stringify({
+      payload: {
+        [qrField]: miniQrPayload,
+      },
+    });
+  } else if (mode === "base64") {
+    headers["Content-Type"] = "application/json";
+    body = JSON.stringify({
+      payload: {
+        [base64Field]: dataUrlBase64(input.slipContentType, input.slipBytes),
+      },
+    });
+  } else if (mode === "qr-image") {
     const formData = new FormData();
-    if (miniQrPayload) formData.set(qrField, miniQrPayload);
     const fileBuffer = new ArrayBuffer(input.slipBytes.byteLength);
     new Uint8Array(fileBuffer).set(input.slipBytes);
     formData.set(
@@ -209,9 +253,23 @@ export async function verifySlipWithSlip2Go(
       input.slipFileName,
     );
     body = formData;
+  } else {
+    throw new Error(
+      `Unsupported SLIP2GO_REQUEST_MODE "${configuredMode}". Use auto, qr-code, qr-image, base64, json, or multipart.`,
+    );
   }
 
-  const response = await fetch(apiUrl, {
+  console.log("[slip2go] verifying slip", {
+    endpoint,
+    mode,
+    hasMiniQrPayload: Boolean(miniQrPayload),
+    fileName: input.slipFileName,
+    contentType: input.slipContentType,
+    sizeBytes: input.slipBytes.byteLength,
+    authHeader: getEnv("SLIP2GO_AUTH_HEADER", "Authorization"),
+  });
+
+  const response = await fetch(endpoint, {
     method: getEnv("SLIP2GO_METHOD", "POST"),
     headers,
     body,
@@ -219,15 +277,31 @@ export async function verifySlipWithSlip2Go(
   });
   const raw = await parseResponse(response);
   const verified = inferVerified(response.ok, raw);
+  const responseSummary = summarizeRaw(raw);
+
+  if (!response.ok) {
+    console.warn("[slip2go] verification request failed", {
+      endpoint,
+      mode,
+      httpStatus: response.status,
+      response: responseSummary,
+      durationMs: Date.now() - startedAt,
+    });
+  }
 
   return {
     ok: response.ok,
     verified,
     status: inferStatus(raw, response.ok),
+    httpStatus: response.status,
+    endpoint,
+    requestMode: mode,
     transRef: inferTransRef(raw),
     amountThb: inferAmountThb(raw),
     raw,
-    error: response.ok ? null : `Slip2Go returned HTTP ${response.status}.`,
+    error: response.ok
+      ? null
+      : `Slip2Go returned HTTP ${response.status}: ${responseSummary}`,
     durationMs: Date.now() - startedAt,
   };
 }

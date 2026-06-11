@@ -225,6 +225,9 @@ export async function POST(request: Request) {
       slipId: slip.id,
       status: slip.status,
       slip2goStatus: verification.status,
+      slip2goHttpStatus: verification.httpStatus,
+      slip2goEndpoint: verification.endpoint,
+      slip2goRequestMode: verification.requestMode,
       transRef: verification.transRef,
       verifiedAmountThb: verification.amountThb,
       expectedAmountThb: subscriptionPackage.priceThb,
@@ -238,6 +241,8 @@ export async function POST(request: Request) {
         slip,
         verification: {
           status: verification.status,
+          httpStatus: verification.httpStatus,
+          requestMode: verification.requestMode,
           transRef: verification.transRef,
           amountThb: verification.amountThb,
           durationMs: verification.durationMs,
