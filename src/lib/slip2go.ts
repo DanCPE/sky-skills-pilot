@@ -29,6 +29,8 @@ const successStatuses = new Set([
   "ok",
   "true",
   "200",
+  "200000",
+  "200200",
 ]);
 
 const transRefKeys = new Set([
