@@ -142,6 +142,7 @@ export interface ManualPaymentConfig {
   accountName: string;
   accountNumber: string;
   promptPayId: string;
+  paymentQrImageUrl: string;
   defaultAmountThb: number | null;
   currency: string;
 }
@@ -341,6 +342,7 @@ async function canUseExistingAccountSchema(pool: Pool) {
         to_regclass('public.account_quiz_access') IS NOT NULL AS has_quiz_access,
         to_regclass('public.account_manual_payment_slips') IS NOT NULL AS has_payment_slips,
         to_regclass('public.account_subscription_packages') IS NOT NULL AS has_packages,
+        to_regclass('public.account_billing_assets') IS NOT NULL AS has_billing_assets,
         EXISTS (
           SELECT 1
           FROM information_schema.columns
@@ -574,6 +576,16 @@ export async function ensureAccountSchema() {
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
         sort_order INT NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+      await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_billing_assets (
+        key TEXT PRIMARY KEY,
+        file_name TEXT,
+        content_type TEXT,
+        bytes BYTEA,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
@@ -1358,6 +1370,7 @@ export function getManualPaymentConfig(): ManualPaymentConfig {
     accountName: process.env.MANUAL_PAYMENT_ACCOUNT_NAME || "",
     accountNumber: process.env.MANUAL_PAYMENT_ACCOUNT_NUMBER || "",
     promptPayId: process.env.MANUAL_PAYMENT_PROMPTPAY_ID || "",
+    paymentQrImageUrl: "/api/billing/payment-qr",
     defaultAmountThb:
       Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : null,
     currency: process.env.MANUAL_PAYMENT_CURRENCY || "THB",
@@ -2337,6 +2350,76 @@ export async function getSubscriptionPackageFile(
   };
 }
 
+export async function getBillingAssetFile(key: string) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT file_name, content_type, bytes
+      FROM account_billing_assets
+      WHERE key = $1
+      LIMIT 1;
+    `,
+    [key],
+  );
+
+  if (result.rowCount === 0 || !result.rows[0].bytes) return null;
+  return {
+    fileName: result.rows[0].file_name
+      ? String(result.rows[0].file_name)
+      : key,
+    contentType: result.rows[0].content_type
+      ? String(result.rows[0].content_type)
+      : "image/png",
+    bytes: result.rows[0].bytes as Buffer,
+  };
+}
+
+export async function updatePaymentQrAsset(input: {
+  fileName: string;
+  contentType: string;
+  bytes: Buffer;
+}) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      INSERT INTO account_billing_assets (
+        key,
+        file_name,
+        content_type,
+        bytes,
+        updated_at
+      )
+      VALUES ('payment_qr', $1, $2, $3, NOW())
+      ON CONFLICT (key)
+      DO UPDATE SET
+        file_name = EXCLUDED.file_name,
+        content_type = EXCLUDED.content_type,
+        bytes = EXCLUDED.bytes,
+        updated_at = NOW()
+      RETURNING key, file_name, content_type, updated_at;
+    `,
+    [input.fileName, input.contentType, input.bytes],
+  );
+
+  accountDebug("payment QR asset updated", {
+    fileName: input.fileName,
+    contentType: input.contentType,
+  });
+
+  return {
+    key: String(result.rows[0].key),
+    fileName: result.rows[0].file_name
+      ? String(result.rows[0].file_name)
+      : null,
+    contentType: result.rows[0].content_type
+      ? String(result.rows[0].content_type)
+      : null,
+    updatedAt: new Date(String(result.rows[0].updated_at)).toISOString(),
+  };
+}
+
 export async function updateSubscriptionPackage(input: {
   key: string;
   title: string;
@@ -2347,11 +2430,6 @@ export async function updateSubscriptionPackage(input: {
   isActive: boolean;
   sortOrder: number;
   image?: {
-    fileName: string;
-    contentType: string;
-    bytes: Buffer;
-  } | null;
-  qrImage?: {
     fileName: string;
     contentType: string;
     bytes: Buffer;
@@ -2379,9 +2457,6 @@ export async function updateSubscriptionPackage(input: {
         image_file_name,
         image_content_type,
         image_bytes,
-        qr_file_name,
-        qr_content_type,
-        qr_bytes,
         updated_at
       )
       VALUES (
@@ -2396,9 +2471,6 @@ export async function updateSubscriptionPackage(input: {
         $9,
         $10,
         $11,
-        $12,
-        $13,
-        $14,
         NOW()
       )
       ON CONFLICT (key)
@@ -2413,9 +2485,6 @@ export async function updateSubscriptionPackage(input: {
         image_file_name = COALESCE(EXCLUDED.image_file_name, account_subscription_packages.image_file_name),
         image_content_type = COALESCE(EXCLUDED.image_content_type, account_subscription_packages.image_content_type),
         image_bytes = COALESCE(EXCLUDED.image_bytes, account_subscription_packages.image_bytes),
-        qr_file_name = COALESCE(EXCLUDED.qr_file_name, account_subscription_packages.qr_file_name),
-        qr_content_type = COALESCE(EXCLUDED.qr_content_type, account_subscription_packages.qr_content_type),
-        qr_bytes = COALESCE(EXCLUDED.qr_bytes, account_subscription_packages.qr_bytes),
         updated_at = NOW()
       RETURNING *;
     `,
@@ -2431,9 +2500,6 @@ export async function updateSubscriptionPackage(input: {
       input.image?.fileName ?? null,
       input.image?.contentType ?? null,
       input.image?.bytes ?? null,
-      input.qrImage?.fileName ?? null,
-      input.qrImage?.contentType ?? null,
-      input.qrImage?.bytes ?? null,
     ],
   );
 

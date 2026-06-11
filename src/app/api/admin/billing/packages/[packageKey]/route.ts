@@ -59,7 +59,6 @@ export async function PATCH(
       isActive: formData.getAll("isActive").map(String).includes("true"),
       sortOrder: Number(formData.get("sortOrder") ?? 0),
       image: await readOptionalImage(formData, "image"),
-      qrImage: await readOptionalImage(formData, "qrImage"),
     });
 
     return NextResponse.json({

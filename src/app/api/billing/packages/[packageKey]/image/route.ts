@@ -25,7 +25,7 @@ export async function GET(
   return new NextResponse(Uint8Array.from(file.bytes).buffer, {
     headers: {
       "Content-Type": file.contentType,
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": "no-cache, max-age=0, must-revalidate",
     },
   });
 }

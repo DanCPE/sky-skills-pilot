@@ -66,9 +66,8 @@ export default function ManualSlipPaymentForm({
   const [selectedSlip, setSelectedSlip] = useState<ManualPaymentSlip | null>(
     null,
   );
-  const [qrFailedKey, setQrFailedKey] = useState<string | null>(null);
+  const [paymentQrFailed, setPaymentQrFailed] = useState(false);
 
-  const hasBankDetails = Boolean(config.accountName || config.accountNumber);
   const selectedPackage =
     packages.find((item) => item.key === selectedPackageKey) ?? null;
   const previewUrl = useMemo(() => {
@@ -194,7 +193,6 @@ export default function ManualSlipPaymentForm({
                 type="button"
                 onClick={() => {
                   setSelectedPackageKey(pkg.key);
-                  setQrFailedKey(null);
                 }}
                 className={`overflow-hidden rounded-2xl border text-left transition ${
                   isSelected
@@ -236,80 +234,43 @@ export default function ManualSlipPaymentForm({
 
       <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
         <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
-          Bank Transfer
+          Payment QR
         </p>
-        <h2 className="mt-2 text-2xl font-bold">Krungthai Manual Approval</h2>
+        <h2 className="mt-2 text-2xl font-bold">Reusable Receiving QR</h2>
         <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-          Transfer to the business account, upload your slip, then Slip2Go will
-          verify the bank transaction. Verified fleets unlock all paid quizzes.
+          Scan the shared receiving QR, enter the exact selected package amount,
+          then upload your slip. Slip2Go verifies the bank transaction before
+          access is unlocked.
         </p>
-
-        <div className="mt-6 space-y-3 rounded-2xl bg-zinc-50 p-4 text-sm dark:bg-white/5">
-          <div>
-            <p className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
-              Bank
-            </p>
-            <p className="font-bold">{config.bankName}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
-              Account Name
-            </p>
-            <p className="font-bold">{config.accountName || "Not configured"}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
-              Account Number
-            </p>
-            <p className="font-bold">{config.accountNumber || "Not configured"}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
-              PromptPay
-            </p>
-            <p className="font-bold">{config.promptPayId || "Not configured"}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase text-zinc-500 dark:text-zinc-400">
-              Selected Package
-            </p>
-            <p className="font-bold">
-              {selectedPackage
-                ? `${selectedPackage.title} · ${formatAmount(selectedPackage.priceThb)}`
-                : "Select a package"}
-            </p>
-          </div>
-        </div>
 
         {selectedPackage ? (
-          <div className="mt-5 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
-            <p className="text-sm font-bold">Package QR Code</p>
-            {qrFailedKey === selectedPackage.key ? (
+          <div className="mt-6 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
+            <p className="text-sm font-bold">Pay Exactly</p>
+            <p className="mt-1 text-3xl font-bold text-violet-700 dark:text-violet-300">
+              {formatAmount(selectedPackage.priceThb)}
+            </p>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              {selectedPackage.title}
+            </p>
+            {paymentQrFailed ? (
               <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100">
-                QR image is not configured for this package yet.
+                Payment QR is not configured yet.
               </div>
             ) : (
               <div className="mt-3 rounded-xl bg-white p-3">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img
-                  src={selectedPackage.qrImageUrl}
-                  alt={`${selectedPackage.title} payment QR`}
-                  onError={() => setQrFailedKey(selectedPackage.key)}
+                  src={config.paymentQrImageUrl}
+                  alt="Payment receiving QR"
+                  onError={() => setPaymentQrFailed(true)}
                   className="mx-auto max-h-72 w-auto max-w-full object-contain"
                 />
               </div>
             )}
             <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-              Scan this QR for {formatAmount(selectedPackage.priceThb)} and
-              upload the transfer slip.
+              The QR receives payment only. The selected amount is verified from
+              your uploaded slip.
             </p>
-          </div>
-        ) : null}
-
-        {!hasBankDetails ? (
-          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100">
-            Configure `MANUAL_PAYMENT_ACCOUNT_NAME` and
-            `MANUAL_PAYMENT_ACCOUNT_NUMBER` before accepting live transfers.
           </div>
         ) : null}
       </section>

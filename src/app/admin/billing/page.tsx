@@ -36,6 +36,13 @@ function formatAmount(value: number) {
   }).format(value);
 }
 
+function versionedImageUrl(url: string, version: string | number | null | undefined) {
+  if (!url) return "";
+  if (!version) return url;
+  const separator = url.includes("?") ? "&" : "?";
+  return `${url}${separator}v=${encodeURIComponent(String(version))}`;
+}
+
 function slipStatusClass(status: ManualPaymentSlip["status"]) {
   if (status === "approved") {
     return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
@@ -201,6 +208,38 @@ export default function AdminBillingPage() {
         packageError instanceof Error
           ? packageError.message
           : "Failed to update package.",
+      );
+    } finally {
+      setPendingKey(null);
+    }
+  }
+
+  async function updatePaymentQr(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setPendingKey("payment-qr");
+    setError(null);
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      const response = await fetch("/api/admin/billing/payment-qr", {
+        method: "PATCH",
+        body: formData,
+      });
+      const json = (await response.json().catch(() => null)) as
+        | { overview?: AdminBillingResponse; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(json?.error ?? "Failed to update payment QR.");
+      }
+
+      if (json?.overview) setData(json.overview);
+      event.currentTarget.reset();
+    } catch (qrError) {
+      setError(
+        qrError instanceof Error
+          ? qrError.message
+          : "Failed to update payment QR.",
       );
     } finally {
       setPendingKey(null);
@@ -422,10 +461,51 @@ export default function AdminBillingPage() {
           <div className="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
             <h2 className="text-lg font-bold">Package Management</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Adjust subscription card text, price, package image, and the QR
-              image shown after a user selects a package.
+              Adjust subscription card text, price, package image, and display
+              order. Payment uses the shared receiving QR below.
             </p>
           </div>
+          <form
+            onSubmit={(event) => void updatePaymentQr(event)}
+            className="m-5 grid gap-4 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-500/20 dark:bg-violet-500/10 lg:grid-cols-[220px_1fr_auto]"
+          >
+            <div className="overflow-hidden rounded-xl bg-white p-3 dark:bg-black">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={versionedImageUrl(
+                  data?.manualPaymentConfig.paymentQrImageUrl ?? "",
+                  data?.generatedAt,
+                )}
+                alt="Shared payment QR"
+                className="h-44 w-full object-contain"
+              />
+            </div>
+            <div>
+              <p className="text-sm font-bold">Shared Reusable Payment QR</p>
+              <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
+                Upload the single Krungthai receiving QR used for every package.
+                Users will manually enter the exact package amount, and Slip2Go
+                will verify the uploaded slip amount against the system price.
+              </p>
+              <label className="mt-4 block">
+                <span className="text-xs font-bold">Payment QR Image</span>
+                <input
+                  name="paymentQrImage"
+                  type="file"
+                  accept="image/png,image/jpeg,image/webp"
+                  required
+                  className="mt-1 w-full text-xs"
+                />
+              </label>
+            </div>
+            <button
+              type="submit"
+              disabled={pendingKey !== null}
+              className="self-end rounded-lg bg-violet-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
+            >
+              {pendingKey === "payment-qr" ? "Saving..." : "Save QR"}
+            </button>
+          </form>
           <div className="grid gap-4 p-5 lg:grid-cols-3">
             {(data?.subscriptionPackages ?? []).map((pkg) => {
               const key = `package:${pkg.key}`;
@@ -435,23 +515,13 @@ export default function AdminBillingPage() {
                   onSubmit={(event) => void updatePackage(event, pkg.key)}
                   className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10"
                 >
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={pkg.imageUrl}
-                        alt=""
-                        className="h-28 w-full object-cover"
-                      />
-                    </div>
-                    <div className="overflow-hidden rounded-xl bg-zinc-100 p-2 dark:bg-white/5">
-                      {/* eslint-disable-next-line @next/next/no-img-element */}
-                      <img
-                        src={pkg.qrImageUrl}
-                        alt=""
-                        className="h-24 w-full object-contain"
-                      />
-                    </div>
+                  <div className="overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={versionedImageUrl(pkg.imageUrl, pkg.updatedAt)}
+                      alt=""
+                      className="h-28 w-full object-cover"
+                    />
                   </div>
 
                   <label className="block">
@@ -518,15 +588,6 @@ export default function AdminBillingPage() {
                     <span className="text-xs font-bold">Card Image</span>
                     <input
                       name="image"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="mt-1 w-full text-xs"
-                    />
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-bold">QR Image</span>
-                    <input
-                      name="qrImage"
                       type="file"
                       accept="image/png,image/jpeg,image/webp"
                       className="mt-1 w-full text-xs"
