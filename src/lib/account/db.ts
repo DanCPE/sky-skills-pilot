@@ -129,6 +129,12 @@ export interface AdminBillingFleet {
   subscriptionStatus: string;
   provider: string | null;
   currentPeriodEnd: string | null;
+  latestPackageKey: string | null;
+  latestPackageTitle: string | null;
+  latestPackageAmountThb: number | null;
+  latestPackageDurationMonths: number | null;
+  latestSlipId: string | null;
+  latestSlip2goTransRef: string | null;
   profileCount: number;
   activeSessionCount: number;
   createdAt: string;
@@ -155,6 +161,7 @@ export interface SubscriptionPackage {
   priceCents: number;
   priceThb: number;
   currency: string;
+  durationMonths: number;
   imageUrl: string;
   qrImageUrl: string;
   isActive: boolean;
@@ -343,6 +350,13 @@ async function canUseExistingAccountSchema(pool: Pool) {
         to_regclass('public.account_manual_payment_slips') IS NOT NULL AS has_payment_slips,
         to_regclass('public.account_subscription_packages') IS NOT NULL AS has_packages,
         to_regclass('public.account_billing_assets') IS NOT NULL AS has_billing_assets,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'account_subscription_packages'
+            AND column_name = 'duration_months'
+        ) AS has_package_duration,
         EXISTS (
           SELECT 1
           FROM information_schema.columns
@@ -567,6 +581,7 @@ export async function ensureAccountSchema() {
         details JSONB NOT NULL DEFAULT '[]'::jsonb,
         price_cents INT NOT NULL,
         currency TEXT NOT NULL DEFAULT 'THB',
+        duration_months INT NOT NULL DEFAULT 1,
         image_file_name TEXT,
         image_content_type TEXT,
         image_bytes BYTEA,
@@ -579,6 +594,10 @@ export async function ensureAccountSchema() {
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+
+      await pool.query("ALTER TABLE account_subscription_packages ADD COLUMN IF NOT EXISTS duration_months INT NOT NULL DEFAULT 1;");
+      await pool.query("UPDATE account_subscription_packages SET duration_months = 6 WHERE key = 'first-officer' AND duration_months = 1;");
+      await pool.query("UPDATE account_subscription_packages SET duration_months = 12 WHERE key = 'captain' AND duration_months = 1;");
 
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_billing_assets (
@@ -603,6 +622,7 @@ export async function ensureAccountSchema() {
             description: "Start practicing with selected paid quizzes.",
             details: ["Paid quiz access", "Score history", "Skill dashboard"],
             priceCents: 19900,
+            durationMonths: 1,
             sortOrder: 10,
           },
           {
@@ -616,6 +636,7 @@ export async function ensureAccountSchema() {
               "Priority feature access",
             ],
             priceCents: 49900,
+            durationMonths: 6,
             sortOrder: 20,
           },
           {
@@ -629,6 +650,7 @@ export async function ensureAccountSchema() {
               "Future premium tools",
             ],
             priceCents: 99900,
+            durationMonths: 12,
             sortOrder: 30,
           },
         ];
@@ -643,9 +665,10 @@ export async function ensureAccountSchema() {
                 details,
                 price_cents,
                 currency,
+                duration_months,
                 sort_order
               )
-              VALUES ($1, $2, $3, $4, $5, 'THB', $6)
+              VALUES ($1, $2, $3, $4, $5, 'THB', $6, $7)
               ON CONFLICT (key) DO NOTHING;
             `,
             [
@@ -654,6 +677,7 @@ export async function ensureAccountSchema() {
               item.description,
               JSON.stringify(item.details),
               item.priceCents,
+              item.durationMonths,
               item.sortOrder,
             ],
           );
@@ -1352,6 +1376,7 @@ function mapSubscriptionPackage(row: Record<string, unknown>): SubscriptionPacka
     priceCents: Number(row.price_cents),
     priceThb: Number(row.price_cents) / 100,
     currency: String(row.currency),
+    durationMonths: Number(row.duration_months ?? 1),
     imageUrl: `/api/billing/packages/${key}/image`,
     qrImageUrl: `/api/billing/packages/${key}/qr`,
     isActive: Boolean(row.is_active),
@@ -2213,9 +2238,32 @@ export async function createManualPaymentSlip(input: {
             current_period_end,
             updated_at
           )
-          VALUES ($1, 'slip2go', $2, 'active', NULL, NOW());
+          SELECT
+            $1,
+            'slip2go',
+            $2,
+            'active',
+            NOW() + make_interval(
+              months => GREATEST(
+                1,
+                COALESCE(
+                  (
+                    SELECT duration_months
+                    FROM account_subscription_packages
+                    WHERE key = $3
+                    LIMIT 1
+                  ),
+                  1
+                )
+              )
+            ),
+            NOW();
         `,
-        [input.user.fleetId, input.slip2goTransRef?.trim() || result.rows[0].id],
+        [
+          input.user.fleetId,
+          input.slip2goTransRef?.trim() || result.rows[0].id,
+          input.planKey ?? "full_access",
+        ],
       );
     }
 
@@ -2426,14 +2474,10 @@ export async function updateSubscriptionPackage(input: {
   description: string;
   details: string[];
   priceThb: number;
+  durationMonths: number;
   currency?: string;
   isActive: boolean;
   sortOrder: number;
-  image?: {
-    fileName: string;
-    contentType: string;
-    bytes: Buffer;
-  } | null;
 }) {
   await ensureAccountSchema();
 
@@ -2441,6 +2485,9 @@ export async function updateSubscriptionPackage(input: {
   if (!input.title.trim()) throw new Error("Package title is required.");
   if (!Number.isFinite(input.priceThb) || input.priceThb <= 0) {
     throw new Error("Package price must be greater than zero.");
+  }
+  if (![1, 6, 12].includes(input.durationMonths)) {
+    throw new Error("Package duration must be 1, 6, or 12 months.");
   }
 
   const result = await getPool().query(
@@ -2452,11 +2499,9 @@ export async function updateSubscriptionPackage(input: {
         details,
         price_cents,
         currency,
+        duration_months,
         is_active,
         sort_order,
-        image_file_name,
-        image_content_type,
-        image_bytes,
         updated_at
       )
       VALUES (
@@ -2469,8 +2514,6 @@ export async function updateSubscriptionPackage(input: {
         $7,
         $8,
         $9,
-        $10,
-        $11,
         NOW()
       )
       ON CONFLICT (key)
@@ -2480,11 +2523,9 @@ export async function updateSubscriptionPackage(input: {
         details = EXCLUDED.details,
         price_cents = EXCLUDED.price_cents,
         currency = EXCLUDED.currency,
+        duration_months = EXCLUDED.duration_months,
         is_active = EXCLUDED.is_active,
         sort_order = EXCLUDED.sort_order,
-        image_file_name = COALESCE(EXCLUDED.image_file_name, account_subscription_packages.image_file_name),
-        image_content_type = COALESCE(EXCLUDED.image_content_type, account_subscription_packages.image_content_type),
-        image_bytes = COALESCE(EXCLUDED.image_bytes, account_subscription_packages.image_bytes),
         updated_at = NOW()
       RETURNING *;
     `,
@@ -2495,11 +2536,9 @@ export async function updateSubscriptionPackage(input: {
       JSON.stringify(input.details.map((item) => item.trim()).filter(Boolean)),
       Math.round(input.priceThb * 100),
       input.currency || "THB",
+      input.durationMonths,
       input.isActive,
       input.sortOrder,
-      input.image?.fileName ?? null,
-      input.image?.contentType ?? null,
-      input.image?.bytes ?? null,
     ],
   );
 
@@ -2647,9 +2686,28 @@ export async function reviewManualPaymentSlip(input: {
             current_period_end,
             updated_at
           )
-          VALUES ($1, 'manual-slip', $2, 'active', NULL, NOW());
+          SELECT
+            $1,
+            'manual-slip',
+            $2,
+            'active',
+            NOW() + make_interval(
+              months => GREATEST(
+                1,
+                COALESCE(
+                  (
+                    SELECT duration_months
+                    FROM account_subscription_packages
+                    WHERE key = $3
+                    LIMIT 1
+                  ),
+                  1
+                )
+              )
+            ),
+            NOW();
         `,
-        [slipResult.rows[0].user_id, input.slipId],
+        [slipResult.rows[0].user_id, input.slipId, slipResult.rows[0].plan_key],
       );
     }
 
@@ -2704,6 +2762,12 @@ export async function getAdminBillingOverview() {
           COALESCE(s.status, 'not_started') AS subscription_status,
           s.provider,
           s.current_period_end,
+          latest_slip.plan_key AS latest_package_key,
+          pkg.title AS latest_package_title,
+          latest_slip.amount_cents AS latest_package_amount_cents,
+          pkg.duration_months AS latest_package_duration_months,
+          latest_slip.id AS latest_slip_id,
+          latest_slip.slip2go_trans_ref AS latest_slip2go_trans_ref,
           COUNT(DISTINCT p.id)::int AS profile_count,
           COUNT(DISTINCT sess.id)::int AS active_session_count
         FROM account_users u
@@ -2714,12 +2778,32 @@ export async function getAdminBillingOverview() {
           ORDER BY sub.created_at DESC
           LIMIT 1
         ) s ON TRUE
+        LEFT JOIN LATERAL (
+          SELECT *
+          FROM account_manual_payment_slips slip
+          WHERE slip.user_id = u.id
+            AND slip.status = 'approved'
+          ORDER BY slip.reviewed_at DESC NULLS LAST, slip.created_at DESC
+          LIMIT 1
+        ) latest_slip ON TRUE
+        LEFT JOIN account_subscription_packages pkg
+          ON pkg.key = latest_slip.plan_key
         LEFT JOIN account_profiles p
           ON p.user_id = u.id
         LEFT JOIN account_sessions sess
           ON sess.user_id = u.id
          AND sess.expires_at > NOW()
-        GROUP BY u.id, s.status, s.provider, s.current_period_end
+        GROUP BY
+          u.id,
+          s.status,
+          s.provider,
+          s.current_period_end,
+          latest_slip.plan_key,
+          latest_slip.id,
+          latest_slip.amount_cents,
+          latest_slip.slip2go_trans_ref,
+          pkg.title,
+          pkg.duration_months
         ORDER BY u.created_at DESC;
       `,
     ),
@@ -2737,6 +2821,26 @@ export async function getAdminBillingOverview() {
     provider: row.provider ? String(row.provider) : null,
     currentPeriodEnd: row.current_period_end
       ? new Date(String(row.current_period_end)).toISOString()
+      : null,
+    latestPackageKey: row.latest_package_key
+      ? String(row.latest_package_key)
+      : null,
+    latestPackageTitle: row.latest_package_title
+      ? String(row.latest_package_title)
+      : null,
+    latestPackageAmountThb:
+      row.latest_package_amount_cents === null ||
+      row.latest_package_amount_cents === undefined
+        ? null
+        : Number(row.latest_package_amount_cents) / 100,
+    latestPackageDurationMonths:
+      row.latest_package_duration_months === null ||
+      row.latest_package_duration_months === undefined
+        ? null
+        : Number(row.latest_package_duration_months),
+    latestSlipId: row.latest_slip_id ? String(row.latest_slip_id) : null,
+    latestSlip2goTransRef: row.latest_slip2go_trans_ref
+      ? String(row.latest_slip2go_trans_ref)
       : null,
     profileCount: Number(row.profile_count ?? 0),
     activeSessionCount: Number(row.active_session_count ?? 0),

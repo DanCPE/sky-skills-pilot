@@ -8,28 +8,6 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
-const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
-
-async function readOptionalImage(formData: FormData, key: string) {
-  const file = formData.get(key);
-  if (!(file instanceof File) || file.size === 0) return null;
-
-  if (!allowedImageTypes.has(file.type)) {
-    throw new Error(`${key} must be a JPG, PNG, or WEBP image.`);
-  }
-
-  if (file.size > MAX_IMAGE_BYTES) {
-    throw new Error(`${key} must be 4MB or smaller.`);
-  }
-
-  return {
-    fileName: file.name || key,
-    contentType: file.type,
-    bytes: Buffer.from(await file.arrayBuffer()),
-  };
-}
-
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ packageKey: string }> },
@@ -55,10 +33,10 @@ export async function PATCH(
       description: String(formData.get("description") ?? ""),
       details,
       priceThb: Number(formData.get("priceThb") ?? 0),
+      durationMonths: Number(formData.get("durationMonths") ?? 1),
       currency: String(formData.get("currency") ?? "THB"),
       isActive: formData.getAll("isActive").map(String).includes("true"),
       sortOrder: Number(formData.get("sortOrder") ?? 0),
-      image: await readOptionalImage(formData, "image"),
     });
 
     return NextResponse.json({

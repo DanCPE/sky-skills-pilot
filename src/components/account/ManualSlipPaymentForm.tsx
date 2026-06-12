@@ -46,13 +46,17 @@ export default function ManualSlipPaymentForm({
   config,
   initialSlips,
   packages,
+  initialPackageKey,
 }: {
   config: ManualPaymentConfig;
   initialSlips: ManualPaymentSlip[];
   packages: SubscriptionPackage[];
+  initialPackageKey?: string;
 }) {
   const [selectedPackageKey, setSelectedPackageKey] = useState(
-    packages[0]?.key ?? "",
+    packages.some((pkg) => pkg.key === initialPackageKey)
+      ? initialPackageKey ?? ""
+      : packages[0]?.key ?? "",
   );
   const [transferReference, setTransferReference] = useState("");
   const [miniQrPayload, setMiniQrPayload] = useState("");
@@ -220,6 +224,10 @@ export default function ManualSlipPaymentForm({
                       {formatAmount(pkg.priceThb)}
                     </span>
                   </div>
+                  <p className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
+                    {pkg.durationMonths}{" "}
+                    {pkg.durationMonths === 1 ? "month" : "months"} access
+                  </p>
                   <ul className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
                     {pkg.details.map((detail) => (
                       <li key={detail}>• {detail}</li>
@@ -250,7 +258,8 @@ export default function ManualSlipPaymentForm({
               {formatAmount(selectedPackage.priceThb)}
             </p>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              {selectedPackage.title}
+              {selectedPackage.title} · {selectedPackage.durationMonths}{" "}
+              {selectedPackage.durationMonths === 1 ? "month" : "months"}
             </p>
             {paymentQrFailed ? (
               <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100">
@@ -281,7 +290,7 @@ export default function ManualSlipPaymentForm({
           <div className="rounded-xl bg-zinc-50 p-4 text-sm dark:bg-white/5">
             <p className="font-bold">
               {selectedPackage
-                ? `${selectedPackage.title} · ${formatAmount(selectedPackage.priceThb)}`
+                ? `${selectedPackage.title} · ${formatAmount(selectedPackage.priceThb)} · ${selectedPackage.durationMonths} ${selectedPackage.durationMonths === 1 ? "month" : "months"}`
                 : "Select a package before uploading"}
             </p>
             <p className="mt-1 text-zinc-500 dark:text-zinc-400">

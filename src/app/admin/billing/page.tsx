@@ -22,13 +22,33 @@ interface AdminBillingResponse {
 
 type SlipTimeSort = "newest" | "oldest";
 
+const TABLE_PAGE_SIZE = 10;
+
 function formatDate(value: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
 }
 
-function paidLabel(status: string) {
-  return status === "active" || status === "trialing" ? "Paid" : "Free";
+function formatDateOnly(value: string | null) {
+  if (!value) return "-";
+  return new Date(value).toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+  });
+}
+
+function isPaidSubscription(
+  status: string,
+  currentPeriodEnd: string | null | undefined,
+) {
+  if (status !== "active" && status !== "trialing") return false;
+  if (!currentPeriodEnd) return true;
+  return new Date(currentPeriodEnd).getTime() > Date.now();
+}
+
+function paidLabel(status: string, currentPeriodEnd?: string | null) {
+  return isPaidSubscription(status, currentPeriodEnd) ? "Paid" : "Free";
 }
 
 function formatAmount(value: number) {
@@ -55,9 +75,69 @@ function slipStatusClass(status: ManualPaymentSlip["status"]) {
   return "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100";
 }
 
+function getPageCount(totalItems: number) {
+  return Math.max(1, Math.ceil(totalItems / TABLE_PAGE_SIZE));
+}
+
+function getPageWindow(totalItems: number, page: number) {
+  if (totalItems === 0) {
+    return { start: 0, end: 0 };
+  }
+
+  const start = (page - 1) * TABLE_PAGE_SIZE + 1;
+  const end = Math.min(page * TABLE_PAGE_SIZE, totalItems);
+  return { start, end };
+}
+
+function TablePagination({
+  label,
+  page,
+  pageCount,
+  totalItems,
+  onPageChange,
+}: {
+  label: string;
+  page: number;
+  pageCount: number;
+  totalItems: number;
+  onPageChange: (page: number) => void;
+}) {
+  const { start, end } = getPageWindow(totalItems, page);
+
+  return (
+    <div className="flex flex-col gap-3 border-t border-zinc-100 px-4 py-3 text-sm text-zinc-500 dark:border-white/10 dark:text-zinc-400 sm:flex-row sm:items-center sm:justify-between">
+      <p>
+        Showing {start}-{end} of {totalItems} {label}
+      </p>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-zinc-200 dark:hover:border-violet-400 dark:hover:text-violet-200"
+        >
+          Previous
+        </button>
+        <span className="min-w-20 text-center text-xs font-bold text-zinc-700 dark:text-zinc-200">
+          Page {page} / {pageCount}
+        </span>
+        <button
+          type="button"
+          disabled={page >= pageCount}
+          onClick={() => onPageChange(page + 1)}
+          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-40 dark:border-white/10 dark:text-zinc-200 dark:hover:border-violet-400 dark:hover:text-violet-200"
+        >
+          Next
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export default function AdminBillingPage() {
   const [data, setData] = useState<AdminBillingResponse | null>(null);
   const [query, setQuery] = useState("");
+  const [slipReferenceQuery, setSlipReferenceQuery] = useState("");
   const [newEmail, setNewEmail] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
@@ -66,6 +146,8 @@ export default function AdminBillingPage() {
   const [selectedSlip, setSelectedSlip] = useState<ManualPaymentSlip | null>(
     null,
   );
+  const [slipPage, setSlipPage] = useState(1);
+  const [fleetPage, setFleetPage] = useState(1);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -101,6 +183,14 @@ export default function AdminBillingPage() {
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    setFleetPage(1);
+  }, [query]);
+
+  useEffect(() => {
+    setSlipPage(1);
+  }, [slipReferenceQuery, slipTimeSort]);
 
   const filteredFleets = useMemo(() => {
     const fleets = data?.fleets ?? [];
@@ -162,7 +252,20 @@ export default function AdminBillingPage() {
     data?.manualPaymentSlips.filter((slip) => slip.status === "pending").length ??
     0;
   const sortedManualPaymentSlips = useMemo(() => {
-    const slips = [...(data?.manualPaymentSlips ?? [])];
+    const normalizedReferenceQuery = slipReferenceQuery.trim().toLowerCase();
+    const slips = (data?.manualPaymentSlips ?? []).filter((slip) => {
+      if (!normalizedReferenceQuery) return true;
+      return [
+        slip.slip2goTransRef,
+        slip.transferReference,
+        slip.miniQrPayload,
+        slip.email,
+        slip.planTitle,
+        slip.planKey,
+      ].some((value) =>
+        String(value ?? "").toLowerCase().includes(normalizedReferenceQuery),
+      );
+    });
     return slips.sort((first, second) => {
       const firstTime = new Date(first.createdAt).getTime();
       const secondTime = new Date(second.createdAt).getTime();
@@ -170,7 +273,35 @@ export default function AdminBillingPage() {
         ? secondTime - firstTime
         : firstTime - secondTime;
     });
-  }, [data?.manualPaymentSlips, slipTimeSort]);
+  }, [data?.manualPaymentSlips, slipReferenceQuery, slipTimeSort]);
+
+  const fleetPageCount = getPageCount(filteredFleets.length);
+  const activeFleetPage = Math.min(fleetPage, fleetPageCount);
+  const visibleFleets = useMemo(() => {
+    const start = (activeFleetPage - 1) * TABLE_PAGE_SIZE;
+    return filteredFleets.slice(start, start + TABLE_PAGE_SIZE);
+  }, [activeFleetPage, filteredFleets]);
+
+  const slipPageCount = getPageCount(sortedManualPaymentSlips.length);
+  const activeSlipPage = Math.min(slipPage, slipPageCount);
+  const visibleManualPaymentSlips = useMemo(() => {
+    const start = (activeSlipPage - 1) * TABLE_PAGE_SIZE;
+    return sortedManualPaymentSlips.slice(start, start + TABLE_PAGE_SIZE);
+  }, [activeSlipPage, sortedManualPaymentSlips]);
+
+  function openSlipFromFleet(slipId: string | null) {
+    if (!slipId) return;
+
+    const slip = data?.manualPaymentSlips.find((item) => item.id === slipId);
+    if (slip) {
+      setSelectedSlip(slip);
+      setSlipReferenceQuery(slip.slip2goTransRef ?? "");
+      setSlipPage(1);
+      document
+        .getElementById("payment-slip-approvals")
+        ?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }
 
   async function reviewSlip(
     slip: ManualPaymentSlip,
@@ -311,8 +442,9 @@ export default function AdminBillingPage() {
               Paid Fleets
             </p>
             <p className="mt-2 text-3xl font-bold">
-              {data?.fleets.filter((fleet) => paidLabel(fleet.subscriptionStatus) === "Paid")
-                .length ?? 0}
+              {data?.fleets.filter((fleet) =>
+                isPaidSubscription(fleet.subscriptionStatus, fleet.currentPeriodEnd),
+              ).length ?? 0}
             </p>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
@@ -331,7 +463,10 @@ export default function AdminBillingPage() {
           </div>
         </section>
 
-        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
+        <section
+          id="payment-slip-approvals"
+          className="scroll-mt-6 overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950"
+        >
           <div className="flex flex-col gap-3 border-b border-zinc-200 px-5 py-4 dark:border-white/10 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-lg font-bold">Payment Slip Approvals</h2>
@@ -347,19 +482,27 @@ export default function AdminBillingPage() {
                 </p>
               ) : null}
             </div>
-            <label className="flex items-center gap-2 text-sm font-bold">
-              Time
-              <select
-                value={slipTimeSort}
-                onChange={(event) =>
-                  setSlipTimeSort(event.target.value as SlipTimeSort)
-                }
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <input
+                value={slipReferenceQuery}
+                onChange={(event) => setSlipReferenceQuery(event.target.value)}
+                placeholder="Search ref no."
                 className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
-              >
-                <option value="newest">Newest first</option>
-                <option value="oldest">Oldest first</option>
-              </select>
-            </label>
+              />
+              <label className="flex items-center gap-2 text-sm font-bold">
+                Time
+                <select
+                  value={slipTimeSort}
+                  onChange={(event) =>
+                    setSlipTimeSort(event.target.value as SlipTimeSort)
+                  }
+                  className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
+                >
+                  <option value="newest">Newest first</option>
+                  <option value="oldest">Oldest first</option>
+                </select>
+              </label>
+            </div>
           </div>
           <div className="overflow-x-auto">
             <table className="min-w-full text-left text-sm">
@@ -397,11 +540,13 @@ export default function AdminBillingPage() {
                       colSpan={8}
                       className="border-t border-zinc-100 px-4 py-6 text-center text-zinc-500 dark:border-white/10 dark:text-zinc-400"
                     >
-                      No payment slips submitted yet.
+                      {slipReferenceQuery.trim()
+                        ? "No payment slips match this reference."
+                        : "No payment slips submitted yet."}
                     </td>
                   </tr>
                 ) : (
-                  sortedManualPaymentSlips.map((slip) => {
+                  visibleManualPaymentSlips.map((slip) => {
                     const approveKey = `slip:${slip.id}:approve`;
                     const rejectKey = `slip:${slip.id}:reject`;
                     return (
@@ -498,13 +643,20 @@ export default function AdminBillingPage() {
               </tbody>
             </table>
           </div>
+          <TablePagination
+            label="slips"
+            page={activeSlipPage}
+            pageCount={slipPageCount}
+            totalItems={sortedManualPaymentSlips.length}
+            onPageChange={setSlipPage}
+          />
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
           <div className="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
             <h2 className="text-lg font-bold">Package Management</h2>
             <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              Adjust subscription card text, price, package image, and display
+              Adjust subscription card text, price, life span, and display
               order. Payment uses the shared receiving QR below.
             </p>
           </div>
@@ -558,15 +710,6 @@ export default function AdminBillingPage() {
                   onSubmit={(event) => void updatePackage(event, pkg.key)}
                   className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10"
                 >
-                  <div className="overflow-hidden rounded-xl bg-zinc-100 dark:bg-white/5">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img
-                      src={versionedImageUrl(pkg.imageUrl, pkg.updatedAt)}
-                      alt=""
-                      className="h-28 w-full object-cover"
-                    />
-                  </div>
-
                   <label className="block">
                     <span className="text-xs font-bold">Title</span>
                     <input
@@ -595,7 +738,7 @@ export default function AdminBillingPage() {
                       className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
                     />
                   </label>
-                  <div className="grid grid-cols-2 gap-3">
+                  <div className="grid grid-cols-3 gap-3">
                     <label className="block">
                       <span className="text-xs font-bold">Price THB</span>
                       <input
@@ -604,6 +747,18 @@ export default function AdminBillingPage() {
                         inputMode="decimal"
                         className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
                       />
+                    </label>
+                    <label className="block">
+                      <span className="text-xs font-bold">Life Span</span>
+                      <select
+                        name="durationMonths"
+                        defaultValue={String(pkg.durationMonths)}
+                        className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                      >
+                        <option value="1">1 month</option>
+                        <option value="6">6 months</option>
+                        <option value="12">12 months</option>
+                      </select>
                     </label>
                     <label className="block">
                       <span className="text-xs font-bold">Sort</span>
@@ -626,15 +781,6 @@ export default function AdminBillingPage() {
                       className="h-4 w-4 accent-violet-700"
                     />
                     Active
-                  </label>
-                  <label className="block">
-                    <span className="text-xs font-bold">Card Image</span>
-                    <input
-                      name="image"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp"
-                      className="mt-1 w-full text-xs"
-                    />
                   </label>
                   <button
                     type="submit"
@@ -687,6 +833,7 @@ export default function AdminBillingPage() {
                 <tr>
                   <th className="px-4 py-3 font-bold">Email</th>
                   <th className="px-4 py-3 font-bold">Status</th>
+                  <th className="px-4 py-3 font-bold">Subscription Detail</th>
                   <th className="px-4 py-3 font-bold">Provider</th>
                   <th className="px-4 py-3 font-bold">Profiles</th>
                   <th className="px-4 py-3 font-bold">Sessions</th>
@@ -695,14 +842,29 @@ export default function AdminBillingPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredFleets.map((fleet) => {
-                  const isPaid = paidLabel(fleet.subscriptionStatus) === "Paid";
-                  const key = `fleet:${fleet.fleetId}`;
-                  return (
-                    <tr
-                      key={fleet.fleetId}
-                      className="border-t border-zinc-100 dark:border-white/10"
+                {filteredFleets.length === 0 ? (
+                  <tr>
+                    <td
+                      colSpan={8}
+                      className="border-t border-zinc-100 px-4 py-6 text-center text-zinc-500 dark:border-white/10 dark:text-zinc-400"
                     >
+                      {query.trim()
+                        ? "No fleets match this email."
+                        : "No registered fleets yet."}
+                    </td>
+                  </tr>
+                ) : (
+                  visibleFleets.map((fleet) => {
+                    const isPaid = isPaidSubscription(
+                      fleet.subscriptionStatus,
+                      fleet.currentPeriodEnd,
+                    );
+                    const key = `fleet:${fleet.fleetId}`;
+                    return (
+                      <tr
+                        key={fleet.fleetId}
+                        className="border-t border-zinc-100 dark:border-white/10"
+                      >
                       <td className="px-4 py-3">
                         <p className="font-bold">{fleet.email}</p>
                         <p className="text-xs text-zinc-500 dark:text-zinc-400">
@@ -717,8 +879,64 @@ export default function AdminBillingPage() {
                               : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
                           }`}
                         >
-                          {paidLabel(fleet.subscriptionStatus)}
+                          {paidLabel(
+                            fleet.subscriptionStatus,
+                            fleet.currentPeriodEnd,
+                          )}
                         </span>
+                      </td>
+                      <td className="min-w-60 px-4 py-3">
+                        {fleet.latestPackageTitle || fleet.latestPackageKey ? (
+                          <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            <p className="text-sm font-bold text-zinc-950 dark:text-zinc-100">
+                              {fleet.latestPackageTitle ??
+                                fleet.latestPackageKey}{" "}
+                              package
+                            </p>
+                            <p>
+                              {fleet.latestPackageAmountThb !== null
+                                ? formatAmount(fleet.latestPackageAmountThb)
+                                : "-"}
+                            </p>
+                            <p>
+                              {fleet.latestPackageDurationMonths
+                                ? `${fleet.latestPackageDurationMonths} ${
+                                    fleet.latestPackageDurationMonths === 1
+                                      ? "month"
+                                      : "months"
+                                  }`
+                                : "-"}
+                            </p>
+                            {fleet.latestSlip2goTransRef &&
+                            fleet.latestSlipId ? (
+                              <button
+                                type="button"
+                                onClick={() => openSlipFromFleet(fleet.latestSlipId)}
+                                className="text-left font-bold text-violet-700 hover:text-violet-500 dark:text-violet-300"
+                              >
+                                Slip2Go transRef {fleet.latestSlip2goTransRef}
+                              </button>
+                            ) : (
+                              <p>Slip2Go transRef -</p>
+                            )}
+                            <p>
+                              Expires {formatDateOnly(fleet.currentPeriodEnd)}
+                            </p>
+                          </div>
+                        ) : (
+                          <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
+                            <p className="text-sm font-bold text-zinc-950 dark:text-zinc-100">
+                              Manual override
+                            </p>
+                            <p>Package -</p>
+                            <p>Amount -</p>
+                            <p>Duration -</p>
+                            <p>Slip2Go transRef -</p>
+                            <p>
+                              Expires {formatDateOnly(fleet.currentPeriodEnd)}
+                            </p>
+                          </div>
+                        )}
                       </td>
                       <td className="px-4 py-3">{fleet.provider ?? "-"}</td>
                       <td className="px-4 py-3">{fleet.profileCount}</td>
@@ -748,11 +966,19 @@ export default function AdminBillingPage() {
                         </button>
                       </td>
                     </tr>
-                  );
-                })}
+                    );
+                  })
+                )}
               </tbody>
             </table>
           </div>
+          <TablePagination
+            label="fleets"
+            page={activeFleetPage}
+            pageCount={fleetPageCount}
+            totalItems={filteredFleets.length}
+            onPageChange={setFleetPage}
+          />
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">

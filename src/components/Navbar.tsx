@@ -137,6 +137,7 @@ export default function Navbar() {
           <div className="hidden flex-1 justify-center gap-8 text-[14px] font-medium tracking-wider md:flex">
             {navItems.map((item) => {
               const isActive =
+                (item.href === "/subscription" && pathname === "/payment") ||
                 pathname === item.href ||
                 (item.href !== "/" && pathname?.startsWith(item.href));
               return (
@@ -261,6 +262,7 @@ export default function Navbar() {
           <div className="space-y-4 py-4 md:hidden">
             {navItems.map((item) => {
               const isActive =
+                (item.href === "/subscription" && pathname === "/payment") ||
                 pathname === item.href ||
                 (item.href !== "/" && pathname?.startsWith(item.href));
               return (

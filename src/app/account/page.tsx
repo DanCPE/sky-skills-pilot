@@ -15,8 +15,13 @@ function monotonicMs() {
   return Number(process.hrtime.bigint() / BigInt(1000000));
 }
 
-function isPaidStatus(status: string | null | undefined) {
-  return status === "active" || status === "trialing";
+function isPaidStatus(
+  status: string | null | undefined,
+  currentPeriodEnd: string | null | undefined,
+) {
+  if (status !== "active" && status !== "trialing") return false;
+  if (!currentPeriodEnd) return true;
+  return new Date(currentPeriodEnd).getTime() > Date.now();
 }
 
 function formatAmount(value: number) {
@@ -64,7 +69,10 @@ export default async function AccountPage() {
     durationMs: monotonicMs() - settingsStartedAt,
     totalMs: monotonicMs() - pageStartedAt,
   });
-  const isPaid = isPaidStatus(overview.subscription?.status);
+  const isPaid = isPaidStatus(
+    overview.subscription?.status,
+    overview.subscription?.currentPeriodEnd,
+  );
   const latestSlip = overview.latestPaymentSlip;
 
   return (
@@ -192,6 +200,12 @@ export default async function AccountPage() {
                   <span className="font-bold">Provider</span>
                   <span className="text-zinc-500 dark:text-zinc-400">
                     {overview.subscription?.provider ?? "manual slip"}
+                  </span>
+                </div>
+                <div className="mt-2 flex justify-between gap-4">
+                  <span className="font-bold">Expires</span>
+                  <span className="text-right text-zinc-500 dark:text-zinc-400">
+                    {formatDate(overview.subscription?.currentPeriodEnd ?? null)}
                   </span>
                 </div>
               </div>
