@@ -128,15 +128,31 @@ export default function FoldingAnimation({
   images,
   faceAssignments,
   faceOrientations,
+  imageRotations = {},
   interactive = false,
+  initialProgress = 0,
+  title = "Fold Preview",
+  primaryLabel = "Flip",
+  primaryTarget = 1,
+  secondaryLabel = "Deflip",
+  secondaryTarget = 0,
+  className = "",
 }: {
   pattern: number[][];
   images: Record<number, string>;
   faceAssignments: Record<number, BoxFoldingFaceName>;
   faceOrientations: Record<number, BoxFoldingFaceOrientation>;
+  imageRotations?: Record<number, number>;
   interactive?: boolean;
+  initialProgress?: number;
+  title?: string;
+  primaryLabel?: string;
+  primaryTarget?: number;
+  secondaryLabel?: string;
+  secondaryTarget?: number;
+  className?: string;
 }) {
-  const [progress, setProgress] = useState(0);
+  const [progress, setProgress] = useState(initialProgress);
   const [tilt, setTilt] = useState({ x: 0, y: 0 });
   const frameRef = useRef<HTMLDivElement>(null);
   const [frameSize, setFrameSize] = useState({ width: 260, height: 192 });
@@ -148,7 +164,7 @@ export default function FoldingAnimation({
     tiltY: number;
   } | null>(null);
   const animationFrameRef = useRef<number | null>(null);
-  const progressRef = useRef(0);
+  const progressRef = useRef(initialProgress);
   const cellSize = 54;
   const cubeHalf = cellSize / 2;
   const foldTree = useMemo(() => buildFoldTree(pattern), [pattern]);
@@ -217,25 +233,25 @@ export default function FoldingAnimation({
   };
 
   return (
-    <div className="rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/15 dark:bg-slate-100">
+    <div className={`rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/15 dark:bg-slate-100 ${className}`}>
       <div className="mb-3 flex items-center justify-between gap-2">
         <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-          Fold Preview
+          {title}
         </span>
         <div className="flex gap-2">
           <button
             type="button"
-            onClick={() => animateTo(1)}
+            onClick={() => animateTo(primaryTarget)}
             className="rounded-lg bg-[#4F12A6] px-3 py-1.5 text-xs font-bold text-white transition hover:bg-violet-700 active:scale-95"
           >
-            Flip
+            {primaryLabel}
           </button>
           <button
             type="button"
-            onClick={() => animateTo(0)}
+            onClick={() => animateTo(secondaryTarget)}
             className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100 active:scale-95 dark:border-zinc-300 dark:bg-white dark:text-zinc-700"
           >
-            Deflip
+            {secondaryLabel}
           </button>
         </div>
       </div>
@@ -282,7 +298,7 @@ export default function FoldingAnimation({
             progress={progress}
             cellSize={cellSize}
             cubeHalf={cubeHalf}
-            imageRotations={{}}
+            imageRotations={imageRotations}
           />
         </div>
       </div>

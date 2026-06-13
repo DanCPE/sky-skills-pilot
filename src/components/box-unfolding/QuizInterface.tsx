@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
 import CubeViewer from "@/components/box-folding/CubeViewer";
+import FoldingAnimation from "@/components/box-folding/FoldingAnimation";
 import NetViewer from "@/components/box-folding/NetViewer";
 import QuizCompleteConfirmation from "@/components/shared/QuizCompleteConfirmation";
 import QuizSidebar from "@/components/shared/QuizSidebar";
@@ -92,21 +93,15 @@ function ReviewNet({
   question: BoxFoldingQuestion;
 }) {
   return (
-    <div className="flex h-full min-h-[180px] flex-col overflow-hidden rounded-xl border-2 border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-900">
-      <div className="flex shrink-0 items-center justify-between border-b border-zinc-100 px-3 py-2 dark:border-white/5">
-        <span className="flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-bold text-white dark:bg-white dark:text-zinc-950">
-          {option.label}
-        </span>
-        <span className="text-[10px] font-bold uppercase tracking-wide text-zinc-400">
-          Flat net
-        </span>
-      </div>
-      <div className="min-h-0 flex-1 p-2">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-900">
+      <span className="pointer-events-none absolute left-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-bold text-white shadow-sm dark:bg-white dark:text-zinc-950">
+        {option.label}
+      </span>
+      <div className="min-h-0 flex-1 overflow-hidden p-3">
         <NetViewer
           pattern={option.pattern ?? question.pattern}
           images={option.netImages}
           imageRotations={option.netImageRotations}
-          large
         />
       </div>
     </div>
@@ -148,35 +143,50 @@ function QuestionReview({
         </span>
       </div>
 
-      <div className="grid gap-4 lg:grid-cols-3">
-        <div>
+      <div className="grid items-start gap-4 lg:grid-cols-3">
+        <div className="flex min-h-0 flex-col">
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-500">
-            Folded Box
+            Unfold / Refold
           </p>
-          <CubeViewer
-            cube={question.canonicalCube}
-            view={BOX_FOLDING_CHOICE_VIEW}
-            interactive
-            showAllFaces
-          />
+          <div className="h-[260px]">
+            <FoldingAnimation
+              pattern={correct?.pattern ?? question.pattern}
+              images={correct?.netImages ?? question.images}
+              imageRotations={correct?.netImageRotations}
+              faceAssignments={question.faceAssignments}
+              faceOrientations={question.faceOrientations}
+              interactive
+              initialProgress={1}
+              title="Unfold Preview"
+              primaryLabel="Unfold"
+              primaryTarget={0}
+              secondaryLabel="Fold"
+              secondaryTarget={1}
+              className="h-full"
+            />
+          </div>
         </div>
-        <div>
+        <div className="flex min-h-0 flex-col">
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-500">
             Your Choice
           </p>
-          {selected ? (
-            <ReviewNet option={selected} question={question} />
-          ) : (
-            <div className="flex h-full min-h-[180px] items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 text-sm font-semibold text-zinc-400 dark:border-white/15">
-              No answer
-            </div>
-          )}
+          <div className="h-[260px]">
+            {selected ? (
+              <ReviewNet option={selected} question={question} />
+            ) : (
+              <div className="flex h-full items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 text-sm font-semibold text-zinc-400 dark:border-white/15">
+                No answer
+              </div>
+            )}
+          </div>
         </div>
-        <div>
+        <div className="flex min-h-0 flex-col">
           <p className="mb-2 text-xs font-bold uppercase tracking-wide text-zinc-500">
             Correct Net
           </p>
-          {correct && <ReviewNet option={correct} question={question} />}
+          <div className="h-[260px]">
+            {correct && <ReviewNet option={correct} question={question} />}
+          </div>
         </div>
       </div>
     </div>
@@ -265,11 +275,6 @@ function QuestionCard({
               <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
                 Answer Choices
               </h4>
-              {!isAnswered && (
-                <p className="mt-0.5 text-[11px] font-semibold text-zinc-500 dark:text-zinc-400">
-                  Rotate the box, then click the matching unfolded net.
-                </p>
-              )}
             </div>
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
               3 x 3

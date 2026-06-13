@@ -41,6 +41,13 @@ type WrongCandidate = {
   strategyName: StrategyName;
   reason: string;
 };
+type NetDistractorCandidate = {
+  name: string;
+  reason: string;
+  netImages: Record<number, string>;
+  netImageRotations: Record<number, number>;
+  signature: string;
+};
 
 const FACE_NAMES: BoxFoldingFaceName[] = [
   "front",
@@ -264,6 +271,14 @@ function orientationDegrees(orientation: BoxFoldingFaceOrientation) {
   return { A: 0, B: 90, C: 180, D: 270 }[orientation];
 }
 
+function orientationStepDelta(
+  from: BoxFoldingFaceOrientation,
+  to: BoxFoldingFaceOrientation,
+) {
+  const edges: BoxFoldingFaceOrientation[] = ["A", "B", "C", "D"];
+  return (edges.indexOf(to) - edges.indexOf(from) + edges.length) % edges.length;
+}
+
 function degreesToRadians(degrees: number) {
   return (degrees * Math.PI) / 180;
 }
@@ -333,6 +348,15 @@ function netOptionSignature(
   return [1, 2, 3, 4, 5, 6]
     .map((faceIndex) => `${faceIndex}:${netImages[faceIndex]}:${netImageRotations[faceIndex] ?? 0}`)
     .join("|");
+}
+
+function flatNetOptionSignature(
+  pattern: readonly (readonly number[])[],
+  netImages: Record<number, string>,
+  netImageRotations: Record<number, number>,
+) {
+  const shape = pattern.map((row) => row.join(",")).join("/");
+  return `${shape}::${netOptionSignature(netImages, netImageRotations)}`;
 }
 
 function visibleNetOptionSignature(
@@ -465,7 +489,8 @@ function createNetLevelDistractors(
   images: Record<number, string>,
   visibleNetFaceIndices: number[],
   rng: () => number,
-) {
+  baseRotations: Record<number, number> = emptyNetRotations(),
+): NetDistractorCandidate[] {
   const mutations: {
     name: string;
     reason: string;
@@ -483,7 +508,8 @@ function createNetLevelDistractors(
         reason: `Visible net face #${faceIndex} image is rotated before folding.`,
         mutatedFaceIndices: [faceIndex],
         apply: (_netImages, netImageRotations) => {
-          netImageRotations[faceIndex] = degrees;
+          netImageRotations[faceIndex] =
+            ((netImageRotations[faceIndex] ?? 0) + degrees) % 360;
         },
       });
     });
@@ -532,11 +558,11 @@ function createNetLevelDistractors(
     );
   }
 
-  const correctSignature = netOptionSignature(images, emptyNetRotations());
+  const correctSignature = netOptionSignature(images, baseRotations);
   const correctVisibleSignature = visibleNetOptionSignature(
     visibleNetFaceIndices,
     images,
-    emptyNetRotations(),
+    baseRotations,
   );
   const seen = new Set([correctSignature]);
   const seenVisible = new Set([correctVisibleSignature]);
@@ -544,7 +570,7 @@ function createNetLevelDistractors(
   return shuffle(mutations, rng)
     .map((mutation) => {
       const netImages = cloneNetImages(images);
-      const netImageRotations = emptyNetRotations();
+      const netImageRotations = { ...baseRotations };
       mutation.apply(netImages, netImageRotations);
       return {
         ...mutation,
@@ -696,6 +722,22 @@ function foldCubeNet(
   }
 
   return { cube, faceAssignments, faceOrientations };
+}
+
+function buildNetForCube(
+  pattern: readonly (readonly number[])[],
+  cube: BoxFoldingCube,
+) {
+  const netImages = {} as Record<number, string>;
+  const netImageRotations = emptyNetRotations();
+
+  for (const foldedFace of analyzeNetFolding(pattern)) {
+    netImages[foldedFace.faceIdx] = cube.faces[foldedFace.faceName];
+    netImageRotations[foldedFace.faceIdx] =
+      orientationStepDelta(foldedFace.orientation, cube.orientations[foldedFace.faceName]) * 90;
+  }
+
+  return { netImages, netImageRotations };
 }
 
 function cloneCube(cube: BoxFoldingCube): BoxFoldingCube {
@@ -1143,43 +1185,65 @@ function createUnfoldingQuestion(
     strategyReason: "This flat net folds into the shown cube.",
   };
 
-  const usedNetSignatures = new Set([netOptionSignature(images, emptyRotations)]);
-  const wrongOptions = createNetLevelDistractors(
-    images,
-    [1, 2, 3, 4, 5, 6],
-    rng,
-  )
-    .filter((candidate) => {
-      if (usedNetSignatures.has(candidate.signature)) return false;
-      const wrongFoldResult = foldCubeNet(
+  const usedNetSignatures = new Set([
+    flatNetOptionSignature(pattern, images, emptyRotations),
+  ]);
+  const candidatePool = [
+    ...createNetLevelDistractors(images, [1, 2, 3, 4, 5, 6], rng).map(
+      (candidate) => ({
+        ...candidate,
         pattern,
-        candidate.netImages,
-        candidate.netImageRotations,
-      );
-      if (canonicalRotationSignatures.has(stateTuple(wrongFoldResult.cube))) return false;
-      usedNetSignatures.add(candidate.signature);
-      return true;
-    })
-    .slice(0, 8)
-    .map((candidate) => {
-      const wrongFoldResult = foldCubeNet(
-        pattern,
-        candidate.netImages,
-        candidate.netImageRotations,
-      );
-      return {
-        id: crypto.randomUUID(),
-        label: "",
-        cube: wrongFoldResult.cube,
-        pattern,
-        netImages: candidate.netImages,
-        netImageRotations: candidate.netImageRotations,
-        view: BOX_FOLDING_CHOICE_VIEW,
-        isValidFold: false,
-        strategyName: candidate.name,
-        strategyReason: candidate.reason,
-      };
+        reason: candidate.reason,
+      }),
+    ),
+    ...shuffle(PATTERNS, rng).flatMap((candidatePattern) => {
+      const alternatePattern = candidatePattern.map((row) => [...row]);
+      const alternateBase = buildNetForCube(alternatePattern, canonicalCube);
+      return createNetLevelDistractors(
+        alternateBase.netImages,
+        [1, 2, 3, 4, 5, 6],
+        rng,
+        alternateBase.netImageRotations,
+      ).map((candidate) => ({
+        ...candidate,
+        pattern: alternatePattern,
+        reason: `${candidate.reason} Uses a different net layout.`,
+      }));
+    }),
+  ];
+  const wrongOptions: BoxFoldingQuestion["options"] = [];
+
+  for (const candidate of shuffle(candidatePool, rng)) {
+    if (wrongOptions.length >= 8) break;
+
+    const flatSignature = flatNetOptionSignature(
+      candidate.pattern,
+      candidate.netImages,
+      candidate.netImageRotations,
+    );
+    if (usedNetSignatures.has(flatSignature)) continue;
+
+    const wrongFoldResult = foldCubeNet(
+      candidate.pattern,
+      candidate.netImages,
+      candidate.netImageRotations,
+    );
+    if (canonicalRotationSignatures.has(stateTuple(wrongFoldResult.cube))) continue;
+
+    usedNetSignatures.add(flatSignature);
+    wrongOptions.push({
+      id: crypto.randomUUID(),
+      label: "",
+      cube: wrongFoldResult.cube,
+      pattern: candidate.pattern.map((row) => [...row]),
+      netImages: candidate.netImages,
+      netImageRotations: candidate.netImageRotations,
+      view: BOX_FOLDING_CHOICE_VIEW,
+      isValidFold: false,
+      strategyName: candidate.name,
+      strategyReason: candidate.reason,
     });
+  }
 
   if (wrongOptions.length < 8) {
     throw new Error("Could not generate enough box-unfolding distractors.");
