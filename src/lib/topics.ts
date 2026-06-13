@@ -38,8 +38,8 @@ export const topics: Topic[] = [
     description: "Find the answer choice that exactly matches the target shape.",
     category: "scanning",
     isLocked: false,
-    coverImage: "/images/icons/SkyQuests/shape.png",
-    coverImageDark: "/images/icons/SkyQuests/shape dark.png",
+    coverImage: "/images/icons/SkyQuests/similar.png",
+    coverImageDark: "/images/icons/SkyQuests/similar dark.png",
   },
   {
     slug: "number-series",
