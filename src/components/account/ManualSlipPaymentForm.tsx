@@ -1,12 +1,11 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import type {
   ManualPaymentConfig,
   ManualPaymentSlip,
   SubscriptionPackage,
 } from "@/lib/account/db";
-import SlipViewerModal from "./SlipViewerModal";
 
 type BarcodeDetectorResult = { rawValue?: string };
 type BarcodeDetectorInstance = {
@@ -27,33 +26,22 @@ function formatAmount(value: number) {
   }).format(value);
 }
 
-function formatDate(value: string | null) {
-  if (!value) return "-";
-  return new Date(value).toLocaleString();
-}
-
-function statusClass(status: ManualPaymentSlip["status"]) {
-  if (status === "approved") {
-    return "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200";
-  }
-  if (status === "rejected") {
-    return "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-200";
-  }
-  return "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100";
+function durationSummary(months: number) {
+  if (months >= 12) return "Yearly Subscription";
+  if (months === 6) return "6 Month Subscription";
+  return "Monthly Subscription";
 }
 
 export default function ManualSlipPaymentForm({
   config,
-  initialSlips,
   packages,
   initialPackageKey,
 }: {
   config: ManualPaymentConfig;
-  initialSlips: ManualPaymentSlip[];
   packages: SubscriptionPackage[];
   initialPackageKey?: string;
 }) {
-  const [selectedPackageKey, setSelectedPackageKey] = useState(
+  const [selectedPackageKey] = useState(
     packages.some((pkg) => pkg.key === initialPackageKey)
       ? initialPackageKey ?? ""
       : packages[0]?.key ?? "",
@@ -62,21 +50,27 @@ export default function ManualSlipPaymentForm({
   const [miniQrPayload, setMiniQrPayload] = useState("");
   const [note, setNote] = useState("");
   const [slipFile, setSlipFile] = useState<File | null>(null);
-  const [slips, setSlips] = useState(initialSlips);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [qrMessage, setQrMessage] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
-  const [selectedSlip, setSelectedSlip] = useState<ManualPaymentSlip | null>(
-    null,
-  );
   const [paymentQrFailed, setPaymentQrFailed] = useState(false);
 
   const selectedPackage =
     packages.find((item) => item.key === selectedPackageKey) ?? null;
-  const previewUrl = useMemo(() => {
-    if (!slipFile || !slipFile.type.startsWith("image/")) return null;
-    return URL.createObjectURL(slipFile);
+  const selectedAmount = selectedPackage ? formatAmount(selectedPackage.priceThb) : "-";
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!slipFile || !slipFile.type.startsWith("image/")) {
+      setPreviewUrl(null);
+      return;
+    }
+
+    const objectUrl = URL.createObjectURL(slipFile);
+    setPreviewUrl(objectUrl);
+
+    return () => URL.revokeObjectURL(objectUrl);
   }, [slipFile]);
 
   async function tryReadMiniQr(file: File) {
@@ -150,7 +144,6 @@ export default function ManualSlipPaymentForm({
         throw new Error(json?.error ?? "Failed to submit payment slip.");
       }
 
-      if (json?.slip) setSlips((current) => [json.slip as ManualPaymentSlip, ...current]);
       setSlipFile(null);
       setTransferReference("");
       setMiniQrPayload("");
@@ -182,285 +175,267 @@ export default function ManualSlipPaymentForm({
   }
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[0.9fr_1.1fr]">
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950 lg:col-span-2">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
-          Choose Package
-        </p>
-        <h2 className="mt-2 text-2xl font-bold">Subscription Packages</h2>
-        <div className="mt-5 grid gap-4 md:grid-cols-3">
-          {packages.map((pkg) => {
-            const isSelected = pkg.key === selectedPackageKey;
-            return (
+    <div className="space-y-8">
+      <div className="grid gap-8 lg:grid-cols-[minmax(320px,0.92fr)_minmax(420px,1.18fr)]">
+        <aside className="space-y-5">
+          <section className="overflow-hidden rounded-xl border border-zinc-300 bg-white shadow-sm">
+            <h2 className="border-b border-zinc-300 bg-[#f4f2f7] px-5 py-4 text-lg font-semibold text-zinc-950">
+              Subscription Summary
+            </h2>
+            <div className="space-y-5 p-5">
+              <div className="flex items-start justify-between gap-5">
+                <div>
+                  <p className="text-lg font-semibold text-[#5012A5]">
+                    {selectedPackage ? `${selectedPackage.title} Plan` : "Selected Plan"}
+                  </p>
+                  <p className="mt-1 text-sm text-zinc-500">
+                    {selectedPackage
+                      ? durationSummary(selectedPackage.durationMonths)
+                      : "Subscription"}
+                  </p>
+                </div>
+                <p className="pt-1 text-lg font-semibold text-zinc-950">
+                  {selectedAmount}
+                </p>
+              </div>
+
+              <div className="border-t border-zinc-300 pt-4">
+                <label className="block text-xs font-semibold text-zinc-500">
+                  Add Your Promotion
+                </label>
+                <div className="mt-3 flex gap-2">
+                  <input
+                    disabled
+                    placeholder="Enter promo code"
+                    className="min-h-10 flex-1 rounded-lg border border-zinc-300 bg-[#faf9fc] px-3 text-sm text-zinc-500"
+                  />
+                  <button
+                    type="button"
+                    disabled
+                    className="rounded-lg bg-zinc-500 px-5 text-sm font-semibold text-white opacity-80"
+                  >
+                    Apply
+                  </button>
+                </div>
+              </div>
+
+              <div className="space-y-3 border-t border-zinc-200 pt-4 text-sm">
+                <div className="flex justify-between gap-4 text-zinc-500">
+                  <span>Original Price</span>
+                  <span>{selectedAmount}</span>
+                </div>
+                <div className="flex justify-between gap-4 text-zinc-500">
+                  <span>Discount</span>
+                  <span className="text-red-700">-฿0.00</span>
+                </div>
+                <div className="flex items-center justify-between gap-4 pt-2">
+                  <span className="text-2xl font-semibold text-zinc-950">
+                    Total Amount
+                  </span>
+                  <span className="text-2xl font-semibold text-zinc-950">
+                    {selectedAmount}
+                  </span>
+                </div>
+              </div>
+
               <button
-                key={pkg.key}
-                type="button"
-                onClick={() => {
-                  setSelectedPackageKey(pkg.key);
-                }}
-                className={`overflow-hidden rounded-2xl border text-left transition ${
-                  isSelected
-                    ? "border-violet-500 ring-2 ring-violet-200 dark:ring-violet-500/30"
-                    : "border-zinc-200 hover:border-violet-300 dark:border-white/10 dark:hover:border-violet-400"
-                }`}
+                type="submit"
+                form="payment-proof-form"
+                disabled={isSubmitting || !selectedPackage}
+                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#5817b7] px-5 text-base font-semibold text-white shadow-sm transition hover:bg-[#5012A5] disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
               >
-                <div className="relative h-36 bg-zinc-100 dark:bg-white/5">
+                {isSubmitting ? "Verifying..." : "Confirm Subscription"}
+                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs text-[#5012A5]">
+                  ✓
+                </span>
+              </button>
+            </div>
+          </section>
+
+          <div className="flex gap-3 rounded-xl bg-[#f4f2f7] p-4 text-xs font-semibold leading-5 text-zinc-500">
+            <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-full border-2 border-[#5012A5] text-xs font-semibold text-[#5012A5]">
+              i
+            </span>
+            <p>
+              After uploading the proof, our staff will verify it within 15-30
+              minutes during business hours.
+            </p>
+          </div>
+        </aside>
+
+        <section className="rounded-xl border border-zinc-300 bg-white p-7 shadow-sm">
+          <h2 className="text-2xl font-semibold uppercase tracking-tight text-zinc-950">
+            Payment QR
+          </h2>
+          <p className="mt-3 text-base leading-6 text-zinc-600">
+            Please use your mobile banking app to scan the PromptPay QR code
+            below.
+          </p>
+
+          <div className="mt-8 flex items-center gap-5 rounded-xl border border-[#d8c7ea] bg-[#f6f4f8] px-7 py-5">
+            <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-xl bg-[#5817b7]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src="/images/icons/Subscription/bank.svg"
+                alt=""
+                className="h-8 w-8"
+              />
+            </span>
+            <div>
+              <p className="text-base font-semibold tracking-wide text-zinc-500">
+                Bank Account Name
+              </p>
+              <p className="mt-1 text-size[18px] font-semibold text-zinc-950">
+                SKYSKILLS (สกายสกิล)
+              </p>
+            </div>
+          </div>
+
+          {selectedPackage ? (
+            <div className="mt-12 flex justify-center">
+              {paymentQrFailed ? (
+                <div className="rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                  Payment QR is not configured yet.
+                </div>
+              ) : (
+                <div className="rounded-[28px] bg-white p-8 shadow-[0_22px_50px_rgba(80,18,165,0.18)] ring-1 ring-zinc-200">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img
-                    src={pkg.imageUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
+                    src={config.paymentQrImageUrl}
+                    alt="Payment receiving QR"
+                    onError={() => setPaymentQrFailed(true)}
+                    className="mx-auto h-72 w-72 object-contain"
                   />
-                </div>
-                <div className="space-y-3 p-4">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-lg font-bold">{pkg.title}</p>
-                      <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                        {pkg.description}
-                      </p>
-                    </div>
-                    <span className="rounded-full bg-violet-100 px-3 py-1 text-sm font-bold text-violet-700 dark:bg-violet-500/15 dark:text-violet-200">
-                      {formatAmount(pkg.priceThb)}
-                    </span>
-                  </div>
-                  <p className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
-                    {pkg.durationMonths}{" "}
-                    {pkg.durationMonths === 1 ? "month" : "months"} access
+                  <p className="mt-5 flex items-center justify-center gap-2 text-center text-base font-medium uppercase text-zinc-700">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src="/images/icons/Subscription/camera.svg"
+                      alt=""
+                      className="h-5 w-5 object-contain -translate-y-0.5"
+                    />
+                    Scan with any bank app
                   </p>
-                  <ul className="space-y-1 text-sm text-zinc-600 dark:text-zinc-300">
-                    {pkg.details.map((detail) => (
-                      <li key={detail}>• {detail}</li>
-                    ))}
-                  </ul>
                 </div>
-              </button>
-            );
-          })}
-        </div>
-      </section>
-
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-        <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
-          Payment QR
-        </p>
-        <h2 className="mt-2 text-2xl font-bold">Reusable Receiving QR</h2>
-        <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-          Scan the shared receiving QR, enter the exact selected package amount,
-          then upload your slip. Slip2Go verifies the bank transaction before
-          access is unlocked.
-        </p>
-
-        {selectedPackage ? (
-          <div className="mt-6 rounded-2xl border border-zinc-200 p-4 dark:border-white/10">
-            <p className="text-sm font-bold">Pay Exactly</p>
-            <p className="mt-1 text-3xl font-bold text-violet-700 dark:text-violet-300">
-              {formatAmount(selectedPackage.priceThb)}
-            </p>
-            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-              {selectedPackage.title} · {selectedPackage.durationMonths}{" "}
-              {selectedPackage.durationMonths === 1 ? "month" : "months"}
-            </p>
-            {paymentQrFailed ? (
-              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900 dark:border-amber-500/25 dark:bg-amber-500/10 dark:text-amber-100">
-                Payment QR is not configured yet.
-              </div>
-            ) : (
-              <div className="mt-3 rounded-xl bg-white p-3">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={config.paymentQrImageUrl}
-                  alt="Payment receiving QR"
-                  onError={() => setPaymentQrFailed(true)}
-                  className="mx-auto max-h-72 w-auto max-w-full object-contain"
-                />
-              </div>
-            )}
-            <p className="mt-3 text-xs text-zinc-500 dark:text-zinc-400">
-              The QR receives payment only. The selected amount is verified from
-              your uploaded slip.
-            </p>
-          </div>
-        ) : null}
-      </section>
-
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-        <h2 className="text-2xl font-bold">Upload Payment Slip</h2>
-        <form className="mt-5 space-y-4" onSubmit={handleSubmit}>
-          <div className="rounded-xl bg-zinc-50 p-4 text-sm dark:bg-white/5">
-            <p className="font-bold">
-              {selectedPackage
-                ? `${selectedPackage.title} · ${formatAmount(selectedPackage.priceThb)} · ${selectedPackage.durationMonths} ${selectedPackage.durationMonths === 1 ? "month" : "months"}`
-                : "Select a package before uploading"}
-            </p>
-            <p className="mt-1 text-zinc-500 dark:text-zinc-400">
-              Slip2Go will check the transaction reference and exact package
-              amount before access is unlocked.
-            </p>
-          </div>
-
-          <label className="block">
-            <span className="text-sm font-bold">Slip Image or PDF</span>
-            <input
-              type="file"
-              accept="image/png,image/jpeg,image/webp,application/pdf"
-              onChange={(event) =>
-                void handleFileChange(event.target.files?.[0] ?? null)
-              }
-              required
-              className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm file:mr-3 file:rounded-lg file:border-0 file:bg-violet-700 file:px-3 file:py-2 file:text-sm file:font-bold file:text-white dark:border-white/10 dark:bg-black"
-            />
-          </label>
-
-          {previewUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={previewUrl}
-              alt="Payment slip preview"
-              className="max-h-72 w-full rounded-xl border border-zinc-200 object-contain dark:border-white/10"
-            />
-          ) : null}
-
-          {qrMessage ? (
-            <p className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600 dark:bg-white/5 dark:text-zinc-300">
-              {qrMessage}
-            </p>
-          ) : null}
-
-          <label className="block">
-            <span className="text-sm font-bold">Transfer Reference</span>
-            <input
-              value={transferReference}
-              onChange={(event) => setTransferReference(event.target.value)}
-              className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
-              placeholder="Optional transaction ID from slip"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-bold">Mini-QR Payload</span>
-            <textarea
-              value={miniQrPayload}
-              onChange={(event) => setMiniQrPayload(event.target.value)}
-              rows={3}
-              className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
-              placeholder="Auto-filled when the browser can read the slip QR"
-            />
-          </label>
-
-          <label className="block">
-            <span className="text-sm font-bold">Note</span>
-            <textarea
-              value={note}
-              onChange={(event) => setNote(event.target.value)}
-              rows={2}
-              className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
-              placeholder="Optional note for admin"
-            />
-          </label>
-
-          {error ? (
-            <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-semibold text-red-700 dark:border-red-900/70 dark:bg-red-950/40 dark:text-red-200">
-              {error}
-            </div>
-          ) : null}
-
-          {success ? (
-            <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-semibold text-emerald-700 dark:border-emerald-900/70 dark:bg-emerald-950/40 dark:text-emerald-200">
-              {success}
-            </div>
-          ) : null}
-
-          <button
-            type="submit"
-            disabled={isSubmitting}
-            className="w-full rounded-xl bg-violet-700 px-4 py-3 text-sm font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:disabled:bg-zinc-800"
-          >
-            {isSubmitting ? "Verifying..." : "Verify Slip & Unlock"}
-          </button>
-        </form>
-      </section>
-
-      <section className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950 lg:col-span-2">
-        <h2 className="text-2xl font-bold">Submission History</h2>
-        <div className="mt-5 overflow-x-auto">
-          <table className="min-w-full text-left text-sm">
-            <thead className="bg-zinc-50 dark:bg-white/5">
-              <tr>
-                <th className="px-4 py-3 font-bold">Date</th>
-                <th className="px-4 py-3 font-bold">Amount</th>
-                <th className="px-4 py-3 font-bold">Package</th>
-                <th className="px-4 py-3 font-bold">Reference</th>
-                <th className="px-4 py-3 font-bold">Status</th>
-                <th className="px-4 py-3 font-bold">Slip</th>
-              </tr>
-            </thead>
-            <tbody>
-              {slips.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={6}
-                    className="border-t border-zinc-100 px-4 py-6 text-center text-zinc-500 dark:border-white/10 dark:text-zinc-400"
-                  >
-                    No slips submitted yet.
-                  </td>
-                </tr>
-              ) : (
-                slips.map((slip) => (
-                  <tr
-                    key={slip.id}
-                    className="border-t border-zinc-100 dark:border-white/10"
-                  >
-                    <td className="px-4 py-3">{formatDate(slip.createdAt)}</td>
-                    <td className="px-4 py-3">{formatAmount(slip.amountThb)}</td>
-                    <td className="px-4 py-3">
-                      {slip.planTitle ?? slip.planKey}
-                    </td>
-                    <td className="px-4 py-3">
-                      {slip.transferReference || slip.miniQrPayload || "-"}
-                      {slip.slip2goTransRef ? (
-                        <span className="block max-w-56 truncate text-xs text-zinc-500 dark:text-zinc-400">
-                          Slip2Go: {slip.slip2goTransRef}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${statusClass(slip.status)}`}
-                      >
-                        {slip.status}
-                      </span>
-                      {slip.verificationError ? (
-                        <span className="mt-1 block max-w-56 text-xs text-red-600 dark:text-red-300">
-                          {slip.verificationError}
-                        </span>
-                      ) : null}
-                    </td>
-                    <td className="px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => setSelectedSlip(slip)}
-                        className="font-bold text-violet-700 hover:text-violet-500 dark:text-violet-300"
-                      >
-                        View
-                      </button>
-                    </td>
-                  </tr>
-                ))
               )}
-            </tbody>
-          </table>
-        </div>
-      </section>
-      <SlipViewerModal
-        slip={selectedSlip}
-        fileUrl={
-          selectedSlip
-            ? `/api/account/billing/slips/${selectedSlip.id}/file`
-            : ""
-        }
-        onClose={() => setSelectedSlip(null)}
-      />
+            </div>
+          ) : null}
+
+          <form
+            id="payment-proof-form"
+            className="mt-9 space-y-4"
+            onSubmit={handleSubmit}
+          >
+            <h3 className="text-lg font-semibold text-zinc-950">
+              Upload Payment Proof
+            </h3>
+            <label className="flex min-h-64 cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-zinc-300 px-6 py-8 text-center transition hover:border-[#5012A5] hover:bg-violet-50/40">
+              <input
+                type="file"
+                accept="image/png,image/jpeg,image/webp,application/pdf"
+                onChange={(event) =>
+                  void handleFileChange(event.target.files?.[0] ?? null)
+                }
+                required
+                className="sr-only"
+              />
+              {slipFile ? (
+                <span className="flex w-full flex-col items-center gap-3">
+                  {previewUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={previewUrl}
+                      alt="Payment slip preview"
+                      className="max-h-72 w-full rounded-lg object-contain"
+                    />
+                  ) : (
+                    <span className="flex h-24 w-24 items-center justify-center rounded-2xl bg-[#f4f2f7] text-4xl text-[#5012A5]">
+                      PDF
+                    </span>
+                  )}
+                  <span className="max-w-full break-all text-sm font-medium text-[#5012A5]">
+                    {slipFile.name}
+                  </span>
+                  <span className="rounded-lg border border-zinc-400 px-6 py-2 text-sm font-semibold text-zinc-950">
+                    Change File
+                  </span>
+                </span>
+              ) : (
+                <>
+                  <span className="flex h-16 w-16 items-center justify-center rounded-full bg-[#f4f2f7] text-3xl text-[#5012A5]">
+                    ☁
+                  </span>
+                  <span className="mt-5 text-base font-semibold text-zinc-950">
+                    Drag and drop files here or click to browse
+                  </span>
+                  <span className="mt-1 text-sm text-zinc-500">
+                    Supports JPG, PNG or PDF (Max 5MB)
+                  </span>
+                  <span className="mt-5 rounded-lg border border-zinc-400 px-6 py-2 text-sm font-semibold text-zinc-950">
+                    Browse Files
+                  </span>
+                </>
+              )}
+            </label>
+
+            {qrMessage ? (
+              <p className="rounded-xl bg-zinc-50 p-3 text-sm text-zinc-600">
+                {qrMessage}
+              </p>
+            ) : null}
+
+            <details className="rounded-xl border border-zinc-200 bg-zinc-50 p-4">
+              <summary className="cursor-pointer text-sm font-semibold text-zinc-700">
+                Optional transfer details
+              </summary>
+              <div className="mt-4 space-y-4">
+                <label className="block">
+                  <span className="text-sm font-semibold">Transfer Reference</span>
+                  <input
+                    value={transferReference}
+                    onChange={(event) => setTransferReference(event.target.value)}
+                    className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+                    placeholder="Optional transaction ID from slip"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-semibold">Mini-QR Payload</span>
+                  <textarea
+                    value={miniQrPayload}
+                    onChange={(event) => setMiniQrPayload(event.target.value)}
+                    rows={3}
+                    className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+                    placeholder="Auto-filled when the browser can read the slip QR"
+                  />
+                </label>
+
+                <label className="block">
+                  <span className="text-sm font-semibold">Note</span>
+                  <textarea
+                    value={note}
+                    onChange={(event) => setNote(event.target.value)}
+                    rows={2}
+                    className="mt-2 w-full rounded-xl border border-zinc-200 bg-white px-3 py-2.5 text-sm outline-none focus:border-violet-500"
+                    placeholder="Optional note for admin"
+                  />
+                </label>
+              </div>
+            </details>
+
+            {error ? (
+              <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-700">
+                {error}
+              </div>
+            ) : null}
+
+            {success ? (
+              <div className="rounded-xl border border-emerald-300 bg-emerald-50 p-3 text-sm font-medium text-emerald-700">
+                {success}
+              </div>
+            ) : null}
+          </form>
+        </section>
+      </div>
     </div>
   );
 }

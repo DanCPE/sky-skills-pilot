@@ -675,20 +675,58 @@ export default function AdminBillingPage() {
                 className="h-44 w-full object-contain"
               />
             </div>
-            <div>
+            <div className="space-y-4">
               <p className="text-sm font-bold">Shared Reusable Payment QR</p>
               <p className="mt-1 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
                 Upload the single Krungthai receiving QR used for every package.
                 Users will manually enter the exact package amount, and Slip2Go
                 will verify the uploaded slip amount against the system price.
               </p>
-              <label className="mt-4 block">
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="block">
+                  <span className="text-xs font-bold">Bank Name</span>
+                  <input
+                    name="bankName"
+                    defaultValue={data?.manualPaymentConfig.bankName ?? ""}
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-bold">Account Name</span>
+                  <input
+                    name="accountName"
+                    defaultValue={data?.manualPaymentConfig.accountName ?? ""}
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-bold">Account Number</span>
+                  <input
+                    name="accountNumber"
+                    defaultValue={data?.manualPaymentConfig.accountNumber ?? ""}
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                  />
+                </label>
+                <label className="block">
+                  <span className="text-xs font-bold">PromptPay ID</span>
+                  <input
+                    name="promptPayId"
+                    defaultValue={data?.manualPaymentConfig.promptPayId ?? ""}
+                    className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                  />
+                </label>
+              </div>
+              <input
+                type="hidden"
+                name="currency"
+                value={data?.manualPaymentConfig.currency ?? "THB"}
+              />
+              <label className="block">
                 <span className="text-xs font-bold">Payment QR Image</span>
                 <input
                   name="paymentQrImage"
                   type="file"
                   accept="image/png,image/jpeg,image/webp"
-                  required
                   className="mt-1 w-full text-xs"
                 />
               </label>
@@ -698,7 +736,7 @@ export default function AdminBillingPage() {
               disabled={pendingKey !== null}
               className="self-end rounded-lg bg-violet-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
             >
-              {pendingKey === "payment-qr" ? "Saving..." : "Save QR"}
+              {pendingKey === "payment-qr" ? "Saving..." : "Save Settings"}
             </button>
           </form>
           <div className="grid gap-4 p-5 lg:grid-cols-3">

@@ -5,8 +5,12 @@ import { accountSkillDomains, getAccountSkillDomainForTopic } from "./topics";
 
 const SESSION_COOKIE_NAME = "sky_session";
 const SESSION_DURATION_DAYS = 30;
-const MAX_PROFILES_PER_FLEET = 3;
 const MAX_ACTIVE_SESSIONS_PER_FLEET = 4;
+const DEFAULT_FLEET_MEMBER_LIMIT = 1;
+const PACKAGE_FLEET_MEMBER_LIMITS: Record<string, number> = {
+  "first-officer": 2,
+  captain: 3,
+};
 
 let accountPool: Pool | null = null;
 let schemaReady = false;
@@ -80,6 +84,7 @@ export interface AccountRankingSummary {
 export interface AccountOverview {
   user: AccountUser;
   profiles: AccountProfile[];
+  maxProfiles: number;
   scoreHistory: ScoreHistoryEntry[];
   radar: RadarPoint[];
   ranking: AccountRankingSummary;
@@ -93,6 +98,7 @@ export interface AccountOverview {
 export interface AccountSettingsOverview {
   user: AccountUser;
   profiles: AccountProfile[];
+  maxProfiles: number;
   subscription: {
     status: string;
     provider: string | null;
@@ -361,6 +367,13 @@ async function canUseExistingAccountSchema(pool: Pool) {
           SELECT 1
           FROM information_schema.columns
           WHERE table_schema = 'public'
+            AND table_name = 'account_billing_assets'
+            AND column_name = 'metadata'
+        ) AS has_billing_asset_metadata,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
             AND table_name = 'account_manual_payment_slips'
             AND column_name = 'slip2go_trans_ref'
         ) AS has_slip2go_columns,
@@ -369,6 +382,22 @@ async function canUseExistingAccountSchema(pool: Pool) {
   );
   const row = result.rows[0] ?? {};
   return Object.values(row).every(Boolean);
+}
+
+async function ensureBillingAssetMetadataColumn() {
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS account_billing_assets (
+      key TEXT PRIMARY KEY,
+      file_name TEXT,
+      content_type TEXT,
+      bytes BYTEA,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+  await getPool().query(
+    "ALTER TABLE account_billing_assets ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;",
+  );
 }
 
 export function rankScore(percentage: number) {
@@ -605,9 +634,11 @@ export async function ensureAccountSchema() {
         file_name TEXT,
         content_type TEXT,
         bytes BYTEA,
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+      await pool.query("ALTER TABLE account_billing_assets ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;");
 
       const packageMigration = await pool.query(
         "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
@@ -1048,9 +1079,12 @@ export async function createAccountProfile(input: {
     "SELECT COUNT(*)::int AS count FROM account_profiles WHERE user_id = $1;",
     [input.fleetId],
   );
+  const maxProfiles = await getFleetProfileLimit(input.fleetId);
 
-  if (Number(countResult.rows[0]?.count ?? 0) >= MAX_PROFILES_PER_FLEET) {
-    throw new Error("A fleet can have a maximum of 3 accounts.");
+  if (Number(countResult.rows[0]?.count ?? 0) >= maxProfiles) {
+    throw new Error(
+      `This fleet can have a maximum of ${maxProfiles} ${maxProfiles === 1 ? "account" : "accounts"} with the current package.`,
+    );
   }
 
   const result = await pool.query(
@@ -1063,6 +1097,50 @@ export async function createAccountProfile(input: {
   );
 
   return mapProfile(result.rows[0]);
+}
+
+export async function getFleetProfileLimit(fleetId: string) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      WITH active_subscription AS (
+        SELECT *
+        FROM account_subscriptions
+        WHERE user_id = $1
+          AND status IN ('active', 'trialing')
+          AND (current_period_end IS NULL OR current_period_end > NOW())
+        ORDER BY created_at DESC
+        LIMIT 1
+      )
+      SELECT slip.plan_key
+      FROM active_subscription sub
+      LEFT JOIN LATERAL (
+        SELECT s.plan_key
+        FROM account_manual_payment_slips s
+        WHERE s.user_id = $1
+          AND s.status = 'approved'
+        ORDER BY
+          CASE
+            WHEN sub.provider_subscription_id IS NOT NULL
+             AND (
+               s.id::text = sub.provider_subscription_id
+               OR s.slip2go_trans_ref = sub.provider_subscription_id
+             )
+            THEN 0
+            ELSE 1
+          END,
+          s.reviewed_at DESC NULLS LAST,
+          s.created_at DESC
+        LIMIT 1
+      ) slip ON TRUE;
+    `,
+    [fleetId],
+  );
+
+  return getFleetMemberLimitForPackageKey(
+    result.rows[0]?.plan_key ? String(result.rows[0].plan_key) : null,
+  );
 }
 
 export async function deleteAccountProfile(input: {
@@ -1289,6 +1367,11 @@ function mapSubscription(row: Record<string, unknown> | null) {
   };
 }
 
+export function getFleetMemberLimitForPackageKey(packageKey: string | null | undefined) {
+  if (!packageKey) return DEFAULT_FLEET_MEMBER_LIMIT;
+  return PACKAGE_FLEET_MEMBER_LIMITS[packageKey] ?? DEFAULT_FLEET_MEMBER_LIMIT;
+}
+
 function isPaidSubscriptionStatus(status: string | null | undefined) {
   return status === "active" || status === "trialing";
 }
@@ -1386,7 +1469,7 @@ function mapSubscriptionPackage(row: Record<string, unknown>): SubscriptionPacka
   };
 }
 
-export function getManualPaymentConfig(): ManualPaymentConfig {
+function getEnvManualPaymentConfig(): ManualPaymentConfig {
   const amountFromEnv = process.env.MANUAL_PAYMENT_AMOUNT_THB;
   const parsedAmount = amountFromEnv ? Number(amountFromEnv) : NaN;
 
@@ -1400,6 +1483,82 @@ export function getManualPaymentConfig(): ManualPaymentConfig {
       Number.isFinite(parsedAmount) && parsedAmount > 0 ? parsedAmount : null,
     currency: process.env.MANUAL_PAYMENT_CURRENCY || "THB",
   };
+}
+
+function readMetadataString(
+  metadata: Record<string, unknown>,
+  key: keyof ManualPaymentConfig,
+) {
+  const value = metadata[key];
+  return typeof value === "string" ? value : undefined;
+}
+
+export async function getManualPaymentConfig(): Promise<ManualPaymentConfig> {
+  const envConfig = getEnvManualPaymentConfig();
+  if (!hasAccountDatabase()) return envConfig;
+
+  await ensureAccountSchema();
+  await ensureBillingAssetMetadataColumn();
+
+  const result = await getPool().query(
+    `
+      SELECT metadata
+      FROM account_billing_assets
+      WHERE key = 'manual_payment_config'
+      LIMIT 1;
+    `,
+  );
+
+  const metadata =
+    result.rows[0]?.metadata && typeof result.rows[0].metadata === "object"
+      ? (result.rows[0].metadata as Record<string, unknown>)
+      : {};
+
+  return {
+    ...envConfig,
+    bankName: readMetadataString(metadata, "bankName") ?? envConfig.bankName,
+    accountName:
+      readMetadataString(metadata, "accountName") ?? envConfig.accountName,
+    accountNumber:
+      readMetadataString(metadata, "accountNumber") ?? envConfig.accountNumber,
+    promptPayId:
+      readMetadataString(metadata, "promptPayId") ?? envConfig.promptPayId,
+    currency: readMetadataString(metadata, "currency") ?? envConfig.currency,
+  };
+}
+
+export async function updateManualPaymentConfig(input: {
+  bankName: string;
+  accountName: string;
+  accountNumber: string;
+  promptPayId: string;
+  currency?: string;
+}) {
+  await ensureAccountSchema();
+  await ensureBillingAssetMetadataColumn();
+
+  const metadata = {
+    bankName: input.bankName.trim(),
+    accountName: input.accountName.trim(),
+    accountNumber: input.accountNumber.trim(),
+    promptPayId: input.promptPayId.trim(),
+    currency: input.currency?.trim() || "THB",
+  };
+
+  await getPool().query(
+    `
+      INSERT INTO account_billing_assets (key, metadata, updated_at)
+      VALUES ('manual_payment_config', $1::jsonb, NOW())
+      ON CONFLICT (key)
+      DO UPDATE SET
+        metadata = EXCLUDED.metadata,
+        updated_at = NOW();
+    `,
+    [JSON.stringify(metadata)],
+  );
+
+  accountDebug("manual payment config updated", metadata);
+  return getManualPaymentConfig();
 }
 
 export async function getAccountSettingsOverview(
@@ -1424,6 +1583,34 @@ export async function getAccountSettingsOverview(
         ORDER BY s.created_at DESC
         LIMIT 1
       ),
+      active_package AS (
+        SELECT slip.plan_key
+        FROM account_subscriptions sub
+        LEFT JOIN LATERAL (
+          SELECT s.plan_key
+          FROM account_manual_payment_slips s
+          WHERE s.user_id = $1
+            AND s.status = 'approved'
+          ORDER BY
+            CASE
+              WHEN sub.provider_subscription_id IS NOT NULL
+               AND (
+                 s.id::text = sub.provider_subscription_id
+                 OR s.slip2go_trans_ref = sub.provider_subscription_id
+               )
+              THEN 0
+              ELSE 1
+            END,
+            s.reviewed_at DESC NULLS LAST,
+            s.created_at DESC
+          LIMIT 1
+        ) slip ON TRUE
+        WHERE sub.user_id = $1
+          AND sub.status IN ('active', 'trialing')
+          AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW())
+        ORDER BY sub.created_at DESC
+        LIMIT 1
+      ),
       latest_payment_slip AS (
         SELECT to_jsonb(slip_row) AS row
         FROM (
@@ -1443,9 +1630,11 @@ export async function getAccountSettingsOverview(
       SELECT
         fleet_profiles.rows AS profiles,
         latest_subscription.row AS subscription,
-        latest_payment_slip.row AS latest_payment_slip
+        latest_payment_slip.row AS latest_payment_slip,
+        active_package.plan_key AS active_package_key
       FROM fleet_profiles
       LEFT JOIN latest_subscription ON TRUE
+      LEFT JOIN active_package ON TRUE
       LEFT JOIN latest_payment_slip ON TRUE;
     `,
     [user.fleetId, user.email],
@@ -1468,6 +1657,9 @@ export async function getAccountSettingsOverview(
   return {
     user,
     profiles: profiles.map(mapProfile),
+    maxProfiles: getFleetMemberLimitForPackageKey(
+      row.active_package_key ? String(row.active_package_key) : null,
+    ),
     subscription: mapSubscription(subscriptionRow),
     latestPaymentSlip: latestPaymentSlipRow
       ? mapManualPaymentSlip(latestPaymentSlipRow)
@@ -1586,6 +1778,34 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
         JOIN active_profile ap ON ap.fleet_id = s.user_id
         ORDER BY s.created_at DESC
         LIMIT 1
+      ),
+      active_package AS (
+        SELECT slip.plan_key
+        FROM account_subscriptions sub
+        JOIN active_profile ap ON ap.fleet_id = sub.user_id
+        LEFT JOIN LATERAL (
+          SELECT s.plan_key
+          FROM account_manual_payment_slips s
+          WHERE s.user_id = ap.fleet_id
+            AND s.status = 'approved'
+          ORDER BY
+            CASE
+              WHEN sub.provider_subscription_id IS NOT NULL
+               AND (
+                 s.id::text = sub.provider_subscription_id
+                 OR s.slip2go_trans_ref = sub.provider_subscription_id
+               )
+              THEN 0
+              ELSE 1
+            END,
+            s.reviewed_at DESC NULLS LAST,
+            s.created_at DESC
+          LIMIT 1
+        ) slip ON TRUE
+        WHERE sub.status IN ('active', 'trialing')
+          AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW())
+        ORDER BY sub.created_at DESC
+        LIMIT 1
       )
       SELECT
         ap.*,
@@ -1596,13 +1816,15 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
         active_rank.ranked_profiles,
         active_rank.dashboard_average,
         active_rank.total_attempts,
-        latest_subscription.row AS subscription
+        latest_subscription.row AS subscription,
+        active_package.plan_key AS active_package_key
       FROM active_profile ap
       CROSS JOIN fleet_profiles fp
       CROSS JOIN recent_scores rs
       CROSS JOIN active_radar ar
       LEFT JOIN active_rank ON active_rank.profile_id = ap.id
-      LEFT JOIN latest_subscription ON TRUE;
+      LEFT JOIN latest_subscription ON TRUE
+      LEFT JOIN active_package ON TRUE;
     `,
     [profileId],
   );
@@ -1664,6 +1886,11 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
       profile_image_url: activeProfile.image_url,
     }),
     profiles: profiles.map(mapProfile),
+    maxProfiles: getFleetMemberLimitForPackageKey(
+      activeProfile.active_package_key
+        ? String(activeProfile.active_package_key)
+        : null,
+    ),
     scoreHistory: scoreHistory.map(mapScore),
     radar,
     ranking: {
@@ -2139,7 +2366,7 @@ export async function createManualPaymentSlip(input: {
     throw new Error("Payment amount must be greater than zero.");
   }
 
-  const config = getManualPaymentConfig();
+  const config = await getManualPaymentConfig();
   const amountCents = Math.round(input.amountThb * 100);
   const slip2goAmountCents =
     input.slip2goAmountThb === null || input.slip2goAmountThb === undefined
@@ -2853,7 +3080,7 @@ export async function getAdminBillingOverview() {
     fleets,
     quizAccess,
     manualPaymentSlips,
-    manualPaymentConfig: getManualPaymentConfig(),
+    manualPaymentConfig: await getManualPaymentConfig(),
     subscriptionPackages,
   };
 }

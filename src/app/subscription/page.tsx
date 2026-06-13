@@ -1,6 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
+  getFleetMemberLimitForPackageKey,
   getSubscriptionPackages,
   hasAccountDatabase,
   type SubscriptionPackage,
@@ -62,6 +63,10 @@ function validityLabel(durationMonths: number) {
   return `Valid for ${durationMonths} ${durationMonths === 1 ? "month" : "months"}`;
 }
 
+function fleetLabel(limit: number) {
+  return `${limit} ${limit === 1 ? "profile" : "profiles"} fleet`;
+}
+
 function iconForIndex(index: number) {
   return packageCardCopy[index]?.icon ?? "/images/icons/Subscription/purple.png";
 }
@@ -82,6 +87,7 @@ function PaidPackageCard({
   const href = `/payment?package=${encodeURIComponent(pkg.key)}`;
   const details = paidFeatures;
   const description = descriptionForIndex(index, pkg.description);
+  const fleetLimit = getFleetMemberLimitForPackageKey(pkg.key);
 
   if (isFeatured) {
     return (
@@ -109,6 +115,9 @@ function PaidPackageCard({
             {periodLabel(pkg.durationMonths)}
           </span>
         </div>
+        <span className="mt-2 inline-flex w-fit rounded-full bg-[#FFD700]/15 px-3 py-1 text-xs font-bold text-[#FFD700] ring-1 ring-[#FFD700]/35">
+          {fleetLabel(fleetLimit)}
+        </span>
         <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-white/80">
           {description}
         </p>
@@ -177,6 +186,9 @@ function PaidPackageCard({
           {periodLabel(pkg.durationMonths)}
         </span>
       </div>
+      <span className="mt-2 inline-flex w-fit rounded-full bg-[#F6F3FA] px-3 py-1 text-xs font-bold text-[#5012A5] ring-1 ring-[#5012A5]/15">
+        {fleetLabel(fleetLimit)}
+      </span>
       <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-[#6B7280]">
         {description}
       </p>
@@ -289,6 +301,9 @@ export default async function SubscriptionPage() {
                 {freePlan.period}
               </span>
             </div>
+            <span className="mt-2 inline-flex w-fit rounded-full bg-[#F3F4F6] px-3 py-1 text-xs font-bold text-[#6B7280] ring-1 ring-[#9CA3AF]/20">
+              {fleetLabel(1)}
+            </span>
             <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-[#6B7280]">
               {freePlan.description}
             </p>

@@ -3,7 +3,6 @@ import ManualSlipPaymentForm from "@/components/account/ManualSlipPaymentForm";
 import { getCurrentAccountUser } from "@/lib/account/auth";
 import {
   getManualPaymentConfig,
-  getManualPaymentSlipsForFleet,
   getSubscriptionPackages,
   hasAccountDatabase,
 } from "@/lib/account/db";
@@ -59,31 +58,26 @@ export default async function PaymentPage({
     );
   }
 
-  const [config, slips, packages] = await Promise.all([
-    Promise.resolve(getManualPaymentConfig()),
-    getManualPaymentSlipsForFleet(user.fleetId),
+  const [config, packages] = await Promise.all([
+    getManualPaymentConfig(),
     getSubscriptionPackages(),
   ]);
 
   return (
-    <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">
-      <div className="mx-auto max-w-7xl space-y-6">
-        <header className="rounded-2xl border border-zinc-200 bg-white p-6 shadow-sm dark:border-white/10 dark:bg-zinc-950">
-          <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
-            Full Access
-          </p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">
-            Subscription Payment
+    <main className="min-h-screen bg-white px-5 py-20 text-zinc-950">
+      <div className="mx-auto max-w-7xl space-y-12">
+        <header className="text-center">
+          <h1 className="text-5xl font-semibold tracking-tight md:text-6xl">
+            Confirm Your Subscription
           </h1>
-          <p className="mt-2 max-w-3xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-            Transfer to the SkySkills Krungthai business account and upload your
-            slip. Your fleet email is <span className="font-bold">{user.email}</span>.
+          <p className="mx-auto mt-7 max-w-2xl text-xl leading-8 text-zinc-600">
+            Review your subscription details below and complete your payment to
+            gain full access to all quests.
           </p>
         </header>
 
         <ManualSlipPaymentForm
           config={config}
-          initialSlips={slips}
           packages={packages}
           initialPackageKey={selectedPackageKey}
         />

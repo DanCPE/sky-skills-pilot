@@ -8,15 +8,17 @@ import { notifyAccountChanged } from "@/components/Navbar";
 export default function ProfileManager({
   profiles,
   activeProfileId,
+  maxProfiles,
 }: {
   profiles: AccountProfile[];
   activeProfileId: string;
+  maxProfiles: number;
 }) {
   const router = useRouter();
   const [callSign, setCallSign] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
-  const canCreate = profiles.length < 3;
+  const canCreate = profiles.length < maxProfiles;
 
   async function createProfile() {
     setError(null);
@@ -89,7 +91,8 @@ export default function ProfileManager({
       </p>
       <h2 className="mt-1 text-xl font-bold">Profiles in this fleet</h2>
       <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-        One registered email can hold up to 3 individual accounts.
+        This package allows {maxProfiles}{" "}
+        {maxProfiles === 1 ? "profile" : "profiles"} in this fleet.
       </p>
 
       <div className="mt-5 space-y-3">
@@ -144,7 +147,7 @@ export default function ProfileManager({
         <input
           value={callSign}
           onChange={(event) => setCallSign(event.target.value)}
-          placeholder={canCreate ? "New call sign" : "Fleet account limit reached"}
+          placeholder={canCreate ? "New call sign" : "Fleet profile limit reached"}
           disabled={!canCreate || isBusy}
           className="min-h-10 flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-semibold outline-none dark:border-white/10 dark:bg-black/40"
         />

@@ -76,7 +76,7 @@ export async function GET() {
   }
 
   return NextResponse.json({
-    config: getManualPaymentConfig(),
+    config: await getManualPaymentConfig(),
     packages: await getSubscriptionPackages(),
     slips: await getManualPaymentSlipsForFleet(user.fleetId),
   });

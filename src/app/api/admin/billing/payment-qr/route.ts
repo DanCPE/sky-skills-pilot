@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   getAdminBillingOverview,
   hasAccountDatabase,
+  updateManualPaymentConfig,
   updatePaymentQrAsset,
 } from "@/lib/account/db";
 
@@ -22,36 +23,48 @@ export async function PATCH(request: Request) {
   try {
     const formData = await request.formData();
     const file = formData.get("paymentQrImage");
+    const bankName = String(formData.get("bankName") ?? "");
+    const accountName = String(formData.get("accountName") ?? "");
+    const accountNumber = String(formData.get("accountNumber") ?? "");
+    const promptPayId = String(formData.get("promptPayId") ?? "");
+    const currency = String(formData.get("currency") ?? "THB");
 
-    if (!(file instanceof File) || file.size === 0) {
-      return NextResponse.json(
-        { error: "Payment QR image is required." },
-        { status: 400 },
-      );
-    }
+    const hasImage = file instanceof File && file.size > 0;
 
-    if (!allowedImageTypes.has(file.type)) {
+    if (hasImage && !allowedImageTypes.has(file.type)) {
       return NextResponse.json(
         { error: "Payment QR must be a JPG, PNG, or WEBP image." },
         { status: 400 },
       );
     }
 
-    if (file.size > MAX_IMAGE_BYTES) {
+    if (hasImage && file.size > MAX_IMAGE_BYTES) {
       return NextResponse.json(
         { error: "Payment QR must be 4MB or smaller." },
         { status: 400 },
       );
     }
 
-    const paymentQr = await updatePaymentQrAsset({
-      fileName: file.name || "payment-qr",
-      contentType: file.type,
-      bytes: Buffer.from(await file.arrayBuffer()),
-    });
+    const [paymentQr, manualPaymentConfig] = await Promise.all([
+      hasImage
+        ? updatePaymentQrAsset({
+            fileName: file.name || "payment-qr",
+            contentType: file.type,
+            bytes: Buffer.from(await file.arrayBuffer()),
+          })
+        : Promise.resolve(null),
+      updateManualPaymentConfig({
+        bankName,
+        accountName,
+        accountNumber,
+        promptPayId,
+        currency,
+      }),
+    ]);
 
     return NextResponse.json({
       paymentQr,
+      manualPaymentConfig,
       overview: await getAdminBillingOverview(),
     });
   } catch (error) {

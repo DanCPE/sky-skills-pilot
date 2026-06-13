@@ -131,6 +131,7 @@ export default async function AccountPage() {
             <ProfileManager
               profiles={overview.profiles}
               activeProfileId={overview.user.profileId}
+              maxProfiles={overview.maxProfiles}
             />
           </div>
 
