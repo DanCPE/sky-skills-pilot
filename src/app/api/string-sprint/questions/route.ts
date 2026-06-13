@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getTopicAccessDeniedResponse } from "@/lib/account/quiz-access";
-import { generateQuiz, type Difficulty } from "@/lib/string-comparison-generator";
-import type { ScanningPracticeQuizResponse } from "@/types";
+import { generateQuiz, type Difficulty } from "@/lib/string-sprint-generator";
+import type { StringSprintQuizResponse } from "@/types";
 
 export async function GET(req: NextRequest) {
   try {
-    const denied = await getTopicAccessDeniedResponse("string-comparison");
+    const denied = await getTopicAccessDeniedResponse("string-sprint");
     if (denied) return denied;
 
     const searchParams = req.nextUrl.searchParams;
@@ -44,11 +44,10 @@ export async function GET(req: NextRequest) {
     // Generate questions
     const questions = generateQuiz(questionCount, difficulty as Difficulty);
 
-    // Calculate time limit for real mode
-    // 3 seconds per question for pilot scanning tests
-    const timeLimit = mode === "real" ? questionCount * 6 : undefined;
+    // String Sprint is deliberately tighter than the difference-count quiz.
+    const timeLimit = mode === "real" ? questionCount * 2 : undefined;
 
-    const response: ScanningPracticeQuizResponse = {
+    const response: StringSprintQuizResponse = {
       questions,
       mode: mode as "learn" | "real",
       timeLimit,

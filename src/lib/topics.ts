@@ -133,6 +133,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/string dark.png",
   },
   {
+    slug: "string-sprint",
+    icon: "⚡",
+    title: "String Sprint",
+    description: "Make rapid same-or-different calls on string pairs under a tight clock.",
+    category: "scanning",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/string.png",
+    coverImageDark: "/images/icons/SkyQuests/string dark.png",
+  },
+  {
     slug: "scanning-shape",
     icon: "🔷",
     title: "Scanning Shape",

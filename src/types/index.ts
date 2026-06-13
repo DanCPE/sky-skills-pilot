@@ -244,6 +244,29 @@ export interface ScanningPracticeSubmitResult extends SubmitResult {
   currentScore?: number; // Running score (0-100)
 }
 
+// String Sprint specific types
+export interface StringSprintQuestion extends ScanningPracticeQuestion {
+  isSame: boolean;
+}
+
+export interface StringSprintQuizResponse {
+  questions: StringSprintQuestion[];
+  mode: "learn" | "real";
+  timeLimit?: number;
+}
+
+export interface StringSprintSubmitPayload extends SubmitPayload {
+  mode: "learn" | "real";
+  questionIndex: number;
+  timeRemaining?: number;
+  isSame: boolean;
+}
+
+export interface StringSprintSubmitResult extends SubmitResult {
+  correctAnswer?: "same" | "different";
+  currentScore?: number;
+}
+
 // --- Scanning Shape specific types ---
 
 export interface ScanningShapeQuizConfig {
