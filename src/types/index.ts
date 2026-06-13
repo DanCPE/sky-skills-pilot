@@ -445,6 +445,7 @@ export interface BoxFoldingOption {
   id: string;
   label: string;
   cube: BoxFoldingCube;
+  pattern?: number[][];
   netImages: Record<number, string>;
   netImageRotations: Record<number, number>;
   view: BoxFoldingView;

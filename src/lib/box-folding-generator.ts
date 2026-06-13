@@ -466,9 +466,6 @@ function createNetLevelDistractors(
   visibleNetFaceIndices: number[],
   rng: () => number,
 ) {
-  const hiddenNetFaceIndices = [1, 2, 3, 4, 5, 6].filter(
-    (faceIndex) => !visibleNetFaceIndices.includes(faceIndex),
-  );
   const mutations: {
     name: string;
     reason: string;
@@ -817,11 +814,6 @@ function getAllOrientations(cube: BoxFoldingCube) {
   return orientations;
 }
 
-function isRotationEquivalent(a: BoxFoldingCube, b: BoxFoldingCube) {
-  const target = stateTuple(b);
-  return getAllOrientations(a).some((orientation) => stateTuple(orientation) === target);
-}
-
 function visibleSignature(cube: BoxFoldingCube, view: BoxFoldingView) {
   return view.visibleFaces
     .map((face) => `${face}:${cube.faces[face]}:${orientationDegrees(cube.orientations[face])}`)
@@ -1122,6 +1114,101 @@ function createQuestion(
   };
 }
 
+function createUnfoldingQuestion(
+  difficulty: BoxFoldingDifficulty | "mixed",
+  questionIndex: number,
+): BoxFoldingQuestion {
+  const seed = Date.now() + questionIndex * 2017 + Math.floor(Math.random() * 100000);
+  const rng = random(seed);
+  const activeDifficulty =
+    difficulty === "mixed" ? item(["easy", "medium", "hard"] as const, rng) : difficulty;
+  const pattern = item(PATTERNS, rng).map((row) => [...row]);
+  const images = chooseImages(activeDifficulty, rng);
+  const emptyRotations = emptyNetRotations();
+  const foldResult = foldCubeNet(pattern, images, emptyRotations);
+  const canonicalCube = foldResult.cube;
+  const canonicalRotationSignatures = new Set(
+    getAllOrientations(canonicalCube).map(stateTuple),
+  );
+  const correctOption = {
+    id: crypto.randomUUID(),
+    label: "",
+    cube: cloneCube(canonicalCube),
+    pattern,
+    netImages: { ...images },
+    netImageRotations: emptyRotations,
+    view: BOX_FOLDING_CHOICE_VIEW,
+    isValidFold: true,
+    strategyName: "correct_net",
+    strategyReason: "This flat net folds into the shown cube.",
+  };
+
+  const usedNetSignatures = new Set([netOptionSignature(images, emptyRotations)]);
+  const wrongOptions = createNetLevelDistractors(
+    images,
+    [1, 2, 3, 4, 5, 6],
+    rng,
+  )
+    .filter((candidate) => {
+      if (usedNetSignatures.has(candidate.signature)) return false;
+      const wrongFoldResult = foldCubeNet(
+        pattern,
+        candidate.netImages,
+        candidate.netImageRotations,
+      );
+      if (canonicalRotationSignatures.has(stateTuple(wrongFoldResult.cube))) return false;
+      usedNetSignatures.add(candidate.signature);
+      return true;
+    })
+    .slice(0, 8)
+    .map((candidate) => {
+      const wrongFoldResult = foldCubeNet(
+        pattern,
+        candidate.netImages,
+        candidate.netImageRotations,
+      );
+      return {
+        id: crypto.randomUUID(),
+        label: "",
+        cube: wrongFoldResult.cube,
+        pattern,
+        netImages: candidate.netImages,
+        netImageRotations: candidate.netImageRotations,
+        view: BOX_FOLDING_CHOICE_VIEW,
+        isValidFold: false,
+        strategyName: candidate.name,
+        strategyReason: candidate.reason,
+      };
+    });
+
+  if (wrongOptions.length < 8) {
+    throw new Error("Could not generate enough box-unfolding distractors.");
+  }
+
+  const options = shuffle([correctOption, ...wrongOptions], rng).map((option, index) => ({
+    ...option,
+    label: String.fromCharCode(65 + index),
+  }));
+  const labeledCorrectOption = options.find((option) => option.isValidFold);
+  if (!labeledCorrectOption) {
+    throw new Error("Could not place the correct box-unfolding option.");
+  }
+
+  return {
+    id: crypto.randomUUID(),
+    prompt: "Choose the flat net that can fold into the shown cube.",
+    difficulty: activeDifficulty,
+    pattern,
+    images,
+    faceAssignments: foldResult.faceAssignments,
+    faceOrientations: foldResult.faceOrientations,
+    canonicalCube,
+    options,
+    correctOptionId: labeledCorrectOption.id,
+    explanation: "The correct net preserves every face image and orientation when folded.",
+  };
+}
+
 export function generateBoxFoldingQuiz(
   count: number,
   mode: "learn" | "real",
@@ -1129,6 +1216,23 @@ export function generateBoxFoldingQuiz(
 ): BoxFoldingQuizResponse {
   const questions = Array.from({ length: count }, (_, index) =>
     createQuestion(difficulty, index),
+  );
+  const secondsPerQuestion = 54;
+
+  return {
+    questions,
+    mode,
+    timeLimit: mode === "real" ? count * secondsPerQuestion : undefined,
+  };
+}
+
+export function generateBoxUnfoldingQuiz(
+  count: number,
+  mode: "learn" | "real",
+  difficulty: BoxFoldingDifficulty | "mixed" = "mixed",
+): BoxFoldingQuizResponse {
+  const questions = Array.from({ length: count }, (_, index) =>
+    createUnfoldingQuestion(difficulty, index),
   );
   const secondsPerQuestion = 54;
 

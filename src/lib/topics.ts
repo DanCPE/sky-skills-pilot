@@ -12,6 +12,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/box dark.png",
   },
   {
+    slug: "box-unfolding",
+    icon: "📦",
+    title: "Box Unfolding",
+    description: "Rotate a folded cube and find the flat net that unfolds from it.",
+    category: "spatial",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/box.png",
+    coverImageDark: "/images/icons/SkyQuests/box dark.png",
+  },
+  {
     slug: "missing-cube",
     icon: "🧊",
     title: "Missing Cube",

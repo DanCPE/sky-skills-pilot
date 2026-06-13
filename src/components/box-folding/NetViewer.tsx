@@ -8,11 +8,13 @@ import type {
 export default function NetViewer({
   pattern,
   images,
+  imageRotations = {},
   compact = false,
   large = false,
 }: {
   pattern: number[][];
   images: Record<number, string>;
+  imageRotations?: Record<number, number>;
   faceAssignments?: Record<number, BoxFoldingFaceName>;
   faceOrientations?: Record<number, BoxFoldingFaceOrientation>;
   compact?: boolean;
@@ -59,6 +61,7 @@ export default function NetViewer({
                   alt=""
                   className={`${imageClass} object-contain`}
                   draggable={false}
+                  style={{ transform: `rotate(${imageRotations[faceIndex] ?? 0}deg)` }}
                 />
               </div>
             );
