@@ -3,8 +3,9 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
-import CubeViewer from "@/components/box-folding/CubeViewer";
-import FoldingAnimation from "@/components/box-folding/FoldingAnimation";
+import FoldingAnimation, {
+  FoldedCubeSnapshot,
+} from "@/components/box-folding/FoldingAnimation";
 import NetViewer from "@/components/box-folding/NetViewer";
 import QuizCompleteConfirmation from "@/components/shared/QuizCompleteConfirmation";
 import QuizSidebar from "@/components/shared/QuizSidebar";
@@ -238,12 +239,15 @@ function QuestionCard({
           </div>
 
           <div className="flex min-h-0 flex-1 items-center justify-center overflow-hidden px-2 py-2">
-            <CubeViewer
-              cube={question.canonicalCube}
+            <FoldedCubeSnapshot
+              pattern={question.pattern}
+              images={question.images}
+              faceAssignments={question.faceAssignments}
+              faceOrientations={question.faceOrientations}
               view={BOX_FOLDING_CHOICE_VIEW}
               interactive
-              showAllFaces
               className="h-full w-full"
+              cubeScale={1.55}
             />
           </div>
 
