@@ -24,6 +24,7 @@ interface QuizInterfaceProps {
 }
 
 function difficultyLabel(difficulty: string) {
+  if (difficulty === "3-side") return "3 Side";
   return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 }
 
@@ -245,7 +246,7 @@ function QuestionCard({
               faceAssignments={question.faceAssignments}
               faceOrientations={question.faceOrientations}
               view={BOX_FOLDING_CHOICE_VIEW}
-              interactive
+              interactive={question.difficulty !== "3-side"}
               className="h-full w-full"
               cubeScale={1.55}
             />

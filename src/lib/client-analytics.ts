@@ -5,7 +5,7 @@ export type ClientAnalyticsPayload = {
   pathname: string;
   topicSlug?: string | null;
   mode?: "learn" | "real";
-  difficulty?: "easy" | "medium" | "hard" | "mixed";
+  difficulty?: string;
   questionCount?: number;
   sessionId?: string;
 };

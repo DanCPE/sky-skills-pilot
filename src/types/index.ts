@@ -439,6 +439,7 @@ export interface FindSimilarShapeQuizResponse {
 // --- Box Folding Types ---
 
 export type BoxFoldingDifficulty = "easy" | "medium" | "hard";
+export type BoxUnfoldingDifficulty = BoxFoldingDifficulty | "3-side";
 
 export type BoxFoldingFaceName =
   | "front"
@@ -480,7 +481,7 @@ export interface BoxFoldingOption {
 export interface BoxFoldingQuestion {
   id: string;
   prompt: string;
-  difficulty: BoxFoldingDifficulty;
+  difficulty: BoxUnfoldingDifficulty;
   pattern: number[][];
   images: Record<number, string>;
   faceAssignments: Record<number, BoxFoldingFaceName>;

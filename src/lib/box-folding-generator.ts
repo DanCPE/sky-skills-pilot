@@ -6,6 +6,7 @@ import type {
   BoxFoldingQuestion,
   BoxFoldingQuizResponse,
   BoxFoldingView,
+  BoxUnfoldingDifficulty,
 } from "@/types";
 
 type Vector = readonly [number, number, number];
@@ -1157,13 +1158,18 @@ function createQuestion(
 }
 
 function createUnfoldingQuestion(
-  difficulty: BoxFoldingDifficulty | "mixed",
+  difficulty: BoxUnfoldingDifficulty | "mixed",
   questionIndex: number,
 ): BoxFoldingQuestion {
   const seed = Date.now() + questionIndex * 2017 + Math.floor(Math.random() * 100000);
   const rng = random(seed);
+  const isThreeSide = difficulty === "3-side";
   const activeDifficulty =
-    difficulty === "mixed" ? item(["easy", "medium", "hard"] as const, rng) : difficulty;
+    difficulty === "mixed"
+      ? item(["easy", "medium", "hard"] as const, rng)
+      : isThreeSide
+        ? "medium"
+        : difficulty;
   const pattern = item(PATTERNS, rng).map((row) => [...row]);
   const images = chooseImages(activeDifficulty, rng);
   const emptyRotations = emptyNetRotations();
@@ -1171,6 +1177,12 @@ function createUnfoldingQuestion(
   const canonicalCube = foldResult.cube;
   const canonicalRotationSignatures = new Set(
     getAllOrientations(canonicalCube).map(stateTuple),
+  );
+  const questionViewSignature = displayOptionSignature(
+    pattern,
+    BOX_FOLDING_CHOICE_VIEW,
+    images,
+    emptyRotations,
   );
   const correctOption = {
     id: crypto.randomUUID(),
@@ -1228,7 +1240,17 @@ function createUnfoldingQuestion(
       candidate.netImages,
       candidate.netImageRotations,
     );
-    if (canonicalRotationSignatures.has(stateTuple(wrongFoldResult.cube))) continue;
+    if (isThreeSide) {
+      const candidateViewSignature = displayOptionSignature(
+        candidate.pattern,
+        BOX_FOLDING_CHOICE_VIEW,
+        candidate.netImages,
+        candidate.netImageRotations,
+      );
+      if (candidateViewSignature === questionViewSignature) continue;
+    } else if (canonicalRotationSignatures.has(stateTuple(wrongFoldResult.cube))) {
+      continue;
+    }
 
     usedNetSignatures.add(flatSignature);
     wrongOptions.push({
@@ -1260,8 +1282,10 @@ function createUnfoldingQuestion(
 
   return {
     id: crypto.randomUUID(),
-    prompt: "Choose the flat net that can fold into the shown cube.",
-    difficulty: activeDifficulty,
+    prompt: isThreeSide
+      ? "Choose the flat net that can fold into the same three visible sides."
+      : "Choose the flat net that can fold into the shown cube.",
+    difficulty: isThreeSide ? "3-side" : activeDifficulty,
     pattern,
     images,
     faceAssignments: foldResult.faceAssignments,
@@ -1269,7 +1293,9 @@ function createUnfoldingQuestion(
     canonicalCube,
     options,
     correctOptionId: labeledCorrectOption.id,
-    explanation: "The correct net preserves every face image and orientation when folded.",
+    explanation: isThreeSide
+      ? "The correct net matches the fixed three-side view shown in the question."
+      : "The correct net preserves every face image and orientation when folded.",
   };
 }
 
@@ -1293,7 +1319,7 @@ export function generateBoxFoldingQuiz(
 export function generateBoxUnfoldingQuiz(
   count: number,
   mode: "learn" | "real",
-  difficulty: BoxFoldingDifficulty | "mixed" = "mixed",
+  difficulty: BoxUnfoldingDifficulty | "mixed" = "mixed",
 ): BoxFoldingQuizResponse {
   const questions = Array.from({ length: count }, (_, index) =>
     createUnfoldingQuestion(difficulty, index),

@@ -5,7 +5,7 @@ import QuestionCountSlider from "./QuestionCountSlider";
 import { trackClientEvent } from "@/lib/client-analytics";
 
 type Mode = "learn" | "real" | null;
-type Difficulty = "easy" | "medium" | "hard" | "mixed";
+type BaseDifficulty = "easy" | "medium" | "hard" | "mixed";
 
 function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -53,7 +53,7 @@ const RealIcon = () => (
   </svg>
 );
 
-interface ModeSelectionProps<T> {
+interface ModeSelectionProps<T, D extends string = BaseDifficulty> {
   /** Short topic description shown below the heading */
   subtitle: string;
   topicSlug?: string;
@@ -80,16 +80,17 @@ interface ModeSelectionProps<T> {
   realDescription?: (questionCount: number, timeDisplay: string) => string;
   learnIcon?: React.ReactNode;
   realIcon?: React.ReactNode;
+  difficultyOptions?: D[];
   /** Fetch/generate quiz data. Throw to surface an error to the user. */
   onFetch: (
     mode: "learn" | "real",
-    difficulty: Difficulty,
+    difficulty: D,
     count: number
   ) => Promise<T>;
   onStart: (quizData: T) => void;
 }
 
-export default function ModeSelection<T>({
+export default function ModeSelection<T, D extends string = BaseDifficulty>({
   subtitle,
   topicSlug,
   defaultQuestionCount = 20,
@@ -106,12 +107,13 @@ export default function ModeSelection<T>({
   realDescription,
   learnIcon,
   realIcon,
+  difficultyOptions,
   onFetch,
   onStart,
-}: ModeSelectionProps<T>) {
+}: ModeSelectionProps<T, D>) {
   const [selectedMode, setSelectedMode] = useState<Mode>(null);
   const [selectedDifficulty, setSelectedDifficulty] =
-    useState<Difficulty>("mixed");
+    useState<D>((difficultyOptions?.[0] ?? "mixed") as D);
   const [questionCount, setQuestionCount] = useState(defaultQuestionCount);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -232,7 +234,7 @@ export default function ModeSelection<T>({
           Difficulty Level
         </label>
         <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(["easy", "medium", "hard", "mixed"] as Difficulty[]).map(
+          {(difficultyOptions ?? (["easy", "medium", "hard", "mixed"] as D[])).map(
             (difficulty) => (
               <button
                 key={difficulty}
@@ -244,7 +246,7 @@ export default function ModeSelection<T>({
                     : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
                 } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
               >
-                {difficulty}
+                {difficulty === "3-side" ? "3 side" : difficulty}
               </button>
             )
           )}
