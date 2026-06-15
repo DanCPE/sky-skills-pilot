@@ -16,6 +16,7 @@ import type {
   BoxFoldingOption,
   BoxFoldingQuestion,
   BoxFoldingQuizResponse,
+  BoxUnfoldingMode,
 } from "@/types";
 
 interface QuizInterfaceProps {
@@ -24,7 +25,6 @@ interface QuizInterfaceProps {
 }
 
 function difficultyLabel(difficulty: string) {
-  if (difficulty === "3-side") return "3 Side";
   return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 }
 
@@ -201,6 +201,7 @@ function QuestionCard({
   selectedId,
   isSubmitted,
   mode,
+  unfoldingMode,
   onSelect,
 }: {
   question: BoxFoldingQuestion;
@@ -208,6 +209,7 @@ function QuestionCard({
   selectedId?: string;
   isSubmitted: boolean;
   mode: "learn" | "real";
+  unfoldingMode: BoxUnfoldingMode;
   onSelect: (optionId: string) => void;
 }) {
   const [isAnswered, setIsAnswered] = useState(Boolean(selectedId));
@@ -246,7 +248,7 @@ function QuestionCard({
               faceAssignments={question.faceAssignments}
               faceOrientations={question.faceOrientations}
               view={BOX_FOLDING_CHOICE_VIEW}
-              interactive={question.difficulty !== "3-side"}
+              interactive={unfoldingMode !== "3-side"}
               className="h-full w-full"
               cubeScale={1.55}
             />
@@ -468,6 +470,7 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                   selectedId={answers[currentQuestion.id]}
                   isSubmitted={isSubmitted}
                   mode={quizData.mode}
+                  unfoldingMode={quizData.unfoldingMode ?? "6-side"}
                   onSelect={handleSelectAnswer}
                 />
               )}

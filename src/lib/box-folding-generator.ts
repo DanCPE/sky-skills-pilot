@@ -6,7 +6,7 @@ import type {
   BoxFoldingQuestion,
   BoxFoldingQuizResponse,
   BoxFoldingView,
-  BoxUnfoldingDifficulty,
+  BoxUnfoldingMode,
 } from "@/types";
 
 type Vector = readonly [number, number, number];
@@ -1158,18 +1158,15 @@ function createQuestion(
 }
 
 function createUnfoldingQuestion(
-  difficulty: BoxUnfoldingDifficulty | "mixed",
+  difficulty: BoxFoldingDifficulty | "mixed",
+  unfoldingMode: BoxUnfoldingMode,
   questionIndex: number,
 ): BoxFoldingQuestion {
   const seed = Date.now() + questionIndex * 2017 + Math.floor(Math.random() * 100000);
   const rng = random(seed);
-  const isThreeSide = difficulty === "3-side";
+  const isThreeSide = unfoldingMode === "3-side";
   const activeDifficulty =
-    difficulty === "mixed"
-      ? item(["easy", "medium", "hard"] as const, rng)
-      : isThreeSide
-        ? "medium"
-        : difficulty;
+    difficulty === "mixed" ? item(["easy", "medium", "hard"] as const, rng) : difficulty;
   const pattern = item(PATTERNS, rng).map((row) => [...row]);
   const images = chooseImages(activeDifficulty, rng);
   const emptyRotations = emptyNetRotations();
@@ -1285,7 +1282,7 @@ function createUnfoldingQuestion(
     prompt: isThreeSide
       ? "Choose the flat net that can fold into the same three visible sides."
       : "Choose the flat net that can fold into the shown cube.",
-    difficulty: isThreeSide ? "3-side" : activeDifficulty,
+    difficulty: activeDifficulty,
     pattern,
     images,
     faceAssignments: foldResult.faceAssignments,
@@ -1319,16 +1316,18 @@ export function generateBoxFoldingQuiz(
 export function generateBoxUnfoldingQuiz(
   count: number,
   mode: "learn" | "real",
-  difficulty: BoxUnfoldingDifficulty | "mixed" = "mixed",
+  difficulty: BoxFoldingDifficulty | "mixed" = "mixed",
+  unfoldingMode: BoxUnfoldingMode = "6-side",
 ): BoxFoldingQuizResponse {
   const questions = Array.from({ length: count }, (_, index) =>
-    createUnfoldingQuestion(difficulty, index),
+    createUnfoldingQuestion(difficulty, unfoldingMode, index),
   );
-  const secondsPerQuestion = 54;
+  const secondsPerQuestion = unfoldingMode === "3-side" ? 15 : 54;
 
   return {
     questions,
     mode,
+    unfoldingMode,
     timeLimit: mode === "real" ? count * secondsPerQuestion : undefined,
   };
 }

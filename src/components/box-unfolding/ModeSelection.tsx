@@ -1,13 +1,29 @@
 "use client";
 
+import { useState } from "react";
 import SharedModeSelection from "@/components/shared/ModeSelection";
 import { generateBoxUnfoldingQuiz } from "@/lib/box-folding-generator";
-import type { BoxFoldingQuizResponse } from "@/types";
+import type { BoxFoldingQuizResponse, BoxUnfoldingMode } from "@/types";
 
-type BoxUnfoldingModeDifficulty = "3-side" | "easy" | "medium" | "hard" | "mixed";
+const unfoldingModes: {
+  value: BoxUnfoldingMode;
+  label: string;
+  description: string;
+}[] = [
+  {
+    value: "3-side",
+    label: "3 Side",
+    description: "Match only the fixed three visible faces.",
+  },
+  {
+    value: "6-side",
+    label: "6 Side",
+    description: "Rotate and match the full cube.",
+  },
+];
 
-function formatRealModeTime(questionCount: number) {
-  const seconds = questionCount * 54;
+function formatRealModeTime(questionCount: number, unfoldingMode: BoxUnfoldingMode) {
+  const seconds = questionCount * (unfoldingMode === "3-side" ? 15 : 54);
   const minutes = Math.floor(seconds / 60);
   const remaining = seconds % 60;
   if (remaining === 0) return `${minutes} minute${minutes !== 1 ? "s" : ""}`;
@@ -19,23 +35,57 @@ export default function ModeSelection({
 }: {
   onStart: (quizData: BoxFoldingQuizResponse) => void;
 }) {
+  const [unfoldingMode, setUnfoldingMode] =
+    useState<BoxUnfoldingMode>("3-side");
+
   return (
-    <SharedModeSelection<BoxFoldingQuizResponse, BoxUnfoldingModeDifficulty>
+    <SharedModeSelection<BoxFoldingQuizResponse>
       subtitle="Study the folded cube, then choose the only flat net that can unfold from it."
       defaultQuestionCount={10}
       sliderMin={5}
       sliderMax={25}
       sliderStep={5}
       sliderLabels={[5, 10, 15, 20, 25]}
-      timePerQuestion={54}
-      difficultyOptions={["3-side", "easy", "medium", "hard", "mixed"]}
-      formatRealModeTime={formatRealModeTime}
+      timePerQuestion={unfoldingMode === "3-side" ? 15 : 54}
+      childrenBeforeDifficulty={
+        <div className="mb-8">
+          <label className="mb-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Unfolding Mode
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            {unfoldingModes.map((mode) => (
+              <button
+                key={mode.value}
+                type="button"
+                onClick={() => setUnfoldingMode(mode.value)}
+                className={`rounded-xl border-2 p-4 text-left transition-all ${
+                  unfoldingMode === mode.value
+                    ? "border-brand-purple bg-brand-purple text-white shadow-md shadow-brand-purple/20"
+                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
+                }`}
+              >
+                <span className="block text-sm font-bold">{mode.label}</span>
+                <span
+                  className={`mt-1 block text-xs ${
+                    unfoldingMode === mode.value
+                      ? "text-white/80"
+                      : "text-zinc-500 dark:text-zinc-400"
+                  }`}
+                >
+                  {mode.description}
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      }
+      formatRealModeTime={(count) => formatRealModeTime(count, unfoldingMode)}
       learnDescription="Work without a timer. Rotate the cube, compare every net, and review the valid unfolding afterward."
       realDescription={(count, timeDisplay) =>
         `Solve ${count} box-unfolding puzzles under time pressure. ${timeDisplay}. Harder questions use more directional markings.`
       }
       onFetch={async (mode, difficulty, count) =>
-        generateBoxUnfoldingQuiz(count, mode, difficulty)
+        generateBoxUnfoldingQuiz(count, mode, difficulty, unfoldingMode)
       }
       onStart={onStart}
     />

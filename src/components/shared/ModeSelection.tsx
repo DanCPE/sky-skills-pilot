@@ -81,6 +81,7 @@ interface ModeSelectionProps<T, D extends string = BaseDifficulty> {
   learnIcon?: React.ReactNode;
   realIcon?: React.ReactNode;
   difficultyOptions?: D[];
+  childrenBeforeDifficulty?: React.ReactNode;
   /** Fetch/generate quiz data. Throw to surface an error to the user. */
   onFetch: (
     mode: "learn" | "real",
@@ -108,6 +109,7 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
   learnIcon,
   realIcon,
   difficultyOptions,
+  childrenBeforeDifficulty,
   onFetch,
   onStart,
 }: ModeSelectionProps<T, D>) {
@@ -228,6 +230,8 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
         </button>
       </div>
 
+      {childrenBeforeDifficulty}
+
       {/* Difficulty */}
       <div className="mb-8">
         <label className="mb-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
@@ -246,7 +250,7 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
                     : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
                 } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
               >
-                {difficulty === "3-side" ? "3 side" : difficulty}
+                {difficulty}
               </button>
             )
           )}
