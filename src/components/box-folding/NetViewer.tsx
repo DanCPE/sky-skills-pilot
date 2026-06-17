@@ -10,6 +10,8 @@ export default function NetViewer({
   images,
   imageRotations = {},
   compact = false,
+  choice = false,
+  choiceLarge = false,
   large = false,
 }: {
   pattern: number[][];
@@ -18,9 +20,11 @@ export default function NetViewer({
   faceAssignments?: Record<number, BoxFoldingFaceName>;
   faceOrientations?: Record<number, BoxFoldingFaceOrientation>;
   compact?: boolean;
+  choice?: boolean;
+  choiceLarge?: boolean;
   large?: boolean;
 }) {
-  const imageClass = large ? "h-[82%] w-[82%]" : "h-[68%] w-[68%]";
+  const imageClass = large || choiceLarge ? "h-[82%] w-[82%]" : "h-[68%] w-[68%]";
   const filledCells = pattern.flatMap((row, rowIndex) =>
     row.map((faceIndex, colIndex) => ({ faceIndex, rowIndex, colIndex })),
   ).filter((cell) => cell.faceIndex !== 0);
@@ -34,9 +38,9 @@ export default function NetViewer({
   const rowCount = visiblePattern.length;
   const colCount = visiblePattern[0]?.length ?? 0;
   const maxAxisCells = Math.max(rowCount, colCount, 1);
-  const targetGridSize = large ? 272 : compact ? 118 : 188;
+  const targetGridSize = large ? 272 : choiceLarge ? 218 : choice ? 158 : compact ? 118 : 188;
   const gapSize = large ? 4 : 3;
-  const maxCellSize = large ? 68 : compact ? 40 : 48;
+  const maxCellSize = large ? 68 : choiceLarge ? 72 : choice ? 52 : compact ? 40 : 48;
   const minCellSize = compact ? 20 : 28;
   const cellSize = Math.min(
     maxCellSize,

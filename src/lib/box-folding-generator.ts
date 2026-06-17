@@ -6,6 +6,7 @@ import type {
   BoxFoldingQuestion,
   BoxFoldingQuizResponse,
   BoxFoldingView,
+  BoxUnfoldingChoiceCount,
   BoxUnfoldingMode,
 } from "@/types";
 
@@ -1160,6 +1161,7 @@ function createQuestion(
 function createUnfoldingQuestion(
   difficulty: BoxFoldingDifficulty | "mixed",
   unfoldingMode: BoxUnfoldingMode,
+  choiceCount: BoxUnfoldingChoiceCount,
   questionIndex: number,
 ): BoxFoldingQuestion {
   const seed = Date.now() + questionIndex * 2017 + Math.floor(Math.random() * 100000);
@@ -1175,11 +1177,9 @@ function createUnfoldingQuestion(
   const canonicalRotationSignatures = new Set(
     getAllOrientations(canonicalCube).map(stateTuple),
   );
-  const questionViewSignature = displayOptionSignature(
-    pattern,
+  const questionViewSignature = visibleSignature(
+    canonicalCube,
     BOX_FOLDING_CHOICE_VIEW,
-    images,
-    emptyRotations,
   );
   const correctOption = {
     id: crypto.randomUUID(),
@@ -1221,9 +1221,10 @@ function createUnfoldingQuestion(
     }),
   ];
   const wrongOptions: BoxFoldingQuestion["options"] = [];
+  const wrongOptionTarget = choiceCount - 1;
 
   for (const candidate of shuffle(candidatePool, rng)) {
-    if (wrongOptions.length >= 8) break;
+    if (wrongOptions.length >= wrongOptionTarget) break;
 
     const flatSignature = flatNetOptionSignature(
       candidate.pattern,
@@ -1238,11 +1239,9 @@ function createUnfoldingQuestion(
       candidate.netImageRotations,
     );
     if (isThreeSide) {
-      const candidateViewSignature = displayOptionSignature(
-        candidate.pattern,
+      const candidateViewSignature = visibleSignature(
+        wrongFoldResult.cube,
         BOX_FOLDING_CHOICE_VIEW,
-        candidate.netImages,
-        candidate.netImageRotations,
       );
       if (candidateViewSignature === questionViewSignature) continue;
     } else if (canonicalRotationSignatures.has(stateTuple(wrongFoldResult.cube))) {
@@ -1264,7 +1263,7 @@ function createUnfoldingQuestion(
     });
   }
 
-  if (wrongOptions.length < 8) {
+  if (wrongOptions.length < wrongOptionTarget) {
     throw new Error("Could not generate enough box-unfolding distractors.");
   }
 
@@ -1318,9 +1317,10 @@ export function generateBoxUnfoldingQuiz(
   mode: "learn" | "real",
   difficulty: BoxFoldingDifficulty | "mixed" = "mixed",
   unfoldingMode: BoxUnfoldingMode = "6-side",
+  choiceCount: BoxUnfoldingChoiceCount = 9,
 ): BoxFoldingQuizResponse {
   const questions = Array.from({ length: count }, (_, index) =>
-    createUnfoldingQuestion(difficulty, unfoldingMode, index),
+    createUnfoldingQuestion(difficulty, unfoldingMode, choiceCount, index),
   );
   const secondsPerQuestion = unfoldingMode === "3-side" ? 15 : 54;
 
@@ -1328,6 +1328,7 @@ export function generateBoxUnfoldingQuiz(
     questions,
     mode,
     unfoldingMode,
+    unfoldingChoiceCount: choiceCount,
     timeLimit: mode === "real" ? count * secondsPerQuestion : undefined,
   };
 }

@@ -35,6 +35,7 @@ function NetOptionCell({
   isCorrect,
   isSubmitted,
   isAnswered,
+  largeChoice,
   onSelect,
 }: {
   option: BoxFoldingOption;
@@ -43,6 +44,7 @@ function NetOptionCell({
   isCorrect: boolean;
   isSubmitted: boolean;
   isAnswered: boolean;
+  largeChoice: boolean;
   onSelect: () => void;
 }) {
   let stateClass =
@@ -65,13 +67,16 @@ function NetOptionCell({
         type="button"
         disabled={isSubmitted || isAnswered}
         onClick={onSelect}
-        className={`h-full min-h-[84px] w-full overflow-hidden rounded-xl border-2 transition-all active:scale-[0.98] ${stateClass}`}
+        className={`h-full w-full overflow-hidden rounded-xl border-2 transition-all active:scale-[0.98] ${
+          largeChoice ? "min-h-[160px]" : "min-h-[112px]"
+        } ${stateClass}`}
       >
         <NetViewer
           pattern={option.pattern ?? question.pattern}
           images={option.netImages}
           imageRotations={option.netImageRotations}
-          compact
+          choice={!largeChoice}
+          choiceLarge={largeChoice}
         />
       </button>
       <div
@@ -215,6 +220,7 @@ function QuestionCard({
   const [isAnswered, setIsAnswered] = useState(Boolean(selectedId));
   const selected = question.options.find((option) => option.id === selectedId);
   const isCorrect = selectedId === question.correctOptionId;
+  const isSixChoiceLayout = question.options.length === 6;
 
   useEffect(() => {
     setIsAnswered(Boolean(selectedId));
@@ -225,7 +231,7 @@ function QuestionCard({
       id={`question-${question.id}`}
       className="h-full min-h-0 rounded-2xl border-2 border-[#E2EAF0] bg-white p-3 dark:border-white/10 dark:bg-black/20"
     >
-      <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[minmax(340px,0.85fr)_minmax(500px,1.15fr)]">
+      <div className="grid h-full min-h-0 gap-3 lg:grid-cols-[minmax(240px,0.55fr)_minmax(720px,1.45fr)]">
         <section className="flex min-h-0 flex-col overflow-hidden rounded-xl bg-white dark:bg-zinc-900/80">
           <div className="flex shrink-0 items-start justify-between gap-3 border-b border-zinc-100 px-3 py-2 dark:border-white/10">
             <div>
@@ -250,7 +256,7 @@ function QuestionCard({
               view={BOX_FOLDING_CHOICE_VIEW}
               interactive={unfoldingMode !== "3-side"}
               className="h-full w-full"
-              cubeScale={1.55}
+              cubeScale={1.28}
             />
           </div>
 
@@ -284,10 +290,14 @@ function QuestionCard({
               </h4>
             </div>
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
-              3 x 3
+              {isSixChoiceLayout ? "3 x 2" : "3 x 3"}
             </span>
           </div>
-          <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-3 gap-2">
+          <div
+            className={`grid min-h-0 flex-1 grid-cols-3 gap-3 ${
+              isSixChoiceLayout ? "grid-rows-2" : "grid-rows-3"
+            }`}
+          >
             {question.options.map((option) => (
               <NetOptionCell
                 key={option.id}
@@ -297,6 +307,7 @@ function QuestionCard({
                 isCorrect={option.id === question.correctOptionId}
                 isSubmitted={isSubmitted}
                 isAnswered={isAnswered}
+                largeChoice={isSixChoiceLayout}
                 onSelect={() => onSelect(option.id)}
               />
             ))}
@@ -475,6 +486,43 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
                 />
               )}
             </div>
+
+            <div className="flex shrink-0 items-center justify-between gap-3">
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => router.back()}
+                  className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-200 hover:text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white"
+                >
+                  Exit
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCurrentQuestionIndex((previous) => Math.max(0, previous - 1))}
+                  disabled={currentQuestionIndex === 0}
+                  className="rounded-xl border border-[#E0E0E0] bg-white px-6 py-3 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                >
+                  Previous
+                </button>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={handleSkip}
+                  className="rounded-xl border border-[#E0E0E0] bg-white px-10 py-3 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
+                >
+                  Skip
+                </button>
+                <button
+                  type="button"
+                  onClick={moveToNextQuestion}
+                  disabled={currentQuestionIndex === questions.length - 1}
+                  className="rounded-xl border border-[#4F12A6] bg-[#4F12A6] px-12 py-3 text-sm font-bold text-white shadow-lg shadow-[#4F12A6]/20 transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
+                >
+                  Next
+                </button>
+              </div>
+            </div>
           </div>
 
           <div className="[&>div]:gap-3 [&>div>button]:px-10 [&>div>div]:p-4 [&>div>div:first-child]:gap-4">
@@ -493,43 +541,6 @@ export default function QuizInterface({ quizData, onRestart }: QuizInterfaceProp
               onSubmit={handleSubmitClick}
             />
           </div>
-        </div>
-
-        <div className="grid shrink-0 grid-cols-1 gap-4 lg:grid-cols-[1fr_17rem]">
-          <div className="flex items-center gap-3">
-            <button
-              type="button"
-              onClick={() => router.back()}
-              className="flex items-center gap-2 rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm font-bold text-zinc-600 transition-all hover:border-zinc-300 hover:bg-zinc-200 hover:text-zinc-900 dark:border-white/10 dark:bg-white/5 dark:text-zinc-400 dark:hover:border-white/20 dark:hover:bg-white/10 dark:hover:text-white"
-            >
-              Exit
-            </button>
-            <button
-              type="button"
-              onClick={() => setCurrentQuestionIndex((previous) => Math.max(0, previous - 1))}
-              disabled={currentQuestionIndex === 0}
-              className="rounded-xl border border-[#E0E0E0] bg-white px-8 py-3 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-30 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-            >
-              Previous
-            </button>
-            <div className="flex-1" />
-            <button
-              type="button"
-              onClick={handleSkip}
-              className="rounded-xl border border-[#E0E0E0] bg-white px-10 py-3 text-sm font-bold text-zinc-700 transition-all hover:bg-zinc-50 dark:border-white/10 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
-            >
-              Skip
-            </button>
-            <button
-              type="button"
-              onClick={moveToNextQuestion}
-              disabled={currentQuestionIndex === questions.length - 1}
-              className="rounded-xl border border-[#4F12A6] bg-[#4F12A6] px-12 py-3 text-sm font-bold text-white shadow-lg shadow-[#4F12A6]/20 transition-all hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-30"
-            >
-              Next
-            </button>
-          </div>
-          <div aria-hidden="true" />
         </div>
       </div>
 
