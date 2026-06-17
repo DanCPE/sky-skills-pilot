@@ -180,9 +180,11 @@ export interface SubscriptionPackage {
 }
 
 export type PromotionDiscountType = "percent" | "fixed";
+export type PromotionCodeType = "shared" | "one_time";
 
 export interface PromotionCode {
   code: string;
+  promotionType: PromotionCodeType;
   packageKey: string;
   discountType: PromotionDiscountType;
   discountValue: number;
@@ -677,6 +679,7 @@ export async function ensureAccountSchema() {
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_promotion_codes (
         code TEXT PRIMARY KEY,
+        promotion_type TEXT NOT NULL DEFAULT 'shared',
         package_key TEXT NOT NULL REFERENCES account_subscription_packages(key) ON DELETE CASCADE,
         discount_type TEXT NOT NULL,
         discount_value INT NOT NULL,
@@ -687,6 +690,7 @@ export async function ensureAccountSchema() {
         is_active BOOLEAN NOT NULL DEFAULT TRUE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CHECK (promotion_type IN ('shared', 'one_time')),
         CHECK (discount_type IN ('percent', 'fixed')),
         CHECK (discount_value > 0),
         CHECK (max_redemptions IS NULL OR max_redemptions > 0),
@@ -1543,6 +1547,7 @@ function mapPromotionCode(row: Record<string, unknown>): PromotionCode {
   const discountType = String(row.discount_type) as PromotionDiscountType;
   return {
     code: String(row.code),
+    promotionType: String(row.promotion_type ?? "shared") as PromotionCodeType,
     packageKey: String(row.package_key),
     discountType,
     discountValue:
@@ -1573,6 +1578,7 @@ async function ensurePromotionSchema() {
   await pool.query(`
     CREATE TABLE IF NOT EXISTS account_promotion_codes (
       code TEXT PRIMARY KEY,
+      promotion_type TEXT NOT NULL DEFAULT 'shared',
       package_key TEXT NOT NULL REFERENCES account_subscription_packages(key) ON DELETE CASCADE,
       discount_type TEXT NOT NULL,
       discount_value INT NOT NULL,
@@ -1583,12 +1589,14 @@ async function ensurePromotionSchema() {
       is_active BOOLEAN NOT NULL DEFAULT TRUE,
       created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
       updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (promotion_type IN ('shared', 'one_time')),
       CHECK (discount_type IN ('percent', 'fixed')),
       CHECK (discount_value > 0),
       CHECK (max_redemptions IS NULL OR max_redemptions > 0),
       CHECK (redeemed_count >= 0)
     );
   `);
+  await pool.query("ALTER TABLE account_promotion_codes ADD COLUMN IF NOT EXISTS promotion_type TEXT NOT NULL DEFAULT 'shared';");
   await pool.query("CREATE INDEX IF NOT EXISTS account_promotion_codes_package_idx ON account_promotion_codes(package_key, is_active);");
 }
 
@@ -3054,6 +3062,7 @@ export async function validatePromotionCodeForPackage(input: {
 
 export async function upsertPromotionCode(input: {
   code: string;
+  promotionType?: PromotionCodeType;
   packageKey: string;
   discountType: PromotionDiscountType;
   discountValue: number;
@@ -3066,7 +3075,11 @@ export async function upsertPromotionCode(input: {
   await ensurePromotionSchema();
 
   const code = normalizePromotionCode(input.code);
+  const promotionType = input.promotionType ?? "shared";
   if (!code) throw new Error("Promotion code is required.");
+  if (promotionType !== "shared" && promotionType !== "one_time") {
+    throw new Error("Promotion type must be shared or one-time.");
+  }
   if (!input.packageKey.trim()) throw new Error("Package is required.");
   if (input.discountType !== "percent" && input.discountType !== "fixed") {
     throw new Error("Discount type must be percent or fixed.");
@@ -3096,6 +3109,7 @@ export async function upsertPromotionCode(input: {
     `
       INSERT INTO account_promotion_codes (
         code,
+        promotion_type,
         package_key,
         discount_type,
         discount_value,
@@ -3105,9 +3119,10 @@ export async function upsertPromotionCode(input: {
         is_active,
         updated_at
       )
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, NOW())
       ON CONFLICT (code)
       DO UPDATE SET
+        promotion_type = EXCLUDED.promotion_type,
         package_key = EXCLUDED.package_key,
         discount_type = EXCLUDED.discount_type,
         discount_value = EXCLUDED.discount_value,
@@ -3120,6 +3135,7 @@ export async function upsertPromotionCode(input: {
     `,
     [
       code,
+      promotionType,
       input.packageKey.trim(),
       input.discountType,
       promotionDiscountValueForStorage(input.discountType, input.discountValue),
@@ -3140,8 +3156,6 @@ export async function generateOneTimePromotionCodes(input: {
   packageKey: string;
   discountType: PromotionDiscountType;
   discountValue: number;
-  startsAt?: string | null;
-  endsAt?: string | null;
   isActive: boolean;
 }) {
   await ensureAccountSchema();
@@ -3164,14 +3178,6 @@ export async function generateOneTimePromotionCodes(input: {
   if (input.discountType === "percent" && input.discountValue > 100) {
     throw new Error("Percent discount cannot be greater than 100.");
   }
-  if (
-    input.startsAt &&
-    input.endsAt &&
-    new Date(input.startsAt).getTime() > new Date(input.endsAt).getTime()
-  ) {
-    throw new Error("Start date must be before end date.");
-  }
-
   const client = await getPool().connect();
   const generated: PromotionCode[] = [];
   const seenCodes = new Set<string>();
@@ -3188,6 +3194,7 @@ export async function generateOneTimePromotionCodes(input: {
         `
           INSERT INTO account_promotion_codes (
             code,
+            promotion_type,
             package_key,
             discount_type,
             discount_value,
@@ -3197,7 +3204,7 @@ export async function generateOneTimePromotionCodes(input: {
             is_active,
             updated_at
           )
-          VALUES ($1, $2, $3, $4, 1, $5, $6, $7, NOW())
+          VALUES ($1, 'one_time', $2, $3, $4, 1, NULL, NULL, $5, NOW())
           ON CONFLICT (code) DO NOTHING
           RETURNING *;
         `,
@@ -3209,8 +3216,6 @@ export async function generateOneTimePromotionCodes(input: {
             input.discountType,
             input.discountValue,
           ),
-          input.startsAt || null,
-          input.endsAt || null,
           input.isActive,
         ],
       );
@@ -3247,6 +3252,47 @@ export async function deletePromotionCode(code: string) {
 
   promotionCodesCache = null;
   return (result.rowCount ?? 0) > 0 ? mapPromotionCode(result.rows[0]) : null;
+}
+
+export async function bulkUpdatePromotionCodes(input: {
+  codes: string[];
+  action: "activate" | "deactivate" | "delete";
+}) {
+  await ensureAccountSchema();
+  await ensurePromotionSchema();
+
+  const codes = Array.from(
+    new Set(input.codes.map(normalizePromotionCode).filter(Boolean)),
+  );
+  if (codes.length === 0) throw new Error("Select at least one promotion code.");
+
+  if (input.action === "delete") {
+    const result = await getPool().query(
+      `
+        DELETE FROM account_promotion_codes
+        WHERE code = ANY($1::text[])
+        RETURNING *;
+      `,
+      [codes],
+    );
+    promotionCodesCache = null;
+    return result.rows.map(mapPromotionCode);
+  }
+
+  const isActive = input.action === "activate";
+  const result = await getPool().query(
+    `
+      UPDATE account_promotion_codes
+      SET is_active = $2,
+          updated_at = NOW()
+      WHERE code = ANY($1::text[])
+      RETURNING *;
+    `,
+    [codes, isActive],
+  );
+
+  promotionCodesCache = null;
+  return result.rows.map(mapPromotionCode);
 }
 
 export async function getManualPaymentSlipsForFleet(fleetId: string) {

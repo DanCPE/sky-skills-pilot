@@ -60,11 +60,6 @@ function formatAmount(value: number) {
   }).format(value);
 }
 
-function dateTimeInputValue(value: string | null) {
-  if (!value) return "";
-  return new Date(value).toISOString().slice(0, 16);
-}
-
 function versionedImageUrl(url: string, version: string | number | null | undefined) {
   if (!url) return "";
   if (!version) return url;
@@ -153,8 +148,13 @@ export default function AdminBillingPage() {
   const [selectedSlip, setSelectedSlip] = useState<ManualPaymentSlip | null>(
     null,
   );
+  const [selectedPromotionCodes, setSelectedPromotionCodes] = useState<
+    Set<string>
+  >(new Set());
   const [slipPage, setSlipPage] = useState(1);
   const [fleetPage, setFleetPage] = useState(1);
+  const [sharedPromotionPage, setSharedPromotionPage] = useState(1);
+  const [oneTimePromotionPage, setOneTimePromotionPage] = useState(1);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -295,6 +295,42 @@ export default function AdminBillingPage() {
     const start = (activeSlipPage - 1) * TABLE_PAGE_SIZE;
     return sortedManualPaymentSlips.slice(start, start + TABLE_PAGE_SIZE);
   }, [activeSlipPage, sortedManualPaymentSlips]);
+  const sharedPromotionCodes = useMemo(
+    () =>
+      (data?.promotionCodes ?? []).filter(
+        (promotion) => promotion.promotionType === "shared",
+      ),
+    [data?.promotionCodes],
+  );
+  const oneTimePromotionCodes = useMemo(
+    () =>
+      (data?.promotionCodes ?? []).filter(
+        (promotion) => promotion.promotionType === "one_time",
+      ),
+    [data?.promotionCodes],
+  );
+  const selectedPromotionList = useMemo(
+    () => Array.from(selectedPromotionCodes),
+    [selectedPromotionCodes],
+  );
+  const sharedPromotionPageCount = getPageCount(sharedPromotionCodes.length);
+  const activeSharedPromotionPage = Math.min(
+    sharedPromotionPage,
+    sharedPromotionPageCount,
+  );
+  const visibleSharedPromotionCodes = useMemo(() => {
+    const start = (activeSharedPromotionPage - 1) * TABLE_PAGE_SIZE;
+    return sharedPromotionCodes.slice(start, start + TABLE_PAGE_SIZE);
+  }, [activeSharedPromotionPage, sharedPromotionCodes]);
+  const oneTimePromotionPageCount = getPageCount(oneTimePromotionCodes.length);
+  const activeOneTimePromotionPage = Math.min(
+    oneTimePromotionPage,
+    oneTimePromotionPageCount,
+  );
+  const visibleOneTimePromotionCodes = useMemo(() => {
+    const start = (activeOneTimePromotionPage - 1) * TABLE_PAGE_SIZE;
+    return oneTimePromotionCodes.slice(start, start + TABLE_PAGE_SIZE);
+  }, [activeOneTimePromotionPage, oneTimePromotionCodes]);
 
   function openSlipFromFleet(slipId: string | null) {
     if (!slipId) return;
@@ -426,13 +462,15 @@ export default function AdminBillingPage() {
       }
 
       if (json?.overview) setData(json.overview);
+      setSelectedPromotionCodes(new Set());
       if (!code) event.currentTarget.reset();
     } catch (promotionError) {
-      setError(
+      const message =
         promotionError instanceof Error
           ? promotionError.message
-          : "Failed to save promotion.",
-      );
+          : "Failed to save promotion.";
+      setError(message);
+      if (!code) window.alert(message);
     } finally {
       setPendingKey(null);
     }
@@ -459,6 +497,11 @@ export default function AdminBillingPage() {
       }
 
       if (json?.overview) setData(json.overview);
+      setSelectedPromotionCodes((current) => {
+        const next = new Set(current);
+        next.delete(code);
+        return next;
+      });
     } catch (promotionError) {
       setError(
         promotionError instanceof Error
@@ -468,6 +511,219 @@ export default function AdminBillingPage() {
     } finally {
       setPendingKey(null);
     }
+  }
+
+  function togglePromotionSelection(code: string, checked: boolean) {
+    setSelectedPromotionCodes((current) => {
+      const next = new Set(current);
+      if (checked) next.add(code);
+      else next.delete(code);
+      return next;
+    });
+  }
+
+  function setPromotionGroupSelection(codes: string[], checked: boolean) {
+    setSelectedPromotionCodes((current) => {
+      const next = new Set(current);
+      for (const code of codes) {
+        if (checked) next.add(code);
+        else next.delete(code);
+      }
+      return next;
+    });
+  }
+
+  async function bulkPromotionAction(action: "activate" | "deactivate" | "delete") {
+    if (selectedPromotionList.length === 0) {
+      window.alert("Select at least one promotion code.");
+      return;
+    }
+    if (
+      action === "delete" &&
+      !window.confirm(`Delete ${selectedPromotionList.length} promotion codes?`)
+    ) {
+      return;
+    }
+
+    const key = `promotion:bulk:${action}`;
+    setPendingKey(key);
+    setError(null);
+
+    try {
+      const response = await fetch("/api/admin/billing/promotions", {
+        method: action === "delete" ? "DELETE" : "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          codes: selectedPromotionList,
+          action,
+        }),
+      });
+      const json = (await response.json().catch(() => null)) as
+        | { overview?: AdminBillingResponse; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(json?.error ?? "Failed to update promotion codes.");
+      }
+
+      if (json?.overview) setData(json.overview);
+      setSelectedPromotionCodes(new Set());
+    } catch (promotionError) {
+      const message =
+        promotionError instanceof Error
+          ? promotionError.message
+          : "Failed to update promotion codes.";
+      setError(message);
+      window.alert(message);
+    } finally {
+      setPendingKey(null);
+    }
+  }
+
+  function renderPromotionTable({
+    title,
+    promotions,
+    visiblePromotions,
+    page,
+    pageCount,
+    onPageChange,
+  }: {
+    title: string;
+    promotions: PromotionCode[];
+    visiblePromotions: PromotionCode[];
+    page: number;
+    pageCount: number;
+    onPageChange: (page: number) => void;
+  }) {
+    const groupCodes = promotions.map((promotion) => promotion.code);
+    const allSelected =
+      groupCodes.length > 0 &&
+      groupCodes.every((code) => selectedPromotionCodes.has(code));
+
+    return (
+      <div className="overflow-hidden rounded-xl border border-zinc-200 dark:border-white/10">
+        <div className="flex items-center justify-between gap-3 border-b border-zinc-200 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5">
+          <label className="flex items-center gap-2 text-sm font-bold">
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={(event) =>
+                setPromotionGroupSelection(groupCodes, event.target.checked)
+              }
+              className="h-4 w-4 accent-violet-700"
+            />
+            {title}
+          </label>
+          <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+            {promotions.length} codes
+          </span>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="min-w-full text-left text-sm">
+            <thead className="bg-zinc-50 dark:bg-white/5">
+              <tr>
+                <th className="px-4 py-3 font-bold">Select</th>
+                <th className="px-4 py-3 font-bold">Code</th>
+                <th className="px-4 py-3 font-bold">Package</th>
+                <th className="px-4 py-3 font-bold">Discount</th>
+                <th className="px-4 py-3 font-bold">Usage</th>
+                <th className="px-4 py-3 font-bold">Period</th>
+                <th className="px-4 py-3 font-bold">Status</th>
+                <th className="px-4 py-3 font-bold">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {promotions.length === 0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="border-t border-zinc-100 px-4 py-5 text-center text-zinc-500 dark:border-white/10 dark:text-zinc-400"
+                  >
+                    No {title.toLowerCase()} configured.
+                  </td>
+                </tr>
+              ) : (
+                visiblePromotions.map((promotion) => {
+                  const isSelected = selectedPromotionCodes.has(promotion.code);
+                  const deleteKey = `promotion:${promotion.code}:delete`;
+                  return (
+                    <tr
+                      key={promotion.code}
+                      className="border-t border-zinc-100 dark:border-white/10"
+                    >
+                      <td className="px-4 py-3">
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={(event) =>
+                            togglePromotionSelection(
+                              promotion.code,
+                              event.target.checked,
+                            )
+                          }
+                          className="h-4 w-4 accent-violet-700"
+                        />
+                      </td>
+                      <td className="px-4 py-3 font-bold">{promotion.code}</td>
+                      <td className="px-4 py-3">{promotion.packageKey}</td>
+                      <td className="px-4 py-3">
+                        {promotion.discountType === "percent"
+                          ? `${promotion.discountValue}%`
+                          : formatAmount(promotion.discountValue)}
+                      </td>
+                      <td className="px-4 py-3">
+                        {promotion.redeemedCount}
+                        {promotion.maxRedemptions
+                          ? ` / ${promotion.maxRedemptions}`
+                          : " / unlimited"}
+                      </td>
+                      <td className="px-4 py-3 text-xs text-zinc-500 dark:text-zinc-400">
+                        {promotion.promotionType === "one_time" ? (
+                          "Forever"
+                        ) : (
+                          <>
+                            <p>Start {formatDateOnly(promotion.startsAt)}</p>
+                            <p>End {formatDateOnly(promotion.endsAt)}</p>
+                          </>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                            promotion.isActive
+                              ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                              : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
+                          }`}
+                        >
+                          {promotion.isActive ? "active" : "inactive"}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <button
+                          type="button"
+                          disabled={pendingKey !== null}
+                          onClick={() => void deletePromotion(promotion.code)}
+                          className="rounded-lg border border-red-200 px-3 py-1.5 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/30 dark:text-red-200 dark:hover:bg-red-500/10"
+                        >
+                          {pendingKey === deleteKey ? "Deleting..." : "Delete"}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
+        <TablePagination
+          label="codes"
+          page={page}
+          pageCount={pageCount}
+          totalItems={promotions.length}
+          onPageChange={onPageChange}
+        />
+      </div>
+    );
   }
 
   return (
@@ -1008,7 +1264,7 @@ export default function AdminBillingPage() {
 
           <form
             onSubmit={(event) => void savePromotion(event)}
-            className="mx-5 mb-5 grid gap-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10 lg:grid-cols-8"
+            className="mx-5 mb-5 grid gap-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10 lg:grid-cols-6"
           >
             <input type="hidden" name="mode" value="batch" />
             <label className="block lg:col-span-1">
@@ -1062,22 +1318,6 @@ export default function AdminBillingPage() {
                 className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
               />
             </label>
-            <label className="block lg:col-span-1">
-              <span className="text-xs font-bold">Starts At</span>
-              <input
-                name="startsAt"
-                type="datetime-local"
-                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-              />
-            </label>
-            <label className="block lg:col-span-1">
-              <span className="text-xs font-bold">Ends At</span>
-              <input
-                name="endsAt"
-                type="datetime-local"
-                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-              />
-            </label>
             <div className="flex flex-col gap-2">
               <label className="flex items-center gap-2 text-sm font-bold">
                 <input
@@ -1101,141 +1341,60 @@ export default function AdminBillingPage() {
             </div>
           </form>
 
-          <div className="grid gap-4 p-5 lg:grid-cols-2">
-            {(data?.promotionCodes ?? []).length === 0 ? (
-              <p className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-500 dark:border-white/10 dark:text-zinc-400">
-                No promotion codes configured yet.
+          <div className="space-y-4 p-5">
+            <div className="flex flex-col gap-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm font-bold">
+                {selectedPromotionCodes.size} selected
               </p>
-            ) : (
-              (data?.promotionCodes ?? []).map((promotion) => {
-                const saveKey = `promotion:${promotion.code}`;
-                const deleteKey = `promotion:${promotion.code}:delete`;
-                return (
-                  <form
-                    key={promotion.code}
-                    onSubmit={(event) =>
-                      void savePromotion(event, promotion.code)
-                    }
-                    className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <div>
-                        <p className="text-lg font-bold">{promotion.code}</p>
-                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                          Used {promotion.redeemedCount}
-                          {promotion.maxRedemptions
-                            ? ` / ${promotion.maxRedemptions}`
-                            : ""}{" "}
-                          times
-                        </p>
-                      </div>
-                      <span
-                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                          promotion.isActive
-                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
-                            : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
-                        }`}
-                      >
-                        {promotion.isActive ? "active" : "inactive"}
-                      </span>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-4">
-                      <label className="block">
-                        <span className="text-xs font-bold">Package</span>
-                        <select
-                          name="packageKey"
-                          defaultValue={promotion.packageKey}
-                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-                        >
-                          {(data?.subscriptionPackages ?? []).map((pkg) => (
-                            <option key={pkg.key} value={pkg.key}>
-                              {pkg.title}
-                            </option>
-                          ))}
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="text-xs font-bold">Type</span>
-                        <select
-                          name="discountType"
-                          defaultValue={promotion.discountType}
-                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-                        >
-                          <option value="percent">Percent</option>
-                          <option value="fixed">Fixed THB</option>
-                        </select>
-                      </label>
-                      <label className="block">
-                        <span className="text-xs font-bold">Discount</span>
-                        <input
-                          name="discountValue"
-                          defaultValue={String(promotion.discountValue)}
-                          inputMode="decimal"
-                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-xs font-bold">Max Uses</span>
-                        <input
-                          name="maxRedemptions"
-                          defaultValue={String(promotion.maxRedemptions ?? "")}
-                          inputMode="numeric"
-                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-                        />
-                      </label>
-                    </div>
-                    <div className="grid gap-3 md:grid-cols-2">
-                      <label className="block">
-                        <span className="text-xs font-bold">Starts At</span>
-                        <input
-                          name="startsAt"
-                          type="datetime-local"
-                          defaultValue={dateTimeInputValue(promotion.startsAt)}
-                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-                        />
-                      </label>
-                      <label className="block">
-                        <span className="text-xs font-bold">Ends At</span>
-                        <input
-                          name="endsAt"
-                          type="datetime-local"
-                          defaultValue={dateTimeInputValue(promotion.endsAt)}
-                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-                        />
-                      </label>
-                    </div>
-                    <input type="hidden" name="isActive" value="false" />
-                    <label className="flex items-center gap-2 text-sm font-bold">
-                      <input
-                        name="isActive"
-                        type="checkbox"
-                        value="true"
-                        defaultChecked={promotion.isActive}
-                        className="h-4 w-4 accent-violet-700"
-                      />
-                      Active
-                    </label>
-                    <div className="flex gap-2">
-                      <button
-                        type="submit"
-                        disabled={pendingKey !== null}
-                        className="flex-1 rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
-                      >
-                        {pendingKey === saveKey ? "Saving..." : "Save Code"}
-                      </button>
-                      <button
-                        type="button"
-                        disabled={pendingKey !== null}
-                        onClick={() => void deletePromotion(promotion.code)}
-                        className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/30 dark:text-red-200 dark:hover:bg-red-500/10"
-                      >
-                        {pendingKey === deleteKey ? "Deleting..." : "Delete"}
-                      </button>
-                    </div>
-                  </form>
-                );
-              })
-            )}
+              <div className="flex flex-wrap gap-2">
+                <button
+                  type="button"
+                  disabled={pendingKey !== null || selectedPromotionCodes.size === 0}
+                  onClick={() => void bulkPromotionAction("activate")}
+                  className="rounded-lg border border-emerald-200 px-3 py-2 text-xs font-bold text-emerald-700 transition hover:bg-emerald-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/30 dark:text-emerald-200 dark:hover:bg-emerald-500/10"
+                >
+                  {pendingKey === "promotion:bulk:activate"
+                    ? "Saving..."
+                    : "Activate"}
+                </button>
+                <button
+                  type="button"
+                  disabled={pendingKey !== null || selectedPromotionCodes.size === 0}
+                  onClick={() => void bulkPromotionAction("deactivate")}
+                  className="rounded-lg border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
+                >
+                  {pendingKey === "promotion:bulk:deactivate"
+                    ? "Saving..."
+                    : "Deactivate"}
+                </button>
+                <button
+                  type="button"
+                  disabled={pendingKey !== null || selectedPromotionCodes.size === 0}
+                  onClick={() => void bulkPromotionAction("delete")}
+                  className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/30 dark:text-red-200 dark:hover:bg-red-500/10"
+                >
+                  {pendingKey === "promotion:bulk:delete"
+                    ? "Deleting..."
+                    : "Delete Selected"}
+                </button>
+              </div>
+            </div>
+            {renderPromotionTable({
+              title: "Shared Codes",
+              promotions: sharedPromotionCodes,
+              visiblePromotions: visibleSharedPromotionCodes,
+              page: activeSharedPromotionPage,
+              pageCount: sharedPromotionPageCount,
+              onPageChange: setSharedPromotionPage,
+            })}
+            {renderPromotionTable({
+              title: "One-Time Codes",
+              promotions: oneTimePromotionCodes,
+              visiblePromotions: visibleOneTimePromotionCodes,
+              page: activeOneTimePromotionPage,
+              pageCount: oneTimePromotionPageCount,
+              onPageChange: setOneTimePromotionPage,
+            })}
           </div>
         </section>
 

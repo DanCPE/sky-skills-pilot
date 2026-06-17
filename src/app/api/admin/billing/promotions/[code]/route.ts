@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import {
   deletePromotionCode,
   getAdminBillingOverview,
+  getPromotionCode,
   hasAccountDatabase,
   upsertPromotionCode,
   type PromotionDiscountType,
@@ -36,8 +37,10 @@ export async function PATCH(
   try {
     const { code } = await params;
     const formData = await request.formData();
+    const existingPromotion = await getPromotionCode(code);
     const promotion = await upsertPromotionCode({
       code,
+      promotionType: existingPromotion?.promotionType ?? "shared",
       packageKey: String(formData.get("packageKey") ?? "captain"),
       discountType: String(
         formData.get("discountType") ?? "percent",
