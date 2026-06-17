@@ -22,6 +22,9 @@ const subscriptionPackagesCache = new Map<
   string,
   { expiresAt: number; packages: SubscriptionPackage[] }
 >();
+let promotionCodesCache:
+  | { expiresAt: number; promotions: PromotionCode[] }
+  | null = null;
 
 const CONFIG_CACHE_MS = 60 * 1000;
 
@@ -176,6 +179,29 @@ export interface SubscriptionPackage {
   updatedAt: string;
 }
 
+export type PromotionDiscountType = "percent" | "fixed";
+
+export interface PromotionCode {
+  code: string;
+  packageKey: string;
+  discountType: PromotionDiscountType;
+  discountValue: number;
+  maxRedemptions: number | null;
+  redeemedCount: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AppliedPromotion {
+  promotion: PromotionCode;
+  originalAmountCents: number;
+  discountCents: number;
+  finalAmountCents: number;
+}
+
 export interface ManualPaymentSlip {
   id: string;
   fleetId: string;
@@ -186,6 +212,11 @@ export interface ManualPaymentSlip {
   planTitle: string | null;
   amountCents: number;
   amountThb: number;
+  originalAmountCents: number | null;
+  originalAmountThb: number | null;
+  discountCents: number;
+  discountThb: number;
+  promotionCode: string | null;
   currency: string;
   bankName: string;
   accountName: string;
@@ -601,6 +632,9 @@ export async function ensureAccountSchema() {
       await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS slip2go_amount_cents INT;");
       await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS slip2go_payload JSONB NOT NULL DEFAULT '{}'::jsonb;");
       await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS verification_error TEXT;");
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS original_amount_cents INT;");
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS discount_cents INT NOT NULL DEFAULT 0;");
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS promotion_code TEXT;");
 
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_subscription_packages (
@@ -639,6 +673,27 @@ export async function ensureAccountSchema() {
       );
     `);
       await pool.query("ALTER TABLE account_billing_assets ADD COLUMN IF NOT EXISTS metadata JSONB NOT NULL DEFAULT '{}'::jsonb;");
+
+      await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_promotion_codes (
+        code TEXT PRIMARY KEY,
+        package_key TEXT NOT NULL REFERENCES account_subscription_packages(key) ON DELETE CASCADE,
+        discount_type TEXT NOT NULL,
+        discount_value INT NOT NULL,
+        max_redemptions INT,
+        redeemed_count INT NOT NULL DEFAULT 0,
+        starts_at TIMESTAMPTZ,
+        ends_at TIMESTAMPTZ,
+        is_active BOOLEAN NOT NULL DEFAULT TRUE,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        CHECK (discount_type IN ('percent', 'fixed')),
+        CHECK (discount_value > 0),
+        CHECK (max_redemptions IS NULL OR max_redemptions > 0),
+        CHECK (redeemed_count >= 0)
+      );
+    `);
+      await pool.query("CREATE INDEX IF NOT EXISTS account_promotion_codes_package_idx ON account_promotion_codes(package_key, is_active);");
 
       const packageMigration = await pool.query(
         "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
@@ -1395,6 +1450,17 @@ function mapManualPaymentSlip(row: Record<string, unknown>): ManualPaymentSlip {
     planTitle: row.plan_title ? String(row.plan_title) : null,
     amountCents: Number(row.amount_cents),
     amountThb: Number(row.amount_cents) / 100,
+    originalAmountCents:
+      row.original_amount_cents === null || row.original_amount_cents === undefined
+        ? null
+        : Number(row.original_amount_cents),
+    originalAmountThb:
+      row.original_amount_cents === null || row.original_amount_cents === undefined
+        ? null
+        : Number(row.original_amount_cents) / 100,
+    discountCents: Number(row.discount_cents ?? 0),
+    discountThb: Number(row.discount_cents ?? 0) / 100,
+    promotionCode: row.promotion_code ? String(row.promotion_code) : null,
     currency: String(row.currency),
     bankName: String(row.bank_name),
     accountName: String(row.account_name),
@@ -1466,6 +1532,102 @@ function mapSubscriptionPackage(row: Record<string, unknown>): SubscriptionPacka
     sortOrder: Number(row.sort_order ?? 0),
     createdAt: new Date(String(row.created_at)).toISOString(),
     updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
+function normalizePromotionCode(code: string) {
+  return code.trim().toUpperCase();
+}
+
+function mapPromotionCode(row: Record<string, unknown>): PromotionCode {
+  const discountType = String(row.discount_type) as PromotionDiscountType;
+  return {
+    code: String(row.code),
+    packageKey: String(row.package_key),
+    discountType,
+    discountValue:
+      discountType === "fixed"
+        ? Number(row.discount_value) / 100
+        : Number(row.discount_value),
+    maxRedemptions:
+      row.max_redemptions === null || row.max_redemptions === undefined
+        ? null
+        : Number(row.max_redemptions),
+    redeemedCount: Number(row.redeemed_count ?? 0),
+    startsAt: row.starts_at
+      ? new Date(String(row.starts_at)).toISOString()
+      : null,
+    endsAt: row.ends_at ? new Date(String(row.ends_at)).toISOString() : null,
+    isActive: Boolean(row.is_active),
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
+async function ensurePromotionSchema() {
+  const pool = getPool();
+
+  await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS original_amount_cents INT;");
+  await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS discount_cents INT NOT NULL DEFAULT 0;");
+  await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS promotion_code TEXT;");
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS account_promotion_codes (
+      code TEXT PRIMARY KEY,
+      package_key TEXT NOT NULL REFERENCES account_subscription_packages(key) ON DELETE CASCADE,
+      discount_type TEXT NOT NULL,
+      discount_value INT NOT NULL,
+      max_redemptions INT,
+      redeemed_count INT NOT NULL DEFAULT 0,
+      starts_at TIMESTAMPTZ,
+      ends_at TIMESTAMPTZ,
+      is_active BOOLEAN NOT NULL DEFAULT TRUE,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      CHECK (discount_type IN ('percent', 'fixed')),
+      CHECK (discount_value > 0),
+      CHECK (max_redemptions IS NULL OR max_redemptions > 0),
+      CHECK (redeemed_count >= 0)
+    );
+  `);
+  await pool.query("CREATE INDEX IF NOT EXISTS account_promotion_codes_package_idx ON account_promotion_codes(package_key, is_active);");
+}
+
+function promotionDiscountValueForStorage(
+  discountType: PromotionDiscountType,
+  discountValue: number,
+) {
+  if (discountType === "percent") return Math.round(discountValue);
+  return Math.round(discountValue * 100);
+}
+
+export function calculatePromotionDiscountCents(
+  originalAmountCents: number,
+  promotion: PromotionCode,
+) {
+  if (promotion.discountType === "percent") {
+    return Math.min(
+      originalAmountCents,
+      Math.round((originalAmountCents * promotion.discountValue) / 100),
+    );
+  }
+
+  return Math.min(originalAmountCents, Math.round(promotion.discountValue * 100));
+}
+
+export function applyPromotionToAmount(
+  originalAmountCents: number,
+  promotion: PromotionCode,
+): AppliedPromotion {
+  const discountCents = calculatePromotionDiscountCents(
+    originalAmountCents,
+    promotion,
+  );
+
+  return {
+    promotion,
+    originalAmountCents,
+    discountCents,
+    finalAmountCents: Math.max(0, originalAmountCents - discountCents),
   };
 }
 
@@ -2346,6 +2508,9 @@ export async function createManualPaymentSlip(input: {
   user: AccountUser;
   amountThb: number;
   planKey?: string;
+  promotionCode?: string | null;
+  originalAmountThb?: number | null;
+  discountThb?: number | null;
   transferReference?: string | null;
   miniQrPayload?: string | null;
   slip2goStatus?: string | null;
@@ -2361,6 +2526,7 @@ export async function createManualPaymentSlip(input: {
   slipBytes: Buffer;
 }) {
   await ensureAccountSchema();
+  await ensurePromotionSchema();
 
   if (!Number.isFinite(input.amountThb) || input.amountThb <= 0) {
     throw new Error("Payment amount must be greater than zero.");
@@ -2368,6 +2534,14 @@ export async function createManualPaymentSlip(input: {
 
   const config = await getManualPaymentConfig();
   const amountCents = Math.round(input.amountThb * 100);
+  const originalAmountCents =
+    input.originalAmountThb === null || input.originalAmountThb === undefined
+      ? null
+      : Math.round(input.originalAmountThb * 100);
+  const discountCents =
+    input.discountThb === null || input.discountThb === undefined
+      ? 0
+      : Math.round(input.discountThb * 100);
   const slip2goAmountCents =
     input.slip2goAmountThb === null || input.slip2goAmountThb === undefined
       ? null
@@ -2387,6 +2561,9 @@ export async function createManualPaymentSlip(input: {
           profile_id,
           plan_key,
           amount_cents,
+          original_amount_cents,
+          discount_cents,
+          promotion_code,
           currency,
           bank_name,
           account_name,
@@ -2411,12 +2588,13 @@ export async function createManualPaymentSlip(input: {
         VALUES (
           $1, $2, $3, $4, $5, $6, $7, $8,
           $9, $10, $11, $12, $13, $14, $15,
-          $16, $17, $18, $19, $20, $21, $22, $23, $24
+          $16, $17, $18, $19, $20, $21, $22, $23,
+          $24, $25, $26, $27
         )
         RETURNING
           account_manual_payment_slips.*,
-          $25::text AS email,
-          $26::text AS call_sign,
+          $28::text AS email,
+          $29::text AS call_sign,
           (
             SELECT title
             FROM account_subscription_packages pkg
@@ -2429,6 +2607,9 @@ export async function createManualPaymentSlip(input: {
         input.user.profileId,
         input.planKey ?? "full_access",
         amountCents,
+        originalAmountCents,
+        discountCents,
+        input.promotionCode ? normalizePromotionCode(input.promotionCode) : null,
         config.currency,
         config.bankName,
         config.accountName,
@@ -2492,6 +2673,19 @@ export async function createManualPaymentSlip(input: {
           input.planKey ?? "full_access",
         ],
       );
+    }
+
+    if (status === "approved" && input.promotionCode) {
+      await client.query(
+        `
+          UPDATE account_promotion_codes
+          SET redeemed_count = redeemed_count + 1,
+              updated_at = NOW()
+          WHERE code = $1;
+        `,
+        [normalizePromotionCode(input.promotionCode)],
+      );
+      promotionCodesCache = null;
     }
 
     await client.query("COMMIT");
@@ -2772,6 +2966,289 @@ export async function updateSubscriptionPackage(input: {
   return mapSubscriptionPackage(result.rows[0]);
 }
 
+export async function getPromotionCodes(input?: { includeInactive?: boolean }) {
+  if (!hasAccountDatabase()) return [];
+
+  const now = Date.now();
+  if (
+    !input?.includeInactive &&
+    promotionCodesCache &&
+    promotionCodesCache.expiresAt > now
+  ) {
+    return promotionCodesCache.promotions;
+  }
+
+  await ensureAccountSchema();
+  await ensurePromotionSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT *
+      FROM account_promotion_codes
+      WHERE $1::boolean = TRUE OR is_active = TRUE
+      ORDER BY updated_at DESC, code ASC;
+    `,
+    [Boolean(input?.includeInactive)],
+  );
+
+  const promotions = result.rows.map(mapPromotionCode);
+  if (!input?.includeInactive) {
+    promotionCodesCache = {
+      promotions,
+      expiresAt: now + CONFIG_CACHE_MS,
+    };
+  }
+  return promotions;
+}
+
+export async function getPromotionCode(code: string) {
+  const normalizedCode = normalizePromotionCode(code);
+  if (!normalizedCode) return null;
+
+  await ensureAccountSchema();
+  await ensurePromotionSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT *
+      FROM account_promotion_codes
+      WHERE code = $1
+      LIMIT 1;
+    `,
+    [normalizedCode],
+  );
+
+  if (result.rowCount === 0) return null;
+  return mapPromotionCode(result.rows[0]);
+}
+
+export async function validatePromotionCodeForPackage(input: {
+  code: string;
+  packageKey: string;
+  originalAmountCents: number;
+}) {
+  const promotion = await getPromotionCode(input.code);
+  if (!promotion) return null;
+
+  const now = Date.now();
+  if (!promotion.isActive) return null;
+  if (promotion.packageKey !== input.packageKey) return null;
+  if (promotion.startsAt && new Date(promotion.startsAt).getTime() > now) {
+    return null;
+  }
+  if (promotion.endsAt && new Date(promotion.endsAt).getTime() < now) {
+    return null;
+  }
+  if (
+    promotion.maxRedemptions !== null &&
+    promotion.redeemedCount >= promotion.maxRedemptions
+  ) {
+    return null;
+  }
+
+  const applied = applyPromotionToAmount(input.originalAmountCents, promotion);
+  return applied.discountCents > 0 && applied.finalAmountCents > 0
+    ? applied
+    : null;
+}
+
+export async function upsertPromotionCode(input: {
+  code: string;
+  packageKey: string;
+  discountType: PromotionDiscountType;
+  discountValue: number;
+  maxRedemptions?: number | null;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  isActive: boolean;
+}) {
+  await ensureAccountSchema();
+  await ensurePromotionSchema();
+
+  const code = normalizePromotionCode(input.code);
+  if (!code) throw new Error("Promotion code is required.");
+  if (!input.packageKey.trim()) throw new Error("Package is required.");
+  if (input.discountType !== "percent" && input.discountType !== "fixed") {
+    throw new Error("Discount type must be percent or fixed.");
+  }
+  if (!Number.isFinite(input.discountValue) || input.discountValue <= 0) {
+    throw new Error("Discount value must be greater than zero.");
+  }
+  if (input.discountType === "percent" && input.discountValue > 100) {
+    throw new Error("Percent discount cannot be greater than 100.");
+  }
+  if (
+    input.maxRedemptions !== null &&
+    input.maxRedemptions !== undefined &&
+    (!Number.isInteger(input.maxRedemptions) || input.maxRedemptions <= 0)
+  ) {
+    throw new Error("Max redemptions must be a positive whole number.");
+  }
+  if (
+    input.startsAt &&
+    input.endsAt &&
+    new Date(input.startsAt).getTime() > new Date(input.endsAt).getTime()
+  ) {
+    throw new Error("Start date must be before end date.");
+  }
+
+  const result = await getPool().query(
+    `
+      INSERT INTO account_promotion_codes (
+        code,
+        package_key,
+        discount_type,
+        discount_value,
+        max_redemptions,
+        starts_at,
+        ends_at,
+        is_active,
+        updated_at
+      )
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, NOW())
+      ON CONFLICT (code)
+      DO UPDATE SET
+        package_key = EXCLUDED.package_key,
+        discount_type = EXCLUDED.discount_type,
+        discount_value = EXCLUDED.discount_value,
+        max_redemptions = EXCLUDED.max_redemptions,
+        starts_at = EXCLUDED.starts_at,
+        ends_at = EXCLUDED.ends_at,
+        is_active = EXCLUDED.is_active,
+        updated_at = NOW()
+      RETURNING *;
+    `,
+    [
+      code,
+      input.packageKey.trim(),
+      input.discountType,
+      promotionDiscountValueForStorage(input.discountType, input.discountValue),
+      input.maxRedemptions ?? null,
+      input.startsAt || null,
+      input.endsAt || null,
+      input.isActive,
+    ],
+  );
+
+  promotionCodesCache = null;
+  return mapPromotionCode(result.rows[0]);
+}
+
+export async function generateOneTimePromotionCodes(input: {
+  prefix?: string | null;
+  quantity: number;
+  packageKey: string;
+  discountType: PromotionDiscountType;
+  discountValue: number;
+  startsAt?: string | null;
+  endsAt?: string | null;
+  isActive: boolean;
+}) {
+  await ensureAccountSchema();
+  await ensurePromotionSchema();
+
+  const prefix = normalizePromotionCode(input.prefix ?? "");
+  if (!Number.isInteger(input.quantity) || input.quantity < 1) {
+    throw new Error("Quantity must be at least 1.");
+  }
+  if (input.quantity > 500) {
+    throw new Error("Quantity cannot be greater than 500.");
+  }
+  if (!input.packageKey.trim()) throw new Error("Package is required.");
+  if (input.discountType !== "percent" && input.discountType !== "fixed") {
+    throw new Error("Discount type must be percent or fixed.");
+  }
+  if (!Number.isFinite(input.discountValue) || input.discountValue <= 0) {
+    throw new Error("Discount value must be greater than zero.");
+  }
+  if (input.discountType === "percent" && input.discountValue > 100) {
+    throw new Error("Percent discount cannot be greater than 100.");
+  }
+  if (
+    input.startsAt &&
+    input.endsAt &&
+    new Date(input.startsAt).getTime() > new Date(input.endsAt).getTime()
+  ) {
+    throw new Error("Start date must be before end date.");
+  }
+
+  const client = await getPool().connect();
+  const generated: PromotionCode[] = [];
+  const seenCodes = new Set<string>();
+
+  try {
+    await client.query("BEGIN");
+
+    while (generated.length < input.quantity) {
+      const code = `${prefix}${randomBytes(4).toString("hex").toUpperCase()}`;
+      if (seenCodes.has(code)) continue;
+      seenCodes.add(code);
+
+      const result = await client.query(
+        `
+          INSERT INTO account_promotion_codes (
+            code,
+            package_key,
+            discount_type,
+            discount_value,
+            max_redemptions,
+            starts_at,
+            ends_at,
+            is_active,
+            updated_at
+          )
+          VALUES ($1, $2, $3, $4, 1, $5, $6, $7, NOW())
+          ON CONFLICT (code) DO NOTHING
+          RETURNING *;
+        `,
+        [
+          code,
+          input.packageKey.trim(),
+          input.discountType,
+          promotionDiscountValueForStorage(
+            input.discountType,
+            input.discountValue,
+          ),
+          input.startsAt || null,
+          input.endsAt || null,
+          input.isActive,
+        ],
+      );
+
+      if ((result.rowCount ?? 0) > 0) {
+        generated.push(mapPromotionCode(result.rows[0]));
+      }
+    }
+
+    await client.query("COMMIT");
+    promotionCodesCache = null;
+    return generated;
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function deletePromotionCode(code: string) {
+  await ensureAccountSchema();
+  await ensurePromotionSchema();
+
+  const normalizedCode = normalizePromotionCode(code);
+  const result = await getPool().query(
+    `
+      DELETE FROM account_promotion_codes
+      WHERE code = $1
+      RETURNING *;
+    `,
+    [normalizedCode],
+  );
+
+  promotionCodesCache = null;
+  return (result.rowCount ?? 0) > 0 ? mapPromotionCode(result.rows[0]) : null;
+}
+
 export async function getManualPaymentSlipsForFleet(fleetId: string) {
   await ensureAccountSchema();
 
@@ -2857,6 +3334,7 @@ export async function reviewManualPaymentSlip(input: {
   rejectionReason?: string | null;
 }) {
   await ensureAccountSchema();
+  await ensurePromotionSchema();
   const pool = getPool();
   const client = await pool.connect();
 
@@ -2936,6 +3414,19 @@ export async function reviewManualPaymentSlip(input: {
         `,
         [slipResult.rows[0].user_id, input.slipId, slipResult.rows[0].plan_key],
       );
+
+      if (slipResult.rows[0].promotion_code) {
+        await client.query(
+          `
+            UPDATE account_promotion_codes
+            SET redeemed_count = redeemed_count + 1,
+                updated_at = NOW()
+            WHERE code = $1;
+          `,
+          [String(slipResult.rows[0].promotion_code)],
+        );
+        promotionCodesCache = null;
+      }
     }
 
     await client.query("COMMIT");
@@ -2975,7 +3466,13 @@ export async function reviewManualPaymentSlip(input: {
 export async function getAdminBillingOverview() {
   await ensureAccountSchema();
 
-  const [fleetResult, quizAccess, manualPaymentSlips, subscriptionPackages] =
+  const [
+    fleetResult,
+    quizAccess,
+    manualPaymentSlips,
+    subscriptionPackages,
+    promotionCodes,
+  ] =
     await Promise.all([
     getPool().query(
       `
@@ -3037,6 +3534,7 @@ export async function getAdminBillingOverview() {
     getQuizAccessRules(),
     getAdminManualPaymentSlips(),
     getSubscriptionPackages({ includeInactive: true }),
+    getPromotionCodes({ includeInactive: true }),
   ]);
 
   const fleets: AdminBillingFleet[] = fleetResult.rows.map((row) => ({
@@ -3082,5 +3580,6 @@ export async function getAdminBillingOverview() {
     manualPaymentSlips,
     manualPaymentConfig: await getManualPaymentConfig(),
     subscriptionPackages,
+    promotionCodes,
   };
 }

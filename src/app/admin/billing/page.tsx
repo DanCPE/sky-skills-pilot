@@ -5,6 +5,7 @@ import type {
   AdminBillingFleet,
   ManualPaymentConfig,
   ManualPaymentSlip,
+  PromotionCode,
   QuizAccessRule,
   SubscriptionPackage,
 } from "@/lib/account/db";
@@ -18,6 +19,7 @@ interface AdminBillingResponse {
   manualPaymentSlips: ManualPaymentSlip[];
   manualPaymentConfig: ManualPaymentConfig;
   subscriptionPackages: SubscriptionPackage[];
+  promotionCodes: PromotionCode[];
 }
 
 type SlipTimeSort = "newest" | "oldest";
@@ -56,6 +58,11 @@ function formatAmount(value: number) {
     style: "currency",
     currency: "THB",
   }).format(value);
+}
+
+function dateTimeInputValue(value: string | null) {
+  if (!value) return "";
+  return new Date(value).toISOString().slice(0, 16);
 }
 
 function versionedImageUrl(url: string, version: string | number | null | undefined) {
@@ -390,6 +397,79 @@ export default function AdminBillingPage() {
     }
   }
 
+  async function savePromotion(
+    event: React.FormEvent<HTMLFormElement>,
+    code?: string,
+  ) {
+    event.preventDefault();
+    const key = code ? `promotion:${code}` : "promotion:new";
+    setPendingKey(key);
+    setError(null);
+
+    try {
+      const formData = new FormData(event.currentTarget);
+      const response = await fetch(
+        code
+          ? `/api/admin/billing/promotions/${encodeURIComponent(code)}`
+          : "/api/admin/billing/promotions",
+        {
+          method: code ? "PATCH" : "POST",
+          body: formData,
+        },
+      );
+      const json = (await response.json().catch(() => null)) as
+        | { overview?: AdminBillingResponse; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(json?.error ?? "Failed to save promotion.");
+      }
+
+      if (json?.overview) setData(json.overview);
+      if (!code) event.currentTarget.reset();
+    } catch (promotionError) {
+      setError(
+        promotionError instanceof Error
+          ? promotionError.message
+          : "Failed to save promotion.",
+      );
+    } finally {
+      setPendingKey(null);
+    }
+  }
+
+  async function deletePromotion(code: string) {
+    if (!window.confirm(`Delete promotion code ${code}?`)) return;
+
+    const key = `promotion:${code}:delete`;
+    setPendingKey(key);
+    setError(null);
+
+    try {
+      const response = await fetch(
+        `/api/admin/billing/promotions/${encodeURIComponent(code)}`,
+        { method: "DELETE" },
+      );
+      const json = (await response.json().catch(() => null)) as
+        | { overview?: AdminBillingResponse; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(json?.error ?? "Failed to delete promotion.");
+      }
+
+      if (json?.overview) setData(json.overview);
+    } catch (promotionError) {
+      setError(
+        promotionError instanceof Error
+          ? promotionError.message
+          : "Failed to delete promotion.",
+      );
+    } finally {
+      setPendingKey(null);
+    }
+  }
+
   return (
     <main className="min-h-screen bg-[#f4f6f8] px-5 py-10 text-zinc-950 dark:bg-black dark:text-zinc-100">
       <div className="mx-auto max-w-7xl space-y-6">
@@ -566,6 +646,15 @@ export default function AdminBillingPage() {
                         </td>
                         <td className="px-4 py-3">
                           {formatAmount(slip.amountThb)}
+                          {slip.promotionCode ? (
+                            <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                              {slip.promotionCode}:{" "}
+                              {slip.originalAmountThb !== null
+                                ? formatAmount(slip.originalAmountThb)
+                                : "-"}{" "}
+                              - {formatAmount(slip.discountThb)}
+                            </p>
+                          ) : null}
                         </td>
                         <td className="max-w-xs px-4 py-3">
                           <p className="truncate">
@@ -830,6 +919,323 @@ export default function AdminBillingPage() {
                 </form>
               );
             })}
+          </div>
+        </section>
+
+        <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
+          <div className="border-b border-zinc-200 px-5 py-4 dark:border-white/10">
+            <h2 className="text-lg font-bold">Promotion Codes</h2>
+            <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+              Create shared promo codes, or generate many one-time codes for
+              campaigns. Each payment slip is verified against the discounted
+              bank transfer amount.
+            </p>
+          </div>
+          <form
+            onSubmit={(event) => void savePromotion(event)}
+            className="m-5 grid gap-3 rounded-xl border border-violet-200 bg-violet-50 p-4 dark:border-violet-500/20 dark:bg-violet-500/10 lg:grid-cols-7"
+          >
+            <input type="hidden" name="mode" value="single" />
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Code</span>
+              <input
+                name="code"
+                placeholder="CAPTAIN20"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm uppercase dark:border-white/10 dark:bg-black"
+              />
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Package</span>
+              <select
+                name="packageKey"
+                defaultValue="captain"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              >
+                {(data?.subscriptionPackages ?? []).map((pkg) => (
+                  <option key={pkg.key} value={pkg.key}>
+                    {pkg.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Type</span>
+              <select
+                name="discountType"
+                defaultValue="percent"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              >
+                <option value="percent">Percent</option>
+                <option value="fixed">Fixed THB</option>
+              </select>
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Discount</span>
+              <input
+                name="discountValue"
+                inputMode="decimal"
+                placeholder="20"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              />
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Max Uses</span>
+              <input
+                name="maxRedemptions"
+                inputMode="numeric"
+                placeholder="Unlimited"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              />
+            </label>
+            <label className="flex items-end gap-2 pb-2 text-sm font-bold">
+              <input
+                name="isActive"
+                type="checkbox"
+                value="true"
+                defaultChecked
+                className="h-4 w-4 accent-violet-700"
+              />
+              Active
+            </label>
+            <button
+              type="submit"
+              disabled={pendingKey !== null}
+              className="self-end rounded-lg bg-violet-700 px-4 py-2 text-xs font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
+            >
+              {pendingKey === "promotion:new" ? "Saving..." : "Add Code"}
+            </button>
+          </form>
+
+          <form
+            onSubmit={(event) => void savePromotion(event)}
+            className="mx-5 mb-5 grid gap-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10 lg:grid-cols-8"
+          >
+            <input type="hidden" name="mode" value="batch" />
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Prefix</span>
+              <input
+                name="prefix"
+                placeholder="CAP"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm uppercase dark:border-white/10 dark:bg-black"
+              />
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Quantity</span>
+              <input
+                name="quantity"
+                defaultValue="10"
+                inputMode="numeric"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              />
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Package</span>
+              <select
+                name="packageKey"
+                defaultValue="captain"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              >
+                {(data?.subscriptionPackages ?? []).map((pkg) => (
+                  <option key={pkg.key} value={pkg.key}>
+                    {pkg.title}
+                  </option>
+                ))}
+              </select>
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Type</span>
+              <select
+                name="discountType"
+                defaultValue="percent"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              >
+                <option value="percent">Percent</option>
+                <option value="fixed">Fixed THB</option>
+              </select>
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Discount</span>
+              <input
+                name="discountValue"
+                inputMode="decimal"
+                placeholder="20"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              />
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Starts At</span>
+              <input
+                name="startsAt"
+                type="datetime-local"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              />
+            </label>
+            <label className="block lg:col-span-1">
+              <span className="text-xs font-bold">Ends At</span>
+              <input
+                name="endsAt"
+                type="datetime-local"
+                className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+              />
+            </label>
+            <div className="flex flex-col gap-2">
+              <label className="flex items-center gap-2 text-sm font-bold">
+                <input
+                  name="isActive"
+                  type="checkbox"
+                  value="true"
+                  defaultChecked
+                  className="h-4 w-4 accent-violet-700"
+                />
+                Active
+              </label>
+              <button
+                type="submit"
+                disabled={pendingKey !== null}
+                className="w-full rounded-lg bg-zinc-950 px-4 py-2 text-xs font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
+              >
+                {pendingKey === "promotion:new"
+                  ? "Generating..."
+                  : "Generate"}
+              </button>
+            </div>
+          </form>
+
+          <div className="grid gap-4 p-5 lg:grid-cols-2">
+            {(data?.promotionCodes ?? []).length === 0 ? (
+              <p className="rounded-xl border border-zinc-200 p-4 text-sm text-zinc-500 dark:border-white/10 dark:text-zinc-400">
+                No promotion codes configured yet.
+              </p>
+            ) : (
+              (data?.promotionCodes ?? []).map((promotion) => {
+                const saveKey = `promotion:${promotion.code}`;
+                const deleteKey = `promotion:${promotion.code}:delete`;
+                return (
+                  <form
+                    key={promotion.code}
+                    onSubmit={(event) =>
+                      void savePromotion(event, promotion.code)
+                    }
+                    className="space-y-3 rounded-xl border border-zinc-200 p-4 dark:border-white/10"
+                  >
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-lg font-bold">{promotion.code}</p>
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                          Used {promotion.redeemedCount}
+                          {promotion.maxRedemptions
+                            ? ` / ${promotion.maxRedemptions}`
+                            : ""}{" "}
+                          times
+                        </p>
+                      </div>
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                          promotion.isActive
+                            ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                            : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
+                        }`}
+                      >
+                        {promotion.isActive ? "active" : "inactive"}
+                      </span>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-4">
+                      <label className="block">
+                        <span className="text-xs font-bold">Package</span>
+                        <select
+                          name="packageKey"
+                          defaultValue={promotion.packageKey}
+                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                        >
+                          {(data?.subscriptionPackages ?? []).map((pkg) => (
+                            <option key={pkg.key} value={pkg.key}>
+                              {pkg.title}
+                            </option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-bold">Type</span>
+                        <select
+                          name="discountType"
+                          defaultValue={promotion.discountType}
+                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                        >
+                          <option value="percent">Percent</option>
+                          <option value="fixed">Fixed THB</option>
+                        </select>
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-bold">Discount</span>
+                        <input
+                          name="discountValue"
+                          defaultValue={String(promotion.discountValue)}
+                          inputMode="decimal"
+                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-bold">Max Uses</span>
+                        <input
+                          name="maxRedemptions"
+                          defaultValue={String(promotion.maxRedemptions ?? "")}
+                          inputMode="numeric"
+                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                        />
+                      </label>
+                    </div>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      <label className="block">
+                        <span className="text-xs font-bold">Starts At</span>
+                        <input
+                          name="startsAt"
+                          type="datetime-local"
+                          defaultValue={dateTimeInputValue(promotion.startsAt)}
+                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                        />
+                      </label>
+                      <label className="block">
+                        <span className="text-xs font-bold">Ends At</span>
+                        <input
+                          name="endsAt"
+                          type="datetime-local"
+                          defaultValue={dateTimeInputValue(promotion.endsAt)}
+                          className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                        />
+                      </label>
+                    </div>
+                    <input type="hidden" name="isActive" value="false" />
+                    <label className="flex items-center gap-2 text-sm font-bold">
+                      <input
+                        name="isActive"
+                        type="checkbox"
+                        value="true"
+                        defaultChecked={promotion.isActive}
+                        className="h-4 w-4 accent-violet-700"
+                      />
+                      Active
+                    </label>
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={pendingKey !== null}
+                        className="flex-1 rounded-lg bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
+                      >
+                        {pendingKey === saveKey ? "Saving..." : "Save Code"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={pendingKey !== null}
+                        onClick={() => void deletePromotion(promotion.code)}
+                        className="rounded-lg border border-red-200 px-3 py-2 text-xs font-bold text-red-700 transition hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-red-500/30 dark:text-red-200 dark:hover:bg-red-500/10"
+                      >
+                        {pendingKey === deleteKey ? "Deleting..." : "Delete"}
+                      </button>
+                    </div>
+                  </form>
+                );
+              })
+            )}
           </div>
         </section>
 

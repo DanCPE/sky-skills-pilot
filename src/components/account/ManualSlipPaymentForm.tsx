@@ -14,6 +14,12 @@ type BarcodeDetectorInstance = {
 type BarcodeDetectorConstructor = new (options: {
   formats: string[];
 }) => BarcodeDetectorInstance;
+type AppliedPromotionResponse = {
+  promotion: { code: string };
+  originalAmountThb: number;
+  discountThb: number;
+  finalAmountThb: number;
+};
 
 interface WindowWithBarcodeDetector extends Window {
   BarcodeDetector?: BarcodeDetectorConstructor;
@@ -47,6 +53,9 @@ export default function ManualSlipPaymentForm({
       : packages[0]?.key ?? "",
   );
   const [transferReference, setTransferReference] = useState("");
+  const [promotionCode, setPromotionCode] = useState("");
+  const [appliedPromotion, setAppliedPromotion] =
+    useState<AppliedPromotionResponse | null>(null);
   const [miniQrPayload, setMiniQrPayload] = useState("");
   const [note, setNote] = useState("");
   const [slipFile, setSlipFile] = useState<File | null>(null);
@@ -58,7 +67,11 @@ export default function ManualSlipPaymentForm({
 
   const selectedPackage =
     packages.find((item) => item.key === selectedPackageKey) ?? null;
-  const selectedAmount = selectedPackage ? formatAmount(selectedPackage.priceThb) : "-";
+  const originalAmount = selectedPackage ? selectedPackage.priceThb : 0;
+  const discountAmount = appliedPromotion?.discountThb ?? 0;
+  const totalAmount = appliedPromotion?.finalAmountThb ?? originalAmount;
+  const selectedAmount = selectedPackage ? formatAmount(originalAmount) : "-";
+  const totalAmountLabel = selectedPackage ? formatAmount(totalAmount) : "-";
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
 
   useEffect(() => {
@@ -108,6 +121,59 @@ export default function ManualSlipPaymentForm({
     if (file) await tryReadMiniQr(file);
   }
 
+  async function applyPromotion() {
+    setError(null);
+    setSuccess(null);
+    setAppliedPromotion(null);
+
+    if (!selectedPackage) {
+      setError("Please select a package first.");
+      return;
+    }
+    if (!promotionCode.trim()) {
+      setError("Please enter a promotion code.");
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/account/billing/promo", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          planKey: selectedPackage.key,
+          code: promotionCode,
+        }),
+      });
+      const json = (await response.json().catch(() => null)) as
+        | AppliedPromotionResponse
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(
+          json && "error" in json && json.error
+            ? json.error
+            : "Promotion code could not be applied.",
+        );
+      }
+
+      setAppliedPromotion(json as AppliedPromotionResponse);
+      setPromotionCode((json as AppliedPromotionResponse).promotion.code);
+    } catch (promotionError) {
+      setError(
+        promotionError instanceof Error
+          ? promotionError.message
+          : "Promotion code could not be applied.",
+      );
+    }
+  }
+
+  function clearPromotion() {
+    setAppliedPromotion(null);
+    setPromotionCode("");
+    setError(null);
+  }
+
   async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setError(null);
@@ -125,8 +191,11 @@ export default function ManualSlipPaymentForm({
     setIsSubmitting(true);
     try {
       const formData = new FormData();
-      formData.set("amountThb", String(selectedPackage.priceThb));
+      formData.set("amountThb", String(totalAmount));
       formData.set("planKey", selectedPackage.key);
+      if (appliedPromotion) {
+        formData.set("promotionCode", appliedPromotion.promotion.code);
+      }
       formData.set("transferReference", transferReference);
       formData.set("miniQrPayload", miniQrPayload);
       formData.set("note", note);
@@ -146,6 +215,8 @@ export default function ManualSlipPaymentForm({
 
       setSlipFile(null);
       setTransferReference("");
+      setPromotionCode("");
+      setAppliedPromotion(null);
       setMiniQrPayload("");
       setNote("");
       setQrMessage(null);
@@ -205,18 +276,31 @@ export default function ManualSlipPaymentForm({
                 </label>
                 <div className="mt-3 flex gap-2">
                   <input
-                    disabled
+                    value={promotionCode}
+                    onChange={(event) => {
+                      setPromotionCode(event.target.value);
+                      setAppliedPromotion(null);
+                    }}
+                    disabled={isSubmitting || !selectedPackage}
                     placeholder="Enter promo code"
-                    className="min-h-10 flex-1 rounded-lg border border-zinc-300 bg-[#faf9fc] px-3 text-sm text-zinc-500"
+                    className="min-h-10 flex-1 rounded-lg border border-zinc-300 bg-white px-3 text-sm text-zinc-950 disabled:bg-[#faf9fc] disabled:text-zinc-500"
                   />
                   <button
                     type="button"
-                    disabled
-                    className="rounded-lg bg-zinc-500 px-5 text-sm font-semibold text-white opacity-80"
+                    onClick={() =>
+                      appliedPromotion ? clearPromotion() : void applyPromotion()
+                    }
+                    disabled={isSubmitting || !selectedPackage || !promotionCode.trim()}
+                    className="rounded-lg bg-[#5817b7] px-5 text-sm font-semibold text-white transition hover:bg-[#5012A5] disabled:cursor-not-allowed disabled:bg-zinc-500 disabled:opacity-80"
                   >
-                    Apply
+                    {appliedPromotion ? "Clear" : "Apply"}
                   </button>
                 </div>
+                {appliedPromotion ? (
+                  <p className="mt-2 text-xs font-semibold text-emerald-700">
+                    {appliedPromotion.promotion.code} applied.
+                  </p>
+                ) : null}
               </div>
 
               <div className="space-y-3 border-t border-zinc-200 pt-4 text-sm">
@@ -226,14 +310,16 @@ export default function ManualSlipPaymentForm({
                 </div>
                 <div className="flex justify-between gap-4 text-zinc-500">
                   <span>Discount</span>
-                  <span className="text-red-700">-฿0.00</span>
+                  <span className="text-red-700">
+                    -{formatAmount(discountAmount)}
+                  </span>
                 </div>
                 <div className="flex items-center justify-between gap-4 pt-2">
                   <span className="text-2xl font-semibold text-zinc-950">
                     Total Amount
                   </span>
                   <span className="text-2xl font-semibold text-zinc-950">
-                    {selectedAmount}
+                    {totalAmountLabel}
                   </span>
                 </div>
               </div>

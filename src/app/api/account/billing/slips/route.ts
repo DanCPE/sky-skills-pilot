@@ -8,6 +8,7 @@ import {
   getSubscriptionPackage,
   getSubscriptionPackages,
   hasAccountDatabase,
+  validatePromotionCodeForPackage,
 } from "@/lib/account/db";
 import {
   isSlip2GoConfigured,
@@ -98,12 +99,10 @@ export async function POST(request: Request) {
   try {
     const formData = await request.formData();
     const packageKey = String(formData.get("planKey") ?? "");
+    const promotionCode = String(formData.get("promotionCode") ?? "").trim();
     const subscriptionPackage = packageKey
       ? await getSubscriptionPackage(packageKey)
       : null;
-    const amountThb = subscriptionPackage
-      ? subscriptionPackage.priceThb
-      : Number(String(formData.get("amountThb") ?? ""));
     const slipFile = formData.get("slip");
 
     if (!subscriptionPackage || !subscriptionPackage.isActive) {
@@ -136,7 +135,24 @@ export async function POST(request: Request) {
 
     const slipBytes = Buffer.from(await slipFile.arrayBuffer());
     const miniQrPayload = String(formData.get("miniQrPayload") ?? "");
-    const expectedAmountCents = subscriptionPackage.priceCents;
+    const appliedPromotion = promotionCode
+      ? await validatePromotionCodeForPackage({
+          code: promotionCode,
+          packageKey: subscriptionPackage.key,
+          originalAmountCents: subscriptionPackage.priceCents,
+        })
+      : null;
+
+    if (promotionCode && !appliedPromotion) {
+      return NextResponse.json(
+        { error: "Promotion code is invalid for this package." },
+        { status: 400 },
+      );
+    }
+
+    const expectedAmountCents =
+      appliedPromotion?.finalAmountCents ?? subscriptionPackage.priceCents;
+    const expectedAmountThb = expectedAmountCents / 100;
     const manualFallbackEnabled =
       process.env.SLIP2GO_ALLOW_MANUAL_FALLBACK === "true";
 
@@ -153,8 +169,15 @@ export async function POST(request: Request) {
 
       const fallbackSlip = await createManualPaymentSlip({
         user,
-        amountThb,
+        amountThb: expectedAmountThb,
         planKey: subscriptionPackage.key,
+        promotionCode: appliedPromotion?.promotion.code,
+        originalAmountThb: appliedPromotion
+          ? subscriptionPackage.priceThb
+          : undefined,
+        discountThb: appliedPromotion
+          ? appliedPromotion.discountCents / 100
+          : undefined,
         transferReference: String(formData.get("transferReference") ?? ""),
         miniQrPayload,
         note: String(formData.get("note") ?? ""),
@@ -203,8 +226,13 @@ export async function POST(request: Request) {
 
     const slip = await createManualPaymentSlip({
       user,
-      amountThb,
+      amountThb: expectedAmountThb,
       planKey: subscriptionPackage.key,
+      promotionCode: appliedPromotion?.promotion.code,
+      originalAmountThb: appliedPromotion ? subscriptionPackage.priceThb : undefined,
+      discountThb: appliedPromotion
+        ? appliedPromotion.discountCents / 100
+        : undefined,
       transferReference: String(formData.get("transferReference") ?? ""),
       miniQrPayload,
       note: String(formData.get("note") ?? ""),
@@ -230,7 +258,9 @@ export async function POST(request: Request) {
       slip2goRequestMode: verification.requestMode,
       transRef: verification.transRef,
       verifiedAmountThb: verification.amountThb,
-      expectedAmountThb: subscriptionPackage.priceThb,
+      expectedAmountThb,
+      promotionCode: appliedPromotion?.promotion.code ?? null,
+      discountThb: appliedPromotion ? appliedPromotion.discountCents / 100 : 0,
       durationMs: verification.durationMs,
       rejected: Boolean(rejectionReason),
       rejectionReason,
