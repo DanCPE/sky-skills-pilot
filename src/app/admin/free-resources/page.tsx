@@ -233,7 +233,7 @@ export default function AdminFreeResourcesPage() {
               <input
                 value={form.downloadUrl}
                 onChange={(event) => updateForm("downloadUrl", event.target.value)}
-                placeholder="/images/dern-jood/circle%20pdf.pdf"
+                placeholder="/images/dern-jood/ciecle.png"
                 className="w-full rounded-xl border border-zinc-300 bg-white px-3 py-2 text-sm outline-none ring-brand-purple/30 transition focus:ring dark:border-white/15 dark:bg-black/30"
                 required
               />

@@ -6,6 +6,11 @@ import { trackClientEvent } from "@/lib/client-analytics";
 
 type Mode = "learn" | "real" | null;
 type BaseDifficulty = "easy" | "medium" | "hard" | "mixed";
+type SharedModeSelectionRenderContext = {
+  selectedMode: Mode;
+  isLoading: boolean;
+  questionCount: number;
+};
 
 function formatTime(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -81,7 +86,13 @@ interface ModeSelectionProps<T, D extends string = BaseDifficulty> {
   learnIcon?: React.ReactNode;
   realIcon?: React.ReactNode;
   difficultyOptions?: D[];
-  childrenBeforeDifficulty?: React.ReactNode;
+  showDifficulty?: boolean | ((selectedMode: Mode) => boolean);
+  showQuestionCount?: boolean;
+  childrenBeforeDifficulty?:
+    | React.ReactNode
+    | ((context: SharedModeSelectionRenderContext) => React.ReactNode);
+  startLabel?: string;
+  loadingLabel?: string;
   /** Fetch/generate quiz data. Throw to surface an error to the user. */
   onFetch: (
     mode: "learn" | "real",
@@ -109,7 +120,11 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
   learnIcon,
   realIcon,
   difficultyOptions,
+  showDifficulty = true,
+  showQuestionCount = true,
   childrenBeforeDifficulty,
+  startLabel = "Start Quest",
+  loadingLabel = "Loading...",
   onFetch,
   onStart,
 }: ModeSelectionProps<T, D>) {
@@ -126,6 +141,14 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
 
   const defaultRealDescription = (_count: number, time: string) =>
     `Test your skills under time pressure. ${time}. See your score at the end and track your improvement.`;
+  const shouldShowDifficulty =
+    typeof showDifficulty === "function"
+      ? showDifficulty(selectedMode)
+      : showDifficulty;
+  const customContent =
+    typeof childrenBeforeDifficulty === "function"
+      ? childrenBeforeDifficulty({ selectedMode, isLoading, questionCount })
+      : childrenBeforeDifficulty;
 
   const handleStart = async () => {
     if (!selectedMode) return;
@@ -230,45 +253,49 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
         </button>
       </div>
 
-      {childrenBeforeDifficulty}
+      {customContent}
 
       {/* Difficulty */}
-      <div className="mb-8">
-        <label className="mb-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
-          Difficulty Level
-        </label>
-        <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-          {(difficultyOptions ?? (["easy", "medium", "hard", "mixed"] as D[])).map(
-            (difficulty) => (
-              <button
-                key={difficulty}
-                onClick={() => setSelectedDifficulty(difficulty)}
-                disabled={isLoading}
-                className={`rounded-lg border-2 px-4 py-3 text-sm font-medium capitalize transition-all ${
-                  selectedDifficulty === difficulty
-                    ? "border-brand-purple bg-brand-purple text-white shadow-md shadow-brand-purple/20"
-                    : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
-                } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-              >
-                {difficulty}
-              </button>
-            )
-          )}
+      {shouldShowDifficulty && (
+        <div className="mb-8">
+          <label className="mb-3 block text-sm font-medium text-zinc-700 dark:text-zinc-300">
+            Difficulty Level
+          </label>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            {(difficultyOptions ?? (["easy", "medium", "hard", "mixed"] as D[])).map(
+              (difficulty) => (
+                <button
+                  key={difficulty}
+                  onClick={() => setSelectedDifficulty(difficulty)}
+                  disabled={isLoading}
+                  className={`rounded-lg border-2 px-4 py-3 text-sm font-medium capitalize transition-all ${
+                    selectedDifficulty === difficulty
+                      ? "border-brand-purple bg-brand-purple text-white shadow-md shadow-brand-purple/20"
+                      : "border-zinc-200 bg-white text-zinc-700 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
+                  } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+                >
+                  {difficulty}
+                </button>
+              )
+            )}
+          </div>
         </div>
-      </div>
+      )}
 
-      <QuestionCountSlider
-        value={questionCount}
-        min={sliderMin}
-        max={sliderMax}
-        step={sliderStep}
-        onChange={setQuestionCount}
-        labels={sliderLabels}
-        isLoading={isLoading}
-        title={sliderLabel}
-        helperText={sliderHelperText?.(questionCount)}
-        formatLabel={formatSliderLabel}
-      />
+      {showQuestionCount && (
+        <QuestionCountSlider
+          value={questionCount}
+          min={sliderMin}
+          max={sliderMax}
+          step={sliderStep}
+          onChange={setQuestionCount}
+          labels={sliderLabels}
+          isLoading={isLoading}
+          title={sliderLabel}
+          helperText={sliderHelperText?.(questionCount)}
+          formatLabel={formatSliderLabel}
+        />
+      )}
 
       {error && (
         <div className="mb-6 rounded-lg border-2 border-red-200 bg-red-50 p-4 dark:border-red-900 dark:bg-red-950">
@@ -304,7 +331,7 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
                   d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                 />
               </svg>
-              Loading...
+              {loadingLabel}
             </>
           ) : (
             <>
@@ -327,7 +354,7 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
                   d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
                 />
               </svg>
-              Start Quest
+              {startLabel}
             </>
           )}
         </button>

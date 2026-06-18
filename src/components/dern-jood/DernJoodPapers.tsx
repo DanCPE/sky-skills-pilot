@@ -3,7 +3,7 @@ import Image from "next/image";
 interface DernJoodPaper {
   title: string;
   shortTitle: string;
-  kind: "PNG" | "PDF";
+  kind: "PNG";
   href: string;
   downloadName: string;
   preview?: string;
@@ -26,13 +26,6 @@ const dernJoodPapers: DernJoodPaper[] = [
     downloadName: "dern-jood-paper-mixed.png",
     preview: "/images/dern-jood/mix.png",
   },
-  {
-    title: "Circle Dern-Jood Paper PDF",
-    shortTitle: "Circle PDF",
-    kind: "PDF",
-    href: "/images/dern-jood/circle%20pdf.pdf",
-    downloadName: "dern-jood-paper-circle.pdf",
-  },
 ] as const;
 
 interface DernJoodPapersProps {
@@ -43,10 +36,16 @@ export default function DernJoodPapers({ compact = false }: DernJoodPapersProps)
   return (
     <section
       className={`rounded-2xl border-2 border-zinc-200 bg-white dark:border-white/10 dark:bg-black/40 ${
-        compact ? "p-4" : "mb-8 p-5"
+        compact ? "p-4" : "mx-auto mb-8 w-full max-w-3xl p-5"
       }`}
     >
-      <div className={compact ? "mb-3" : "mb-4 flex flex-wrap items-end justify-between gap-3"}>
+      <div
+        className={
+          compact
+            ? "mb-3 text-center"
+            : "mb-5 flex flex-wrap items-end justify-between gap-3"
+        }
+      >
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-purple dark:text-brand-gold">
             Dern-Jood Paper
@@ -62,18 +61,26 @@ export default function DernJoodPapers({ compact = false }: DernJoodPapersProps)
         )}
       </div>
 
-      <div className={compact ? "space-y-2" : "grid gap-4 sm:grid-cols-3"}>
+      <div
+        className={
+          compact
+            ? "grid gap-2 [grid-template-columns:repeat(auto-fit,minmax(min(100%,12rem),1fr))]"
+            : "grid gap-4 [grid-template-columns:repeat(auto-fit,minmax(min(100%,16rem),1fr))]"
+        }
+      >
         {dernJoodPapers.map((paper) => (
           <article
             key={paper.href}
             className={`overflow-hidden rounded-xl border-2 border-zinc-100 bg-zinc-50 dark:border-white/10 dark:bg-white/5 ${
-              compact ? "flex gap-3 p-2" : ""
+              compact ? "flex items-center gap-3 p-2" : "flex h-full flex-col"
             }`}
           >
             {paper.preview ? (
               <div
-                className={`relative shrink-0 bg-white ${
-                  compact ? "h-16 w-12 rounded-lg" : "aspect-[3/4]"
+                className={`relative shrink-0 overflow-hidden bg-white ${
+                  compact
+                    ? "h-16 w-12 rounded-lg"
+                    : "mx-auto mt-4 aspect-[3/4] w-full max-w-[13rem] rounded-lg"
                 }`}
               >
                 <Image
@@ -89,16 +96,22 @@ export default function DernJoodPapers({ compact = false }: DernJoodPapersProps)
                 className={`flex shrink-0 items-center justify-center bg-white font-black text-brand-purple dark:bg-zinc-900 dark:text-brand-gold ${
                   compact
                     ? "h-16 w-12 rounded-lg text-sm"
-                    : "aspect-[3/4] text-4xl"
+                    : "mx-auto mt-4 aspect-[3/4] w-full max-w-[13rem] rounded-lg text-4xl"
                 }`}
               >
                 PDF
               </div>
             )}
 
-            <div className={compact ? "min-w-0 flex-1" : "p-3"}>
-              <div className="mb-3 flex items-start justify-between gap-3">
-                <h4 className="text-sm font-bold text-zinc-900 dark:text-white">
+            <div className={compact ? "min-w-0 flex-1" : "flex flex-1 flex-col p-4"}>
+              <div
+                className={
+                  compact
+                    ? "mb-2 flex items-start justify-between gap-2"
+                    : "mb-4 flex flex-1 flex-col items-center justify-start gap-2 text-center"
+                }
+              >
+                <h4 className="text-balance text-sm font-bold text-zinc-900 dark:text-white">
                   {compact ? paper.shortTitle : paper.title}
                 </h4>
                 <span className="rounded-md bg-white px-2 py-1 text-[10px] font-bold text-zinc-500 dark:bg-black/30 dark:text-zinc-300">
