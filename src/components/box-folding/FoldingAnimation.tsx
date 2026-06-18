@@ -233,9 +233,9 @@ export default function FoldingAnimation({
   };
 
   return (
-    <div className={`rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/15 dark:bg-slate-100 ${className}`}>
+    <div className={`rounded-xl border border-zinc-200 bg-zinc-50 p-3 dark:border-white/10 dark:bg-zinc-950 ${className}`}>
       <div className="mb-3 flex items-center justify-between gap-2">
-        <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
+        <span className="text-xs font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400">
           {title}
         </span>
         <div className="flex gap-2">
@@ -249,7 +249,7 @@ export default function FoldingAnimation({
           <button
             type="button"
             onClick={() => animateTo(secondaryTarget)}
-            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100 active:scale-95 dark:border-zinc-300 dark:bg-white dark:text-zinc-700"
+            className="rounded-lg border border-zinc-300 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:bg-zinc-100 active:scale-95 dark:border-white/15 dark:bg-white/5 dark:text-white dark:hover:bg-white/10"
           >
             {secondaryLabel}
           </button>
@@ -258,7 +258,7 @@ export default function FoldingAnimation({
 
       <div
         ref={frameRef}
-        className={`relative mx-auto h-48 w-full max-w-[260px] overflow-hidden rounded-lg bg-white dark:bg-white ${
+        className={`relative mx-auto h-48 w-full max-w-[260px] overflow-hidden rounded-lg bg-white dark:bg-zinc-950 ${
           interactive ? "cursor-grab touch-none active:cursor-grabbing" : ""
         }`}
         style={{ perspective: "720px" }}

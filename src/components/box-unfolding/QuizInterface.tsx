@@ -35,7 +35,6 @@ function NetOptionCell({
   isCorrect,
   isSubmitted,
   isAnswered,
-  largeChoice,
   onSelect,
 }: {
   option: BoxFoldingOption;
@@ -44,7 +43,6 @@ function NetOptionCell({
   isCorrect: boolean;
   isSubmitted: boolean;
   isAnswered: boolean;
-  largeChoice: boolean;
   onSelect: () => void;
 }) {
   let stateClass =
@@ -67,16 +65,13 @@ function NetOptionCell({
         type="button"
         disabled={isSubmitted || isAnswered}
         onClick={onSelect}
-        className={`h-full w-full overflow-hidden rounded-xl border-2 transition-all active:scale-[0.98] ${
-          largeChoice ? "min-h-[160px]" : "min-h-[112px]"
-        } ${stateClass}`}
+        className={`h-full min-h-[112px] w-full overflow-hidden rounded-xl border-2 transition-all active:scale-[0.98] ${stateClass}`}
       >
         <NetViewer
           pattern={option.pattern ?? question.pattern}
           images={option.netImages}
           imageRotations={option.netImageRotations}
-          choice={!largeChoice}
-          choiceLarge={largeChoice}
+          choice
         />
       </button>
       <div
@@ -100,8 +95,8 @@ function ReviewNet({
   question: BoxFoldingQuestion;
 }) {
   return (
-    <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-900">
-      <span className="pointer-events-none absolute left-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-bold text-white shadow-sm dark:bg-white dark:text-zinc-950">
+    <div className="relative flex h-full min-h-0 flex-col overflow-hidden rounded-xl border-2 border-zinc-200 bg-white dark:border-white/10 dark:bg-zinc-950">
+      <span className="pointer-events-none absolute left-3 top-3 z-10 flex h-6 w-6 items-center justify-center rounded-full bg-zinc-900 text-[11px] font-bold text-white shadow-sm">
         {option.label}
       </span>
       <div className="min-h-0 flex-1 overflow-hidden p-3">
@@ -129,7 +124,7 @@ function QuestionReview({
   const isCorrect = selectedId === question.correctOptionId;
 
   return (
-    <div className="rounded-2xl border-2 border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-black/30">
+    <div className="rounded-2xl border-2 border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-zinc-900/80">
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <div>
           <h4 className="text-base font-bold text-zinc-900 dark:text-white">
@@ -220,7 +215,6 @@ function QuestionCard({
   const [isAnswered, setIsAnswered] = useState(Boolean(selectedId));
   const selected = question.options.find((option) => option.id === selectedId);
   const isCorrect = selectedId === question.correctOptionId;
-  const isSixChoiceLayout = question.options.length === 6;
 
   useEffect(() => {
     setIsAnswered(Boolean(selectedId));
@@ -290,14 +284,10 @@ function QuestionCard({
               </h4>
             </div>
             <span className="shrink-0 text-[10px] font-bold uppercase tracking-wide text-zinc-400">
-              {isSixChoiceLayout ? "3 x 2" : "3 x 3"}
+              3 x 3
             </span>
           </div>
-          <div
-            className={`grid min-h-0 flex-1 grid-cols-3 gap-3 ${
-              isSixChoiceLayout ? "grid-rows-2" : "grid-rows-3"
-            }`}
-          >
+          <div className="grid min-h-0 flex-1 grid-cols-3 grid-rows-3 gap-3">
             {question.options.map((option) => (
               <NetOptionCell
                 key={option.id}
@@ -307,7 +297,6 @@ function QuestionCard({
                 isCorrect={option.id === question.correctOptionId}
                 isSubmitted={isSubmitted}
                 isAnswered={isAnswered}
-                largeChoice={isSixChoiceLayout}
                 onSelect={() => onSelect(option.id)}
               />
             ))}

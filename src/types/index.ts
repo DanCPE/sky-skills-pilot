@@ -440,7 +440,6 @@ export interface FindSimilarShapeQuizResponse {
 
 export type BoxFoldingDifficulty = "easy" | "medium" | "hard";
 export type BoxUnfoldingMode = "3-side" | "6-side";
-export type BoxUnfoldingChoiceCount = 6 | 9;
 
 export type BoxFoldingFaceName =
   | "front"
@@ -497,7 +496,6 @@ export interface BoxFoldingQuizResponse {
   questions: BoxFoldingQuestion[];
   mode: "learn" | "real";
   unfoldingMode?: BoxUnfoldingMode;
-  unfoldingChoiceCount?: BoxUnfoldingChoiceCount;
   timeLimit?: number;
 }
 
