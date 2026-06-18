@@ -15,7 +15,7 @@ export default function DernJoodPage() {
 
   return (
     <TopicLayout
-      title="Dern-Jood"
+      title="Dern-Jood PRO MAX"
       description="Mental math under a metronome beat."
       fullWidth={true}
     >

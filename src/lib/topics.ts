@@ -95,7 +95,7 @@ export const topics: Topic[] = [
   {
     slug: "dern-jood",
     icon: "🎵",
-    title: "Dern-Jood",
+    title: "Dern-Jood PRO MAX",
     description: "Answer mental math questions while tracking rhythm, time pressure, and input mode.",
     category: "multitasking",
     isLocked: false,

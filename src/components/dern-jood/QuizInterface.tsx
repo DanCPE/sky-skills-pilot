@@ -12,8 +12,10 @@ import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "./ResultsScreen";
 import { useRecordRealModeScore } from "@/lib/account/client-score-history";
+import type { DernJoodPaperPatternId } from "@/lib/dern-jood-paper";
 import type { DernJoodQuizResponse } from "@/types";
-import DernJoodPapers from "./DernJoodPapers";
+import PaperPatternSelector from "./PaperPatternSelector";
+import PaperTracker from "./PaperTracker";
 
 interface QuizAnswer {
   questionId: string;
@@ -192,6 +194,22 @@ function isRepeatCommand(transcript: string): boolean {
   return /\b(repeat|say again|again|one more time)\b/i.test(transcript);
 }
 
+function randomPaperStart() {
+  const mode = Math.floor(Math.random() * 3);
+
+  if (mode === 0) {
+    return { left: "top", right: "top" } as const;
+  }
+
+  if (mode === 1) {
+    return { left: "bottom", right: "bottom" } as const;
+  }
+
+  return Math.random() > 0.5
+    ? ({ left: "top", right: "bottom" } as const)
+    : ({ left: "bottom", right: "top" } as const);
+}
+
 export default function QuizInterface({
   quizData,
   onRestart,
@@ -206,6 +224,7 @@ export default function QuizInterface({
   );
   const [quizComplete, setQuizComplete] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
+  const [quizPaused, setQuizPaused] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
   const [speechStatus, setSpeechStatus] = useState("Voice ready");
@@ -215,6 +234,10 @@ export default function QuizInterface({
   const [showQuestionPopup, setShowQuestionPopup] = useState(true);
   const [learnBpm, setLearnBpm] = useState(quizData.bpm ?? questions[0]?.bpm ?? 90);
   const [realBpm, setRealBpm] = useState(questions[0]?.bpm ?? 90);
+  const [paperStep, setPaperStep] = useState(0);
+  const [paperPattern, setPaperPattern] =
+    useState<DernJoodPaperPatternId>("circle");
+  const [paperStart] = useState(randomPaperStart);
   const [totalTimeTaken, setTotalTimeTaken] = useState<number | undefined>();
   const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(
     new Set(),
@@ -230,9 +253,12 @@ export default function QuizInterface({
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<VoiceRecognition | null>(null);
   const realBpmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const paperStepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const pauseStartedAtRef = useRef<number | null>(null);
   const autoMicEnabledRef = useRef(false);
   const quizStartedRef = useRef(false);
   const quizCompleteRef = useRef(false);
+  const quizPausedRef = useRef(false);
   const startVoiceRecognitionRef = useRef<((cancelSpeech?: boolean) => void) | null>(
     null,
   );
@@ -267,6 +293,13 @@ export default function QuizInterface({
     if (realBpmTimerRef.current) {
       clearTimeout(realBpmTimerRef.current);
       realBpmTimerRef.current = null;
+    }
+  };
+
+  const stopPaperStepTimer = () => {
+    if (paperStepTimerRef.current) {
+      clearInterval(paperStepTimerRef.current);
+      paperStepTimerRef.current = null;
     }
   };
 
@@ -310,7 +343,8 @@ export default function QuizInterface({
     if (
       !autoMicEnabledRef.current ||
       !quizStartedRef.current ||
-      quizCompleteRef.current
+      quizCompleteRef.current ||
+      quizPausedRef.current
     ) {
       return;
     }
@@ -385,6 +419,8 @@ export default function QuizInterface({
     }
     questionStartedAtRef.current = Date.now();
     setRemainingSeconds(currentQuestion.timeLimitSeconds);
+    setPaperStep(0);
+    setQuizPaused(false);
     setQuizStarted(true);
     if (speechEnabled) {
       speakQuestion(true);
@@ -403,6 +439,40 @@ export default function QuizInterface({
     setVoiceInputStatus(autoMicEnabledRef.current ? "Mic auto paused" : "Mic ready");
   };
 
+  const stopForPositionCheck = () => {
+    if (!quizStarted || quizComplete || quizPaused) return;
+    pauseStartedAtRef.current = Date.now();
+    setQuizPaused(true);
+    stopMetronome();
+    stopPaperStepTimer();
+    stopRealBpmTimer();
+    window.speechSynthesis?.cancel();
+    recognitionRef.current?.abort();
+    recognitionRef.current = null;
+    setIsListening(false);
+    setSpeechStatus("Voice paused");
+    setVoiceInputStatus("Mic paused");
+  };
+
+  const resumeQuiz = () => {
+    if (!quizStarted || quizComplete || !quizPaused) return;
+    const pausedMs =
+      pauseStartedAtRef.current === null ? 0 : Date.now() - pauseStartedAtRef.current;
+    if (quizStartTimeRef.current !== null) {
+      quizStartTimeRef.current += pausedMs;
+    }
+    if (questionStartedAtRef.current !== null) {
+      questionStartedAtRef.current += pausedMs;
+    }
+    pauseStartedAtRef.current = null;
+    setQuizPaused(false);
+    setSpeechStatus("Voice ready");
+    setVoiceInputStatus(autoMicEnabledRef.current ? "Mic auto on" : "Mic ready");
+    if (speechEnabled) {
+      speakQuestion(true);
+    }
+  };
+
   const moveToNextQuestion = useCallback(() => {
     if (currentQuestionIndex >= questions.length - 1) {
       if (quizStartTimeRef.current !== null) {
@@ -411,6 +481,7 @@ export default function QuizInterface({
         );
       }
       setQuizComplete(true);
+      setQuizPaused(false);
       return;
     }
 
@@ -424,6 +495,8 @@ export default function QuizInterface({
     setAnswer("");
     setRemainingSeconds(nextQuestion.timeLimitSeconds);
     questionStartedAtRef.current = Date.now();
+    pauseStartedAtRef.current = null;
+    setQuizPaused(false);
     setCurrentQuestionIndex(nextIndex);
   }, [currentQuestionIndex, questions]);
 
@@ -458,7 +531,15 @@ export default function QuizInterface({
   };
 
   const startVoiceRecognition = useCallback(async (cancelSpeech = false) => {
-    if (!quizStarted || quizComplete || !currentQuestion || isListening) return;
+    if (
+      !quizStarted ||
+      quizComplete ||
+      quizPaused ||
+      !currentQuestion ||
+      isListening
+    ) {
+      return;
+    }
     if (typeof window === "undefined") return;
 
     if (
@@ -628,13 +709,14 @@ export default function QuizInterface({
     currentQuestion,
     isListening,
     quizComplete,
+    quizPaused,
     quizStarted,
     recordAnswer,
     speakQuestion,
   ]);
 
   useEffect(() => {
-    if (!currentQuestion || quizComplete || !quizStarted) return;
+    if (!currentQuestion || quizComplete || !quizStarted || quizPaused) return;
 
     if (quizStartTimeRef.current === null) {
       quizStartTimeRef.current = Date.now();
@@ -657,13 +739,14 @@ export default function QuizInterface({
     autoMicEnabled,
     currentQuestion,
     quizComplete,
+    quizPaused,
     quizStarted,
     speechEnabled,
     speakQuestion,
   ]);
 
   useEffect(() => {
-    if (!currentQuestion || quizComplete || !quizStarted) return;
+    if (!currentQuestion || quizComplete || !quizStarted || quizPaused) return;
 
     const timer = setInterval(() => {
       setRemainingSeconds((prev) => {
@@ -678,12 +761,18 @@ export default function QuizInterface({
     }, 1000);
 
     return () => clearInterval(timer);
-  }, [currentQuestion, quizComplete, quizStarted, recordAnswer]);
+  }, [currentQuestion, quizComplete, quizPaused, quizStarted, recordAnswer]);
 
   useEffect(() => {
     stopMetronome();
 
-    if (!currentQuestion || quizComplete || !quizStarted || !audioEnabled) {
+    if (
+      !currentQuestion ||
+      quizComplete ||
+      !quizStarted ||
+      quizPaused ||
+      !audioEnabled
+    ) {
       return stopMetronome;
     }
 
@@ -692,12 +781,34 @@ export default function QuizInterface({
     metronomeTimerRef.current = setInterval(playTick, intervalMs);
 
     return stopMetronome;
-  }, [currentQuestion, audioEnabled, quizComplete, quizStarted, effectiveBpm]);
+  }, [
+    currentQuestion,
+    audioEnabled,
+    quizComplete,
+    quizPaused,
+    quizStarted,
+    effectiveBpm,
+  ]);
+
+  useEffect(() => {
+    stopPaperStepTimer();
+
+    if (!currentQuestion || quizComplete || !quizStarted || quizPaused) {
+      return stopPaperStepTimer;
+    }
+
+    const intervalMs = (60 / effectiveBpm) * 1000;
+    paperStepTimerRef.current = setInterval(() => {
+      setPaperStep((prev) => prev + 1);
+    }, intervalMs);
+
+    return stopPaperStepTimer;
+  }, [currentQuestion, quizComplete, quizPaused, quizStarted, effectiveBpm]);
 
   useEffect(() => {
     stopRealBpmTimer();
 
-    if (mode !== "real" || quizComplete || !quizStarted) {
+    if (mode !== "real" || quizComplete || !quizStarted || quizPaused) {
       return stopRealBpmTimer;
     }
 
@@ -712,7 +823,7 @@ export default function QuizInterface({
     scheduleNextBpmChange();
 
     return stopRealBpmTimer;
-  }, [mode, quizComplete, quizStarted]);
+  }, [mode, quizComplete, quizPaused, quizStarted]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -736,6 +847,10 @@ export default function QuizInterface({
   }, [quizComplete]);
 
   useEffect(() => {
+    quizPausedRef.current = quizPaused;
+  }, [quizPaused]);
+
+  useEffect(() => {
     startVoiceRecognitionRef.current = (cancelSpeech = false) => {
       void startVoiceRecognition(cancelSpeech);
     };
@@ -746,7 +861,7 @@ export default function QuizInterface({
     completed: quizComplete,
     mode,
     topicSlug: "dern-jood",
-    topicTitle: "Dern-Jood",
+    topicTitle: "Dern-Jood PRO MAX",
     score: correctCount,
     maxScore: questions.length,
     questionCount: questions.length,
@@ -764,6 +879,7 @@ export default function QuizInterface({
       }
       recognitionRef.current?.abort();
       stopRealBpmTimer();
+      stopPaperStepTimer();
       speechUtteranceRef.current = null;
     };
   }, []);
@@ -782,7 +898,7 @@ export default function QuizInterface({
   if (quizComplete) {
     return (
       <TopicLayout
-        title="Dern-Jood"
+        title="Dern-Jood PRO MAX"
         description="Mental math under a metronome beat."
         fullWidth={false}
       >
@@ -807,7 +923,7 @@ export default function QuizInterface({
         <div className="mb-4 flex flex-col gap-4 rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 dark:border-white/5 dark:bg-black/40 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <h1 className=" text-[30px] font-bold tracking-tight text-zinc-900 dark:text-white">
-              Dern-Jood
+              Dern-Jood PRO MAX
             </h1>
             <div className="mt-2 flex flex-wrap items-center gap-2">
               <span className="rounded-md bg-amber-400 px-2.5 py-1 text-[12px] font-bold uppercase tracking-[0.2em] text-zinc-900">
@@ -913,12 +1029,12 @@ export default function QuizInterface({
                 pattern="-?[0-9]*"
                 autoFocus
                 placeholder="Type answer"
-                disabled={!quizStarted}
+                disabled={!quizStarted || quizPaused}
                 className="min-h-12 flex-1 rounded-xl border-2 border-zinc-200 bg-white px-4 text-lg font-bold text-zinc-900 outline-none transition focus:border-brand-purple dark:border-white/10 dark:bg-zinc-950 dark:text-white"
               />
               <button
                 type="submit"
-                disabled={!quizStarted || !answer.trim()}
+                disabled={!quizStarted || quizPaused || !answer.trim()}
                 className="min-h-12 rounded-xl bg-brand-purple px-8 text-lg font-bold text-white shadow-lg shadow-brand-purple/20 transition hover:opacity-90 disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:shadow-none"
               >
                 Answer
@@ -945,7 +1061,7 @@ export default function QuizInterface({
                     void startVoiceRecognition(true);
                   }
                 }}
-                disabled={!quizStarted}
+                disabled={!quizStarted || quizPaused}
                 className={`min-h-12 rounded-xl px-6 text-lg font-bold shadow-lg transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white disabled:shadow-none ${
                   autoMicEnabled
                     ? "bg-red-600 text-white shadow-red-600/20 hover:bg-red-500"
@@ -958,11 +1074,38 @@ export default function QuizInterface({
                     : "Mic Auto On"
                   : "Mic Answer"}
               </button>
+              <button
+                type="button"
+                onClick={quizPaused ? resumeQuiz : stopForPositionCheck}
+                disabled={!quizStarted}
+                className={`min-h-12 rounded-xl px-6 text-lg font-bold shadow-lg transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white disabled:shadow-none ${
+                  quizPaused
+                    ? "bg-green-600 text-white shadow-green-600/20 hover:bg-green-500"
+                    : "bg-amber-500 text-zinc-950 shadow-amber-500/20 hover:bg-amber-400"
+                }`}
+              >
+                {quizPaused ? "Resume" : "Stop"}
+              </button>
             </form>
 
             <p className="mt-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
               {speechStatus} · {voiceInputStatus}
             </p>
+
+            <PaperTracker
+              step={paperStep}
+              bpm={effectiveBpm}
+              isRunning={quizStarted && !quizComplete}
+              isPaused={quizPaused}
+              patternId={paperPattern}
+              leftStart={paperStart.left}
+              rightStart={paperStart.right}
+              onPatternChange={(patternId) => {
+                setPaperPattern(patternId);
+                setPaperStep(0);
+              }}
+              className="mt-5"
+            />
 
             {!quizStarted && (
               <div className="mt-5 rounded-2xl border-2 border-brand-purple/20 bg-violet-50 p-5 text-center dark:border-brand-purple/30 dark:bg-brand-purple/10">
@@ -1046,16 +1189,28 @@ export default function QuizInterface({
               })}
             </div>
 
-            <div className="mt-6">
-              <DernJoodPapers compact />
-            </div>
+            <PaperPatternSelector
+              selectedPatternId={paperPattern}
+              onSelectPattern={(patternId) => {
+                setPaperPattern(patternId);
+                setPaperStep(0);
+              }}
+            />
 
-            <button
-              onClick={() => router.back()}
-              className="mt-6 w-full rounded-xl border-2 border-zinc-200 px-4 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
-            >
-              Exit
-            </button>
+            <div className="mt-6 grid grid-cols-2 gap-2">
+              <button
+                onClick={onRestart}
+                className="rounded-xl border-2 border-zinc-200 px-3 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
+              >
+                Mode Select
+              </button>
+              <button
+                onClick={() => router.back()}
+                className="rounded-xl border-2 border-zinc-200 px-3 py-3 text-sm font-bold text-zinc-700 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-200 dark:hover:bg-white/5"
+              >
+                Exit
+              </button>
+            </div>
           </aside>
         </div>
       </div>

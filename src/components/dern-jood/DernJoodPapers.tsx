@@ -11,7 +11,7 @@ interface DernJoodPaper {
 
 const dernJoodPapers: DernJoodPaper[] = [
   {
-    title: "Circle Dern-Jood Paper",
+    title: "Circle Dern-Jood PRO MAX Paper",
     shortTitle: "Circle paper",
     kind: "PNG",
     href: "/images/dern-jood/ciecle.png",
@@ -19,7 +19,7 @@ const dernJoodPapers: DernJoodPaper[] = [
     preview: "/images/dern-jood/ciecle.png",
   },
   {
-    title: "Mixed Dern-Jood Paper",
+    title: "Mixed Dern-Jood PRO MAX Paper",
     shortTitle: "Mixed paper",
     kind: "PNG",
     href: "/images/dern-jood/mix.png",
@@ -48,7 +48,7 @@ export default function DernJoodPapers({ compact = false }: DernJoodPapersProps)
       >
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-brand-purple dark:text-brand-gold">
-            Dern-Jood Paper
+            Dern-Jood PRO MAX Paper
           </p>
           <h3 className="mt-1 font-[family-name:var(--font-space-grotesk)] text-xl font-bold text-zinc-900 dark:text-white">
             Practice sheets
@@ -56,7 +56,7 @@ export default function DernJoodPapers({ compact = false }: DernJoodPapersProps)
         </div>
         {!compact && (
           <p className="max-w-md text-sm text-zinc-500 dark:text-zinc-400">
-            Open or download the Dern-Jood paper sheets for offline practice.
+            Open or download the Dern-Jood PRO MAX paper sheets for offline practice.
           </p>
         )}
       </div>
