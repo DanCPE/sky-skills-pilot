@@ -12,7 +12,11 @@ import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "./ResultsScreen";
 import { useRecordRealModeScore } from "@/lib/account/client-score-history";
-import type { DernJoodPaperPatternId } from "@/lib/dern-jood-paper";
+import type {
+  DernJoodPaperColorFilter,
+  DernJoodPaperPatternId,
+  DernJoodPaperShapeFilter,
+} from "@/lib/dern-jood-paper";
 import type { DernJoodQuizResponse } from "@/types";
 import PaperPatternSelector from "./PaperPatternSelector";
 import PaperTracker from "./PaperTracker";
@@ -237,6 +241,16 @@ export default function QuizInterface({
   const [paperStep, setPaperStep] = useState(0);
   const [paperPattern, setPaperPattern] =
     useState<DernJoodPaperPatternId>("circle");
+  const [paperShapeFilter, setPaperShapeFilter] =
+    useState<DernJoodPaperShapeFilter>("all");
+  const [paperColorFilter, setPaperColorFilter] =
+    useState<DernJoodPaperColorFilter>("all");
+  const [paperInteractionMode, setPaperInteractionMode] = useState<
+    "guide" | "tablet"
+  >("guide");
+  const [isTabletFullscreen, setIsTabletFullscreen] = useState(false);
+  const [wrongPositionCount, setWrongPositionCount] = useState(0);
+  const [tabletCountdown, setTabletCountdown] = useState<number | null>(null);
   const [paperStart] = useState(randomPaperStart);
   const [totalTimeTaken, setTotalTimeTaken] = useState<number | undefined>();
   const [answeredQuestionIds, setAnsweredQuestionIds] = useState<Set<string>>(
@@ -244,7 +258,7 @@ export default function QuizInterface({
   );
 
   const audioContextRef = useRef<AudioContext | null>(null);
-  const metronomeTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const metronomeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const submittedQuestionIdsRef = useRef<Set<string>>(new Set());
   const quizStartTimeRef = useRef<number | null>(null);
   const questionStartedAtRef = useRef<number | null>(null);
@@ -252,8 +266,13 @@ export default function QuizInterface({
   const lastSpokenQuestionIdRef = useRef<string | null>(null);
   const voicesRef = useRef<SpeechSynthesisVoice[]>([]);
   const recognitionRef = useRef<VoiceRecognition | null>(null);
-  const realBpmTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const paperStepTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const realBpmTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const realBpmTargetRef = useRef<number | null>(null);
+  const paperStepTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const effectiveBpmRef = useRef(mode === "learn" ? learnBpm : realBpm);
+  const paperStepRef = useRef(0);
+  const lastTabletBeatStepRef = useRef(0);
+  const paperInteractionModeRef = useRef<"guide" | "tablet">("guide");
   const pauseStartedAtRef = useRef<number | null>(null);
   const autoMicEnabledRef = useRef(false);
   const quizStartedRef = useRef(false);
@@ -263,10 +282,15 @@ export default function QuizInterface({
     null,
   );
   const voiceSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tabletCountdownTimerRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
+  const beginQuizRef = useRef<(() => Promise<void>) | null>(null);
   const pendingVoiceTranscriptRef = useRef("");
 
   const currentQuestion = questions[currentQuestionIndex];
   const effectiveBpm = mode === "learn" ? learnBpm : realBpm;
+  const displayedBpm = Math.round(effectiveBpm);
   const progress = useMemo(() => {
     if (!currentQuestion) return 0;
     return Math.max(
@@ -277,31 +301,54 @@ export default function QuizInterface({
 
   const stopMetronome = () => {
     if (metronomeTimerRef.current) {
-      clearInterval(metronomeTimerRef.current);
+      clearTimeout(metronomeTimerRef.current);
       metronomeTimerRef.current = null;
     }
   };
 
-  const smoothRandomBpm = (currentBpm: number) => {
-    const step = ([-20, -15, -10, -5, 5, 10, 15, 20] as const)[
-      Math.floor(Math.random() * 8)
-    ];
-    return Math.min(180, Math.max(50, currentBpm + step));
+  const randomRealBpmTarget = (currentBpm: number) => {
+    const roundedBpm = Math.round(currentBpm);
+    const targets = [-25, -20, -15, -10, 10, 15, 20, 25]
+      .map((change) => Math.min(180, Math.max(50, roundedBpm + change)))
+      .filter((target) => target !== roundedBpm);
+
+    return targets[Math.floor(Math.random() * targets.length)] ?? currentBpm;
   };
 
   const stopRealBpmTimer = () => {
     if (realBpmTimerRef.current) {
-      clearTimeout(realBpmTimerRef.current);
+      clearInterval(realBpmTimerRef.current);
       realBpmTimerRef.current = null;
     }
   };
 
   const stopPaperStepTimer = () => {
     if (paperStepTimerRef.current) {
-      clearInterval(paperStepTimerRef.current);
+      clearTimeout(paperStepTimerRef.current);
       paperStepTimerRef.current = null;
     }
   };
+
+  const stopTabletCountdown = () => {
+    if (tabletCountdownTimerRef.current) {
+      clearTimeout(tabletCountdownTimerRef.current);
+      tabletCountdownTimerRef.current = null;
+    }
+  };
+
+  const resetPaperStep = useCallback(() => {
+    paperStepRef.current = 0;
+    lastTabletBeatStepRef.current = 0;
+    setPaperStep(0);
+  }, []);
+
+  const advancePaperStep = useCallback(() => {
+    setPaperStep((prev) => {
+      const next = prev + 1;
+      paperStepRef.current = next;
+      return next;
+    });
+  }, []);
 
   const playTick = () => {
     const audioContext = audioContextRef.current;
@@ -327,7 +374,6 @@ export default function QuizInterface({
 
     await audioContextRef.current.resume();
     setAudioEnabled(true);
-    playTick();
   };
 
   const formatExpressionForSpeech = (expression: string) =>
@@ -412,20 +458,30 @@ export default function QuizInterface({
     return true;
   }, [currentQuestion, scheduleAutoMic, speechEnabled]);
 
-  const startQuiz = async () => {
-    if (quizStarted) return;
+  const beginQuiz = async () => {
     if (quizStartTimeRef.current === null) {
       quizStartTimeRef.current = Date.now();
     }
     questionStartedAtRef.current = Date.now();
     setRemainingSeconds(currentQuestion.timeLimitSeconds);
-    setPaperStep(0);
+    resetPaperStep();
+    setWrongPositionCount(0);
     setQuizPaused(false);
+    realBpmTargetRef.current = null;
     setQuizStarted(true);
     if (speechEnabled) {
       speakQuestion(true);
     }
     await enableAudio();
+  };
+  const startQuiz = () => {
+    if (quizStarted || tabletCountdown !== null) return;
+    if (paperInteractionMode === "tablet") {
+      setTabletCountdown(3);
+      return;
+    }
+
+    void beginQuiz();
   };
 
   const stopVoiceRecognition = () => {
@@ -764,6 +820,18 @@ export default function QuizInterface({
   }, [currentQuestion, quizComplete, quizPaused, quizStarted, recordAnswer]);
 
   useEffect(() => {
+    effectiveBpmRef.current = effectiveBpm;
+  }, [effectiveBpm]);
+
+  useEffect(() => {
+    paperStepRef.current = paperStep;
+  }, [paperStep]);
+
+  useEffect(() => {
+    paperInteractionModeRef.current = paperInteractionMode;
+  }, [paperInteractionMode]);
+
+  useEffect(() => {
     stopMetronome();
 
     if (
@@ -776,34 +844,64 @@ export default function QuizInterface({
       return stopMetronome;
     }
 
-    const intervalMs = (60 / effectiveBpm) * 1000;
-    playTick();
-    metronomeTimerRef.current = setInterval(playTick, intervalMs);
+    const scheduleNextTick = () => {
+      const intervalMs = (60 / effectiveBpmRef.current) * 1000;
+      metronomeTimerRef.current = setTimeout(() => {
+        playTick();
+        if (paperInteractionModeRef.current === "tablet") {
+          if (paperStepRef.current <= lastTabletBeatStepRef.current) {
+            setWrongPositionCount((prev) => prev + 1);
+          } else {
+            lastTabletBeatStepRef.current = paperStepRef.current;
+          }
+        }
+        scheduleNextTick();
+      }, intervalMs);
+    };
+
+    scheduleNextTick();
 
     return stopMetronome;
   }, [
-    currentQuestion,
     audioEnabled,
+    currentQuestion,
     quizComplete,
     quizPaused,
     quizStarted,
-    effectiveBpm,
   ]);
 
   useEffect(() => {
     stopPaperStepTimer();
 
-    if (!currentQuestion || quizComplete || !quizStarted || quizPaused) {
+    if (
+      !currentQuestion ||
+      quizComplete ||
+      !quizStarted ||
+      quizPaused ||
+      paperInteractionMode === "tablet"
+    ) {
       return stopPaperStepTimer;
     }
 
-    const intervalMs = (60 / effectiveBpm) * 1000;
-    paperStepTimerRef.current = setInterval(() => {
-      setPaperStep((prev) => prev + 1);
-    }, intervalMs);
+    const scheduleNextPaperStep = () => {
+      const intervalMs = (60 / effectiveBpmRef.current) * 1000;
+      paperStepTimerRef.current = setTimeout(() => {
+        advancePaperStep();
+        scheduleNextPaperStep();
+      }, intervalMs);
+    };
+
+    scheduleNextPaperStep();
 
     return stopPaperStepTimer;
-  }, [currentQuestion, quizComplete, quizPaused, quizStarted, effectiveBpm]);
+  }, [
+    advancePaperStep,
+    currentQuestion,
+    paperInteractionMode,
+    quizComplete,
+    quizPaused,
+    quizStarted,
+  ]);
 
   useEffect(() => {
     stopRealBpmTimer();
@@ -812,15 +910,22 @@ export default function QuizInterface({
       return stopRealBpmTimer;
     }
 
-    const scheduleNextBpmChange = () => {
-      const nextDelayMs = (Math.floor(Math.random() * 9) + 8) * 1000;
-      realBpmTimerRef.current = setTimeout(() => {
-        setRealBpm((prev) => smoothRandomBpm(prev));
-        scheduleNextBpmChange();
-      }, nextDelayMs);
-    };
+    realBpmTimerRef.current = setInterval(() => {
+      setRealBpm((prev) => {
+        let target = realBpmTargetRef.current;
+        if (
+          target === null ||
+          Math.abs(target - prev) < 0.5
+        ) {
+          target = randomRealBpmTarget(prev);
+          realBpmTargetRef.current = target;
+        }
 
-    scheduleNextBpmChange();
+        const difference = target - prev;
+        const shift = Math.sign(difference) * Math.min(Math.abs(difference), 0.5);
+        return Math.min(180, Math.max(50, prev + shift));
+      });
+    }, 250);
 
     return stopRealBpmTimer;
   }, [mode, quizComplete, quizPaused, quizStarted]);
@@ -856,6 +961,30 @@ export default function QuizInterface({
     };
   }, [startVoiceRecognition]);
 
+  useEffect(() => {
+    beginQuizRef.current = beginQuiz;
+  });
+
+  useEffect(() => {
+    stopTabletCountdown();
+
+    if (tabletCountdown === null) {
+      return stopTabletCountdown;
+    }
+
+    tabletCountdownTimerRef.current = setTimeout(() => {
+      if (tabletCountdown <= 1) {
+        setTabletCountdown(null);
+        void beginQuizRef.current?.();
+        return;
+      }
+
+      setTabletCountdown((prev) => (prev === null ? null : prev - 1));
+    }, 1000);
+
+    return stopTabletCountdown;
+  }, [tabletCountdown]);
+
   const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
   useRecordRealModeScore({
     completed: quizComplete,
@@ -866,7 +995,13 @@ export default function QuizInterface({
     maxScore: questions.length,
     questionCount: questions.length,
     timeTakenSeconds: totalTimeTaken,
-    metadata: { bpm: mode === "real" ? realBpm : learnBpm },
+    metadata: {
+      bpm: mode === "real" ? displayedBpm : learnBpm,
+      paperMode: paperInteractionMode,
+      shapeFilter: paperShapeFilter,
+      colorFilter: paperColorFilter,
+      wrongPositionCount,
+    },
   });
 
   useEffect(() => {
@@ -880,6 +1015,7 @@ export default function QuizInterface({
       recognitionRef.current?.abort();
       stopRealBpmTimer();
       stopPaperStepTimer();
+      stopTabletCountdown();
       speechUtteranceRef.current = null;
     };
   }, []);
@@ -930,7 +1066,7 @@ export default function QuizInterface({
                 {mode === "real" ? "REAL MODE" : "LEARN MODE"}
               </span>
               <span className="rounded-md bg-zinc-100 px-2.5 py-1 text-[12px] font-bold uppercase tracking-[0.12em] text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
-                {effectiveBpm} BPM
+                {displayedBpm} BPM
               </span>
             </div>
           </div>
@@ -1094,29 +1230,50 @@ export default function QuizInterface({
 
             <PaperTracker
               step={paperStep}
-              bpm={effectiveBpm}
+              bpm={displayedBpm}
               isRunning={quizStarted && !quizComplete}
               isPaused={quizPaused}
+              interactionMode={paperInteractionMode}
+              isTabletFullscreen={isTabletFullscreen}
+              wrongPositionCount={wrongPositionCount}
+              tabletCountdown={tabletCountdown}
               patternId={paperPattern}
+              shapeFilter={paperShapeFilter}
+              colorFilter={paperColorFilter}
               leftStart={paperStart.left}
               rightStart={paperStart.right}
               onPatternChange={(patternId) => {
                 setPaperPattern(patternId);
-                setPaperStep(0);
+                if (patternId !== "mixed") {
+                  setPaperShapeFilter("all");
+                }
+                resetPaperStep();
+                setWrongPositionCount(0);
               }}
+              onToggleTabletFullscreen={() =>
+                setIsTabletFullscreen((prev) => !prev)
+              }
+              onStartTabletQuiz={startQuiz}
+              onTabletCorrectPoint={advancePaperStep}
+              onTabletWrongPoint={() =>
+                setWrongPositionCount((prev) => prev + 1)
+              }
               className="mt-5"
             />
 
-            {!quizStarted && (
+            {!quizStarted && paperInteractionMode !== "tablet" && (
               <div className="mt-5 rounded-2xl border-2 border-brand-purple/20 bg-violet-50 p-5 text-center dark:border-brand-purple/30 dark:bg-brand-purple/10">
                 <p className="mb-4 text-sm font-medium text-zinc-700 dark:text-zinc-200">
-                  Press Start when you are ready. The timer and metronome will begin together.
+                  {tabletCountdown !== null
+                    ? `Tablet mode starts in ${tabletCountdown}. Left starts ${paperStart.left} and walks ${paperStart.left === "top" ? "down" : "up"}; Right starts ${paperStart.right} and walks ${paperStart.right === "top" ? "down" : "up"}.`
+                    : "Press Start when you are ready. The timer and metronome will begin together."}
                 </p>
                 <button
                   onClick={startQuiz}
+                  disabled={tabletCountdown !== null}
                   className="rounded-xl bg-brand-purple px-10 py-4 text-lg font-bold text-white shadow-lg shadow-brand-purple/20 transition hover:opacity-90 active:scale-95"
                 >
-                  Start
+                  {tabletCountdown !== null ? "Get Ready" : "Start"}
                 </button>
               </div>
             )}
@@ -1167,6 +1324,45 @@ export default function QuizInterface({
               </p>
             </div>
 
+            <div className="mb-5">
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+                Paper Mode
+              </p>
+              <div className="mt-2 grid grid-cols-2 gap-2">
+                {(["guide", "tablet"] as const).map((modeOption) => {
+                  const isSelected = paperInteractionMode === modeOption;
+
+                  return (
+                    <button
+                      key={modeOption}
+                      type="button"
+                      onClick={() => {
+                        setPaperInteractionMode(modeOption);
+                        if (modeOption !== "tablet") {
+                          setIsTabletFullscreen(false);
+                        }
+                        setTabletCountdown(null);
+                        resetPaperStep();
+                        setWrongPositionCount(0);
+                      }}
+                      className={`rounded-lg border-2 px-2.5 py-2 text-xs font-black capitalize transition ${
+                        isSelected
+                          ? "border-brand-purple bg-violet-50 text-brand-purple dark:bg-brand-purple/20 dark:text-brand-gold"
+                          : "border-zinc-100 bg-zinc-50 text-zinc-600 hover:border-zinc-300 dark:border-white/10 dark:bg-white/5 dark:text-zinc-300 dark:hover:border-white/20"
+                      }`}
+                    >
+                      {modeOption}
+                    </button>
+                  );
+                })}
+              </div>
+              {paperInteractionMode === "tablet" && (
+                <p className="mt-2 rounded-lg bg-red-50 px-3 py-2 text-sm font-bold text-red-700 dark:bg-red-900/30 dark:text-red-200">
+                  Wrong position: {wrongPositionCount}
+                </p>
+              )}
+            </div>
+
             <div className="grid grid-cols-5 gap-2 lg:grid-cols-4">
               {questions.map((question, index) => {
                 const answered = answeredQuestionIds.has(question.id);
@@ -1191,9 +1387,25 @@ export default function QuizInterface({
 
             <PaperPatternSelector
               selectedPatternId={paperPattern}
+              selectedShapeFilter={paperShapeFilter}
+              selectedColorFilter={paperColorFilter}
               onSelectPattern={(patternId) => {
                 setPaperPattern(patternId);
-                setPaperStep(0);
+                if (patternId !== "mixed") {
+                  setPaperShapeFilter("all");
+                }
+                resetPaperStep();
+                setWrongPositionCount(0);
+              }}
+              onSelectShapeFilter={(shapeFilter) => {
+                setPaperShapeFilter(shapeFilter);
+                resetPaperStep();
+                setWrongPositionCount(0);
+              }}
+              onSelectColorFilter={(colorFilter) => {
+                setPaperColorFilter(colorFilter);
+                resetPaperStep();
+                setWrongPositionCount(0);
               }}
             />
 
