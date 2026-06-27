@@ -219,7 +219,7 @@ export async function POST(request: Request) {
       );
     }
 
-    const slip2goReceiverAccountNumber = "KS117608D1196675OG";
+    const slip2goReceiverAccountNumber = "KS1170608D1196675OG";
     const slip2goReceiverAccountType = "03000";
     const usedSlip2GoReceiverCheck = Boolean(slip2goReceiverAccountNumber);
 
