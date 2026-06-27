@@ -219,11 +219,8 @@ export async function POST(request: Request) {
       );
     }
 
-    const slip2goReceiverAccountNumber =
-      receiverPromptPayId || receiverAccountNumber;
-    const slip2goReceiverAccountType = receiverPromptPayId
-      ? (process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE ?? "03000")
-      : process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE;
+    const slip2goReceiverAccountNumber = "KS117608D1196675OG";
+    const slip2goReceiverAccountType = "03000";
     const usedSlip2GoReceiverCheck = Boolean(slip2goReceiverAccountNumber);
 
     const verification = await verifySlipWithSlip2Go({
