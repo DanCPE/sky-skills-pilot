@@ -72,27 +72,6 @@ function slipRejectionReason(
   return null;
 }
 
-function hasProxyReceiverData(verification: Slip2GoVerificationResult) {
-  const raw = verification.raw;
-  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
-
-  const data = (raw as Record<string, unknown>).data;
-  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
-
-  const receiver = (data as Record<string, unknown>).receiver;
-  if (!receiver || typeof receiver !== "object" || Array.isArray(receiver)) {
-    return false;
-  }
-
-  const account = (receiver as Record<string, unknown>).account;
-  if (!account || typeof account !== "object" || Array.isArray(account)) {
-    return false;
-  }
-
-  const proxy = (account as Record<string, unknown>).proxy;
-  return Boolean(proxy && typeof proxy === "object" && !Array.isArray(proxy));
-}
-
 export async function GET() {
   if (!hasAccountDatabase()) {
     return NextResponse.json(
@@ -245,9 +224,9 @@ export async function POST(request: Request) {
     const slip2goReceiverAccountType = receiverPromptPayId
       ? (process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE ?? "03000")
       : process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE;
-    let usedSlip2GoReceiverCheck = Boolean(slip2goReceiverAccountNumber);
+    const usedSlip2GoReceiverCheck = Boolean(slip2goReceiverAccountNumber);
 
-    let verification = await verifySlipWithSlip2Go({
+    const verification = await verifySlipWithSlip2Go({
       miniQrPayload,
       receiverAccountNumbers: slip2goReceiverAccountNumber
         ? [slip2goReceiverAccountNumber]
@@ -257,24 +236,6 @@ export async function POST(request: Request) {
       slipContentType: slipFile.type,
       slipBytes,
     });
-    if (
-      verification.status === "200401" &&
-      receiverAccountNumber &&
-      hasProxyReceiverData(verification)
-    ) {
-      console.warn("[manual-payment] retrying Slip2Go without bank receiver check because slip receiver is a proxy", {
-        fleetId: user.fleetId,
-        slip2goStatus: verification.status,
-        slip2goMessage: verification.message,
-      });
-      verification = await verifySlipWithSlip2Go({
-        miniQrPayload,
-        slipFileName: slipFile.name || "payment-slip",
-        slipContentType: slipFile.type,
-        slipBytes,
-      });
-      usedSlip2GoReceiverCheck = false;
-    }
     const receiverValidation =
       verification.verified && !usedSlip2GoReceiverCheck
         ? validateSlip2GoReceiver(verification.raw, {
