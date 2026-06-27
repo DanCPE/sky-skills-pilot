@@ -12,6 +12,7 @@ import {
 } from "@/lib/account/db";
 import {
   isSlip2GoConfigured,
+  validateSlip2GoReceiver,
   verifySlipWithSlip2Go,
   type Slip2GoVerificationResult,
 } from "@/lib/slip2go";
@@ -41,12 +42,17 @@ function cents(value: number | null) {
 function slipRejectionReason(
   verification: Slip2GoVerificationResult,
   expectedAmountCents: number,
+  receiverRejectionReason?: string | null,
 ) {
   if (!verification.ok) {
     return verification.error ?? "Slip2Go could not validate this slip.";
   }
   if (!verification.verified) {
-    return `Slip2Go rejected this slip with status: ${verification.status}.`;
+    const details = verification.message ? ` ${verification.message}` : "";
+    if (verification.status === "200401") {
+      return `Slip2Go rejected this slip because the destination bank account does not match the configured receiving account.${details}`;
+    }
+    return `Slip2Go rejected this slip with status: ${verification.status}.${details}`;
   }
   if (!verification.transRef) {
     return "Slip2Go did not return a transaction reference.";
@@ -59,8 +65,32 @@ function slipRejectionReason(
   if (verifiedAmountCents !== expectedAmountCents) {
     return `Transfer amount does not match selected package. Expected ${expectedAmountCents / 100} THB, got ${verifiedAmountCents / 100} THB.`;
   }
+  if (receiverRejectionReason) {
+    return receiverRejectionReason;
+  }
 
   return null;
+}
+
+function hasProxyReceiverData(verification: Slip2GoVerificationResult) {
+  const raw = verification.raw;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return false;
+
+  const data = (raw as Record<string, unknown>).data;
+  if (!data || typeof data !== "object" || Array.isArray(data)) return false;
+
+  const receiver = (data as Record<string, unknown>).receiver;
+  if (!receiver || typeof receiver !== "object" || Array.isArray(receiver)) {
+    return false;
+  }
+
+  const account = (receiver as Record<string, unknown>).account;
+  if (!account || typeof account !== "object" || Array.isArray(account)) {
+    return false;
+  }
+
+  const proxy = (account as Record<string, unknown>).proxy;
+  return Boolean(proxy && typeof proxy === "object" && !Array.isArray(proxy));
 }
 
 export async function GET() {
@@ -155,6 +185,8 @@ export async function POST(request: Request) {
     const expectedAmountThb = expectedAmountCents / 100;
     const manualPaymentConfig = await getManualPaymentConfig();
     const receiverAccountNumber = manualPaymentConfig.accountNumber.trim();
+    const receiverPromptPayId = manualPaymentConfig.promptPayId.trim();
+    const receiverAccountName = manualPaymentConfig.accountName.trim();
     const manualFallbackEnabled =
       process.env.SLIP2GO_ALLOW_MANUAL_FALLBACK === "true";
 
@@ -198,26 +230,54 @@ export async function POST(request: Request) {
       );
     }
 
-    if (!receiverAccountNumber) {
+    if (!receiverAccountNumber && !receiverPromptPayId && !receiverAccountName) {
       return NextResponse.json(
         {
           error:
-            "Payment receiver account number is not configured. Set it in the admin billing QR settings before accepting automatic slip payments.",
+            "Payment receiver is not configured. Set the account number, PromptPay/Biller ID, or account name in the admin billing QR settings before accepting automatic slip payments.",
         },
         { status: 503 },
       );
     }
 
-    const verification = await verifySlipWithSlip2Go({
+    let verification = await verifySlipWithSlip2Go({
       miniQrPayload,
-      receiverAccountNumbers: [receiverAccountNumber],
+      receiverAccountNumbers: receiverAccountNumber
+        ? [receiverAccountNumber]
+        : undefined,
+      receiverAccountType: process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE ?? "03000",
       slipFileName: slipFile.name || "payment-slip",
       slipContentType: slipFile.type,
       slipBytes,
     });
+    if (
+      verification.status === "200401" &&
+      receiverAccountNumber &&
+      hasProxyReceiverData(verification)
+    ) {
+      console.warn("[manual-payment] retrying Slip2Go without bank receiver check because slip receiver is a proxy", {
+        fleetId: user.fleetId,
+        slip2goStatus: verification.status,
+        slip2goMessage: verification.message,
+      });
+      verification = await verifySlipWithSlip2Go({
+        miniQrPayload,
+        slipFileName: slipFile.name || "payment-slip",
+        slipContentType: slipFile.type,
+        slipBytes,
+      });
+    }
+    const receiverValidation = verification.verified
+      ? validateSlip2GoReceiver(verification.raw, {
+          accountNumber: receiverAccountNumber,
+          accountName: receiverAccountName,
+          promptPayId: receiverPromptPayId,
+        })
+      : { ok: false, reason: null };
     const rejectionReason = slipRejectionReason(
       verification,
       expectedAmountCents,
+      receiverValidation.ok ? null : receiverValidation.reason,
     );
 
     if (verification.transRef) {
@@ -273,6 +333,9 @@ export async function POST(request: Request) {
       verifiedAmountThb: verification.amountThb,
       expectedAmountThb,
       receiverAccountNumber,
+      hasReceiverPromptPayId: Boolean(receiverPromptPayId),
+      receiverValidationOk: receiverValidation.ok,
+      receiverValidationReason: receiverValidation.reason,
       promotionCode: appliedPromotion?.promotion.code ?? null,
       discountThb: appliedPromotion ? appliedPromotion.discountCents / 100 : 0,
       durationMs: verification.durationMs,

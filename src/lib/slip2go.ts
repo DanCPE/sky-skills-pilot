@@ -1,6 +1,7 @@
 export interface Slip2GoVerificationInput {
   miniQrPayload?: string | null;
   receiverAccountNumbers?: string[];
+  receiverAccountType?: string | null;
   slipFileName: string;
   slipContentType: string;
   slipBytes: Buffer;
@@ -10,6 +11,7 @@ export interface Slip2GoVerificationResult {
   ok: boolean;
   verified: boolean;
   status: string;
+  message: string | null;
   httpStatus: number;
   endpoint: string;
   requestMode: string;
@@ -21,6 +23,12 @@ export interface Slip2GoVerificationResult {
 }
 
 type JsonObject = Record<string, unknown>;
+
+export interface Slip2GoExpectedReceiver {
+  accountNumber?: string | null;
+  accountName?: string | null;
+  promptPayId?: string | null;
+}
 
 const successStatuses = new Set([
   "success",
@@ -117,6 +125,17 @@ function asText(value: unknown) {
   return "";
 }
 
+function getPath(value: unknown, path: string[]) {
+  let current = value;
+  for (const segment of path) {
+    if (!current || typeof current !== "object" || Array.isArray(current)) {
+      return null;
+    }
+    current = (current as JsonObject)[segment];
+  }
+  return current;
+}
+
 function asAmountThb(value: unknown) {
   if (typeof value === "number" && Number.isFinite(value)) return value;
   if (typeof value !== "string") return null;
@@ -143,12 +162,22 @@ function inferVerified(httpOk: boolean, raw: unknown) {
 
 function inferStatus(raw: unknown, responseOk: boolean) {
   const status = walkObject(raw, (key, value) => {
-    if (["status", "message", "code", "statuscode"].includes(key)) {
+    if (["status", "code", "statuscode"].includes(key)) {
       return value;
     }
     return null;
   });
   return asText(status) || (responseOk ? "verified" : "failed");
+}
+
+function inferMessage(raw: unknown) {
+  const message = walkObject(raw, (key, value) => {
+    if (["message", "msg", "description", "error", "errormessage"].includes(key)) {
+      return value;
+    }
+    return null;
+  });
+  return asText(message) || null;
 }
 
 function inferTransRef(raw: unknown) {
@@ -163,6 +192,91 @@ function inferAmountThb(raw: unknown) {
     amountKeys.has(key) ? value : null,
   );
   return asAmountThb(found);
+}
+
+function normalizeIdentifier(value: string) {
+  return value.replace(/[^a-zA-Z0-9]/g, "").toUpperCase();
+}
+
+function normalizeName(value: string) {
+  return value.replace(/\s+/g, "").toLowerCase();
+}
+
+function cleanReceiverValue(value: string) {
+  const trimmed = value.trim();
+  return trimmed.toLowerCase() === "null" ? "" : trimmed;
+}
+
+function maskedIdentifierMatches(actual: string, expected: string) {
+  const normalizedActual = normalizeIdentifier(actual);
+  const normalizedExpected = normalizeIdentifier(expected);
+  if (!normalizedActual || !normalizedExpected) return false;
+  if (normalizedActual === normalizedExpected) return true;
+
+  const visibleSuffix = normalizedActual.match(/[A-Z0-9]+$/)?.[0] ?? "";
+  if (visibleSuffix.length >= 4) {
+    return normalizedExpected.endsWith(visibleSuffix);
+  }
+
+  return false;
+}
+
+export function validateSlip2GoReceiver(
+  raw: unknown,
+  expected: Slip2GoExpectedReceiver,
+) {
+  const expectedAccountNumber = expected.accountNumber?.trim() ?? "";
+  const expectedPromptPayId = expected.promptPayId?.trim() ?? "";
+  const expectedAccountName = expected.accountName?.trim() ?? "";
+
+  const receiverBankAccount = cleanReceiverValue(
+    asText(getPath(raw, ["data", "receiver", "account", "bank", "account"])),
+  );
+  const receiverProxyAccount = cleanReceiverValue(
+    asText(getPath(raw, ["data", "receiver", "account", "proxy", "account"])),
+  );
+  const receiverProxyType = cleanReceiverValue(
+    asText(getPath(raw, ["data", "receiver", "account", "proxy", "type"])),
+  );
+  const receiverName = cleanReceiverValue(
+    asText(getPath(raw, ["data", "receiver", "account", "name"])),
+  );
+
+  if (expectedAccountNumber && receiverBankAccount) {
+    if (!maskedIdentifierMatches(receiverBankAccount, expectedAccountNumber)) {
+      return {
+        ok: false,
+        reason: "Destination bank account does not match the configured receiving account.",
+      };
+    }
+    return { ok: true, reason: null };
+  }
+
+  if (expectedPromptPayId && receiverProxyAccount) {
+    if (!maskedIdentifierMatches(receiverProxyAccount, expectedPromptPayId)) {
+      return {
+        ok: false,
+        reason: `Destination ${receiverProxyType || "proxy"} account does not match the configured receiving PromptPay/Biller ID.`,
+      };
+    }
+    return { ok: true, reason: null };
+  }
+
+  if (expectedAccountName && receiverName) {
+    if (normalizeName(receiverName) !== normalizeName(expectedAccountName)) {
+      return {
+        ok: false,
+        reason: "Destination account name does not match the configured receiving account name.",
+      };
+    }
+    return { ok: true, reason: null };
+  }
+
+  return {
+    ok: false,
+    reason:
+      "Slip2Go did not return enough receiver data to confirm the destination account.",
+  };
 }
 
 async function parseResponse(response: Response) {
@@ -183,7 +297,16 @@ function resolveEndpoint(mode: string) {
   const configuredUrl = getEnv("SLIP2GO_API_URL");
   const baseUrl = getEnv("SLIP2GO_API_BASE_URL", configuredUrl);
 
-  if (configuredUrl.includes("/api/verify-slip/")) return configuredUrl;
+  if (configuredUrl.includes("/api/verify-slip/")) {
+    const baseFromFullUrl = configuredUrl.split("/api/verify-slip/")[0];
+    if (mode === "qr-code") {
+      return joinUrl(baseFromFullUrl, "/api/verify-slip/qr-code/info");
+    }
+    if (mode === "base64") {
+      return joinUrl(baseFromFullUrl, "/api/verify-slip/qr-base64/info");
+    }
+    return joinUrl(baseFromFullUrl, "/api/verify-slip/qr-image/info");
+  }
 
   if (mode === "qr-code") {
     return joinUrl(baseUrl, "/api/verify-slip/qr-code/info");
@@ -207,13 +330,38 @@ function dataUrlBase64(contentType: string, bytes: Buffer) {
   return `data:${contentType};base64,${bytes.toString("base64")}`;
 }
 
-function buildReceiverCheck(accountNumbers?: string[]) {
-  const checkReceiver = (accountNumbers ?? [])
-    .map((accountNumber) => accountNumber.trim())
-    .filter(Boolean)
-    .map((accountNumber) => ({ accountNumber }));
+function buildReceiverCheck(accountNumbers?: string[], accountType?: string | null) {
+  const accountNumberVariants = new Set<string>();
+  const normalizedAccountType = accountType?.trim() || getEnv(
+    "SLIP2GO_RECEIVER_ACCOUNT_TYPE",
+    "03000",
+  );
 
-  return checkReceiver.length > 0 ? { checkReceiver } : {};
+  for (const accountNumber of accountNumbers ?? []) {
+    const trimmed = accountNumber.trim();
+    if (!trimmed) continue;
+
+    accountNumberVariants.add(trimmed);
+
+    const digitsOnly = trimmed.replace(/\D/g, "");
+    if (!digitsOnly || digitsOnly === trimmed) continue;
+
+    accountNumberVariants.add(digitsOnly);
+    if (digitsOnly.length === 10) {
+      accountNumberVariants.add(
+        `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3, 9)}-${digitsOnly.slice(9)}`,
+      );
+    }
+  }
+
+  const checkReceiver = Array.from(accountNumberVariants).map((accountNumber) => ({
+    accountType: normalizedAccountType,
+    accountNumber,
+  }));
+
+  return checkReceiver.length > 0
+    ? { checkCondition: { checkReceiver } }
+    : {};
 }
 
 function summarizeRaw(value: unknown) {
@@ -237,12 +385,21 @@ export async function verifySlipWithSlip2Go(
   const miniQrPayload = input.miniQrPayload?.trim() || "";
   const mode = resolveRequestMode(configuredMode, Boolean(miniQrPayload));
   const endpoint = resolveEndpoint(mode);
-  const receiverCheckPayload = buildReceiverCheck(input.receiverAccountNumbers);
+  const receiverCheckPayload = buildReceiverCheck(
+    input.receiverAccountNumbers,
+    input.receiverAccountType,
+  );
 
   const headers: HeadersInit = authHeaders();
   let body: BodyInit;
 
   if (mode === "qr-code") {
+    if (!miniQrPayload) {
+      throw new Error(
+        "Slip2Go qr-code verification requires a QR payload from the uploaded slip.",
+      );
+    }
+
     headers["Content-Type"] = "application/json";
     body = JSON.stringify({
       payload: {
@@ -299,6 +456,8 @@ export async function verifySlipWithSlip2Go(
   });
   const raw = await parseResponse(response);
   const verified = inferVerified(response.ok, raw);
+  const status = inferStatus(raw, response.ok);
+  const message = inferMessage(raw);
   const responseSummary = summarizeRaw(raw);
 
   if (!response.ok) {
@@ -314,7 +473,8 @@ export async function verifySlipWithSlip2Go(
   return {
     ok: response.ok,
     verified,
-    status: inferStatus(raw, response.ok),
+    status,
+    message,
     httpStatus: response.status,
     endpoint,
     requestMode: mode,
