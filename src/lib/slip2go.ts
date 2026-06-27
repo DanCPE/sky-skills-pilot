@@ -1,5 +1,6 @@
 export interface Slip2GoVerificationInput {
   miniQrPayload?: string | null;
+  receiverAccountNumbers?: string[];
   slipFileName: string;
   slipContentType: string;
   slipBytes: Buffer;
@@ -206,6 +207,15 @@ function dataUrlBase64(contentType: string, bytes: Buffer) {
   return `data:${contentType};base64,${bytes.toString("base64")}`;
 }
 
+function buildReceiverCheck(accountNumbers?: string[]) {
+  const checkReceiver = (accountNumbers ?? [])
+    .map((accountNumber) => accountNumber.trim())
+    .filter(Boolean)
+    .map((accountNumber) => ({ accountNumber }));
+
+  return checkReceiver.length > 0 ? { checkReceiver } : {};
+}
+
 function summarizeRaw(value: unknown) {
   const text =
     typeof value === "string" ? value : JSON.stringify(value ?? null, null, 2);
@@ -227,6 +237,7 @@ export async function verifySlipWithSlip2Go(
   const miniQrPayload = input.miniQrPayload?.trim() || "";
   const mode = resolveRequestMode(configuredMode, Boolean(miniQrPayload));
   const endpoint = resolveEndpoint(mode);
+  const receiverCheckPayload = buildReceiverCheck(input.receiverAccountNumbers);
 
   const headers: HeadersInit = authHeaders();
   let body: BodyInit;
@@ -236,6 +247,7 @@ export async function verifySlipWithSlip2Go(
     body = JSON.stringify({
       payload: {
         [qrField]: miniQrPayload,
+        ...receiverCheckPayload,
       },
     });
   } else if (mode === "base64") {
@@ -243,6 +255,7 @@ export async function verifySlipWithSlip2Go(
     body = JSON.stringify({
       payload: {
         [base64Field]: dataUrlBase64(input.slipContentType, input.slipBytes),
+        ...receiverCheckPayload,
       },
     });
   } else if (mode === "qr-image") {
@@ -254,6 +267,9 @@ export async function verifySlipWithSlip2Go(
       new Blob([fileBuffer], { type: input.slipContentType }),
       input.slipFileName,
     );
+    if (Object.keys(receiverCheckPayload).length > 0) {
+      formData.set("payload", JSON.stringify(receiverCheckPayload));
+    }
     body = formData;
   } else {
     throw new Error(
@@ -268,6 +284,10 @@ export async function verifySlipWithSlip2Go(
     fileName: input.slipFileName,
     contentType: input.slipContentType,
     sizeBytes: input.slipBytes.byteLength,
+    hasReceiverCheck: Object.keys(receiverCheckPayload).length > 0,
+    receiverAccountCount: input.receiverAccountNumbers?.filter((item) =>
+      item.trim(),
+    ).length ?? 0,
     authHeader: getEnv("SLIP2GO_AUTH_HEADER", "Authorization"),
   });
 

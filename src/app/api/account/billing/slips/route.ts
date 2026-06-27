@@ -153,6 +153,8 @@ export async function POST(request: Request) {
     const expectedAmountCents =
       appliedPromotion?.finalAmountCents ?? subscriptionPackage.priceCents;
     const expectedAmountThb = expectedAmountCents / 100;
+    const manualPaymentConfig = await getManualPaymentConfig();
+    const receiverAccountNumber = manualPaymentConfig.accountNumber.trim();
     const manualFallbackEnabled =
       process.env.SLIP2GO_ALLOW_MANUAL_FALLBACK === "true";
 
@@ -196,8 +198,19 @@ export async function POST(request: Request) {
       );
     }
 
+    if (!receiverAccountNumber) {
+      return NextResponse.json(
+        {
+          error:
+            "Payment receiver account number is not configured. Set it in the admin billing QR settings before accepting automatic slip payments.",
+        },
+        { status: 503 },
+      );
+    }
+
     const verification = await verifySlipWithSlip2Go({
       miniQrPayload,
+      receiverAccountNumbers: [receiverAccountNumber],
       slipFileName: slipFile.name || "payment-slip",
       slipContentType: slipFile.type,
       slipBytes,
@@ -259,6 +272,7 @@ export async function POST(request: Request) {
       transRef: verification.transRef,
       verifiedAmountThb: verification.amountThb,
       expectedAmountThb,
+      receiverAccountNumber,
       promotionCode: appliedPromotion?.promotion.code ?? null,
       discountThb: appliedPromotion ? appliedPromotion.discountCents / 100 : 0,
       durationMs: verification.durationMs,
