@@ -245,6 +245,7 @@ export async function POST(request: Request) {
     const slip2goReceiverAccountType = receiverPromptPayId
       ? (process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE ?? "03000")
       : process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE;
+    let usedSlip2GoReceiverCheck = Boolean(slip2goReceiverAccountNumber);
 
     let verification = await verifySlipWithSlip2Go({
       miniQrPayload,
@@ -272,14 +273,16 @@ export async function POST(request: Request) {
         slipContentType: slipFile.type,
         slipBytes,
       });
+      usedSlip2GoReceiverCheck = false;
     }
-    const receiverValidation = verification.verified
-      ? validateSlip2GoReceiver(verification.raw, {
-          accountNumber: receiverAccountNumber,
-          accountName: receiverAccountName,
-          promptPayId: receiverPromptPayId,
-        })
-      : { ok: false, reason: null };
+    const receiverValidation =
+      verification.verified && !usedSlip2GoReceiverCheck
+        ? validateSlip2GoReceiver(verification.raw, {
+            accountNumber: receiverAccountNumber,
+            accountName: receiverAccountName,
+            promptPayId: receiverPromptPayId,
+          })
+        : { ok: true, reason: null };
     const rejectionReason = slipRejectionReason(
       verification,
       expectedAmountCents,
@@ -341,6 +344,7 @@ export async function POST(request: Request) {
       receiverAccountNumber,
       slip2goReceiverAccountNumber,
       slip2goReceiverAccountType: slip2goReceiverAccountType ?? null,
+      usedSlip2GoReceiverCheck,
       hasReceiverPromptPayId: Boolean(receiverPromptPayId),
       receiverValidationOk: receiverValidation.ok,
       receiverValidationReason: receiverValidation.reason,
