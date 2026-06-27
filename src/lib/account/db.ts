@@ -1646,7 +1646,7 @@ function getEnvManualPaymentConfig(): ManualPaymentConfig {
   return {
     bankName: process.env.MANUAL_PAYMENT_BANK_NAME || "Krungthai Bank",
     accountName: process.env.MANUAL_PAYMENT_ACCOUNT_NAME || "",
-    accountNumber: process.env.MANUAL_PAYMENT_ACCOUNT_NUMBER || "",
+    accountNumber: process.env.MANUAL_PAYMENT_ACCOUNT_NUMBER || "9770273392",
     promptPayId: process.env.MANUAL_PAYMENT_PROMPTPAY_ID || "",
     paymentQrImageUrl: "/api/billing/payment-qr",
     defaultAmountThb:

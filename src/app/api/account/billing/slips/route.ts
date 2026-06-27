@@ -240,12 +240,18 @@ export async function POST(request: Request) {
       );
     }
 
+    const slip2goReceiverAccountNumber =
+      receiverPromptPayId || receiverAccountNumber;
+    const slip2goReceiverAccountType = receiverPromptPayId
+      ? (process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE ?? "03000")
+      : process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE;
+
     let verification = await verifySlipWithSlip2Go({
       miniQrPayload,
-      receiverAccountNumbers: receiverAccountNumber
-        ? [receiverAccountNumber]
+      receiverAccountNumbers: slip2goReceiverAccountNumber
+        ? [slip2goReceiverAccountNumber]
         : undefined,
-      receiverAccountType: process.env.SLIP2GO_RECEIVER_ACCOUNT_TYPE ?? "03000",
+      receiverAccountType: slip2goReceiverAccountType,
       slipFileName: slipFile.name || "payment-slip",
       slipContentType: slipFile.type,
       slipBytes,
@@ -333,6 +339,8 @@ export async function POST(request: Request) {
       verifiedAmountThb: verification.amountThb,
       expectedAmountThb,
       receiverAccountNumber,
+      slip2goReceiverAccountNumber,
+      slip2goReceiverAccountType: slip2goReceiverAccountType ?? null,
       hasReceiverPromptPayId: Boolean(receiverPromptPayId),
       receiverValidationOk: receiverValidation.ok,
       receiverValidationReason: receiverValidation.reason,

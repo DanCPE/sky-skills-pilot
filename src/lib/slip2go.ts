@@ -319,7 +319,7 @@ function resolveEndpoint(mode: string) {
 
 function resolveRequestMode(configuredMode: string, hasMiniQrPayload: boolean) {
   if (configuredMode === "auto") {
-    return hasMiniQrPayload ? "qr-code" : "qr-image";
+    return "qr-image";
   }
   if (configuredMode === "json") return hasMiniQrPayload ? "qr-code" : "base64";
   if (configuredMode === "multipart") return "qr-image";
@@ -330,37 +330,42 @@ function dataUrlBase64(contentType: string, bytes: Buffer) {
   return `data:${contentType};base64,${bytes.toString("base64")}`;
 }
 
-function buildReceiverCheck(accountNumbers?: string[], accountType?: string | null) {
-  const accountNumberVariants = new Set<string>();
+function buildReceiverCheck(
+  accountNumbers?: string[],
+  accountType?: string | null,
+) {
+  const accountNumber = accountNumbers?.find((item) => item.trim())?.trim() ?? "";
+  const normalizedAccountType = accountType?.trim();
+  if (!accountNumber) return {};
+
+  return {
+    checkReceiver: [
+      {
+        ...(normalizedAccountType ? { accountType: normalizedAccountType } : {}),
+        accountNumber,
+      },
+    ],
+  };
+}
+
+function asQrCodeCheckConditionPayload(
+  receiverCheckPayload: JsonObject,
+  accountType?: string | null,
+) {
+  const checkReceiver = receiverCheckPayload.checkReceiver;
   const normalizedAccountType = accountType?.trim() || getEnv(
     "SLIP2GO_RECEIVER_ACCOUNT_TYPE",
     "03000",
   );
-
-  for (const accountNumber of accountNumbers ?? []) {
-    const trimmed = accountNumber.trim();
-    if (!trimmed) continue;
-
-    accountNumberVariants.add(trimmed);
-
-    const digitsOnly = trimmed.replace(/\D/g, "");
-    if (!digitsOnly || digitsOnly === trimmed) continue;
-
-    accountNumberVariants.add(digitsOnly);
-    if (digitsOnly.length === 10) {
-      accountNumberVariants.add(
-        `${digitsOnly.slice(0, 3)}-${digitsOnly.slice(3, 9)}-${digitsOnly.slice(9)}`,
-      );
-    }
-  }
-
-  const checkReceiver = Array.from(accountNumberVariants).map((accountNumber) => ({
-    accountType: normalizedAccountType,
-    accountNumber,
-  }));
-
-  return checkReceiver.length > 0
-    ? { checkCondition: { checkReceiver } }
+  return Array.isArray(checkReceiver)
+    ? {
+        checkCondition: {
+          checkReceiver: checkReceiver.map((receiver) => ({
+            ...(receiver as JsonObject),
+            accountType: normalizedAccountType,
+          })),
+        },
+      }
     : {};
 }
 
@@ -404,7 +409,10 @@ export async function verifySlipWithSlip2Go(
     body = JSON.stringify({
       payload: {
         [qrField]: miniQrPayload,
-        ...receiverCheckPayload,
+        ...asQrCodeCheckConditionPayload(
+          receiverCheckPayload,
+          input.receiverAccountType,
+        ),
       },
     });
   } else if (mode === "base64") {
@@ -446,6 +454,31 @@ export async function verifySlipWithSlip2Go(
       item.trim(),
     ).length ?? 0,
     authHeader: getEnv("SLIP2GO_AUTH_HEADER", "Authorization"),
+    requestPayload:
+      mode === "qr-image"
+        ? {
+            multipart: {
+              [imageField]: {
+                fileName: input.slipFileName,
+                contentType: input.slipContentType,
+                sizeBytes: input.slipBytes.byteLength,
+              },
+              ...(Object.keys(receiverCheckPayload).length > 0
+                ? { payload: receiverCheckPayload }
+                : {}),
+            },
+          }
+        : mode === "qr-code"
+          ? {
+              payload: {
+                [qrField]: "[redacted qrCode]",
+                ...asQrCodeCheckConditionPayload(
+                  receiverCheckPayload,
+                  input.receiverAccountType,
+                ),
+              },
+            }
+          : { payload: "[base64 image redacted]" },
   });
 
   const response = await fetch(endpoint, {
