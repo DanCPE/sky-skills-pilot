@@ -324,17 +324,6 @@ export default function ManualSlipPaymentForm({
                 </div>
               </div>
 
-              <button
-                type="submit"
-                form="payment-proof-form"
-                disabled={isSubmitting || !selectedPackage}
-                className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#5817b7] px-5 text-base font-semibold text-white shadow-sm transition hover:bg-[#5012A5] disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
-              >
-                {isSubmitting ? "Verifying..." : "Confirm Subscription"}
-                <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs text-[#5012A5]">
-                  ✓
-                </span>
-              </button>
             </div>
           </section>
 
@@ -507,6 +496,17 @@ export default function ManualSlipPaymentForm({
                 </label>
               </div>
             </details>
+
+            <button
+              type="submit"
+              disabled={isSubmitting || !selectedPackage}
+              className="flex min-h-14 w-full items-center justify-center gap-2 rounded-xl bg-[#5817b7] px-5 text-base font-semibold text-white shadow-sm transition hover:bg-[#5012A5] disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500"
+            >
+              {isSubmitting ? "Verifying..." : "Submit Payment"}
+              <span className="flex h-5 w-5 items-center justify-center rounded-full bg-white text-xs text-[#5012A5]">
+                ✓
+              </span>
+            </button>
 
             {error ? (
               <div className="rounded-xl border border-red-300 bg-red-50 p-3 text-sm font-medium text-red-700">

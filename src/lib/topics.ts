@@ -18,8 +18,8 @@ export const topics: Topic[] = [
     description: "Rotate a folded cube and find the flat net that unfolds from it.",
     category: "spatial",
     isLocked: false,
-    coverImage: "/images/icons/SkyQuests/box.png",
-    coverImageDark: "/images/icons/SkyQuests/box dark.png",
+    coverImage: "/images/icons/SkyQuests/unbox.png",
+    coverImageDark: "/images/icons/SkyQuests/unbox dark.png",
   },
   {
     slug: "missing-cube",
@@ -139,8 +139,8 @@ export const topics: Topic[] = [
     description: "Make rapid same-or-different calls on string pairs under a tight clock.",
     category: "scanning",
     isLocked: false,
-    coverImage: "/images/icons/SkyQuests/string.png",
-    coverImageDark: "/images/icons/SkyQuests/string dark.png",
+    coverImage: "/images/icons/SkyQuests/sprint.png",
+    coverImageDark: "/images/icons/SkyQuests/sprint dark.png",
   },
   {
     slug: "scanning-shape",
