@@ -53,9 +53,8 @@ export async function GET(req: NextRequest) {
       difficulty as "easy" | "medium" | "hard" | "mixed"
     );
 
-    // Calculate time limit for real mode (5 minutes for 10 questions, scaled proportionally)
     const timeLimit =
-      mode === "real" ? Math.floor((questionCount / 10) * 300) : undefined;
+      mode === "real" ? questionCount * 21 : undefined;
 
     const response: NumberSeriesQuizResponse = {
       questions,

@@ -70,6 +70,10 @@ export default function ManualSlipPaymentForm({
   const originalAmount = selectedPackage ? selectedPackage.priceThb : 0;
   const discountAmount = appliedPromotion?.discountThb ?? 0;
   const totalAmount = appliedPromotion?.finalAmountThb ?? originalAmount;
+  const promotionAdjustmentLabel =
+    discountAmount >= 0
+      ? `-${formatAmount(discountAmount)}`
+      : `+${formatAmount(Math.abs(discountAmount))}`;
   const selectedAmount = selectedPackage ? formatAmount(originalAmount) : "-";
   const totalAmountLabel = selectedPackage ? formatAmount(totalAmount) : "-";
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
@@ -309,9 +313,11 @@ export default function ManualSlipPaymentForm({
                   <span>{selectedAmount}</span>
                 </div>
                 <div className="flex justify-between gap-4 text-zinc-500">
-                  <span>Discount</span>
+                  <span>
+                    {discountAmount < 0 ? "Special Add-on" : "Discount"}
+                  </span>
                   <span className="text-red-700">
-                    -{formatAmount(discountAmount)}
+                    {promotionAdjustmentLabel}
                   </span>
                 </div>
                 <div className="flex items-center justify-between gap-4 pt-2">

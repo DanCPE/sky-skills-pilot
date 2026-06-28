@@ -77,6 +77,10 @@ function slipStatusClass(status: ManualPaymentSlip["status"]) {
   return "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100";
 }
 
+function isCaptainProMaxDeal(value: Pick<ManualPaymentSlip, "planKey">) {
+  return value.planKey === "captain-pro-max";
+}
+
 function getPageCount(totalItems: number) {
   return Math.max(1, Math.ceil(totalItems / TABLE_PAGE_SIZE));
 }
@@ -364,6 +368,31 @@ export default function AdminBillingPage() {
         rejectionReason,
       },
       `slip:${slip.id}:${action}`,
+    );
+  }
+
+  async function togglePersonalFilesSent(slip: ManualPaymentSlip) {
+    await patchBilling(
+      {
+        type: "personal-files",
+        slipId: slip.id,
+        sent: !slip.personalFilesSentAt,
+      },
+      `personal-files:${slip.id}`,
+    );
+  }
+
+  async function togglePersonalFilesSentBySlipId(
+    slipId: string,
+    sent: boolean,
+  ) {
+    await patchBilling(
+      {
+        type: "personal-files",
+        slipId,
+        sent,
+      },
+      `personal-files:${slipId}`,
     );
   }
 
@@ -885,10 +914,16 @@ export default function AdminBillingPage() {
                   visibleManualPaymentSlips.map((slip) => {
                     const approveKey = `slip:${slip.id}:approve`;
                     const rejectKey = `slip:${slip.id}:reject`;
+                    const filesKey = `personal-files:${slip.id}`;
+                    const isSpecialDeal = isCaptainProMaxDeal(slip);
                     return (
                       <tr
                         key={slip.id}
-                        className="border-t border-zinc-100 dark:border-white/10"
+                        className={`border-t border-zinc-100 dark:border-white/10 ${
+                          isSpecialDeal
+                            ? "bg-amber-50/70 dark:bg-amber-500/10"
+                            : ""
+                        }`}
                       >
                         <td className="px-4 py-3">{formatDate(slip.createdAt)}</td>
                         <td className="px-4 py-3">
@@ -899,6 +934,11 @@ export default function AdminBillingPage() {
                         </td>
                         <td className="px-4 py-3">
                           {slip.planTitle ?? slip.planKey}
+                          {isSpecialDeal ? (
+                            <p className="mt-1 inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
+                              Captain Pro Max
+                            </p>
+                          ) : null}
                         </td>
                         <td className="px-4 py-3">
                           {formatAmount(slip.amountThb)}
@@ -908,7 +948,16 @@ export default function AdminBillingPage() {
                               {slip.originalAmountThb !== null
                                 ? formatAmount(slip.originalAmountThb)
                                 : "-"}{" "}
-                              - {formatAmount(slip.discountThb)}
+                              {slip.discountThb >= 0 ? "-" : "+"}{" "}
+                              {formatAmount(Math.abs(slip.discountThb))}
+                            </p>
+                          ) : null}
+                          {isSpecialDeal ? (
+                            <p className="mt-1 text-xs font-bold text-amber-700 dark:text-amber-200">
+                              Personal files{" "}
+                              {slip.personalFilesSentAt
+                                ? `sent ${formatDate(slip.personalFilesSentAt)}`
+                                : "not sent"}
                             </p>
                           ) : null}
                         </td>
@@ -951,7 +1000,7 @@ export default function AdminBillingPage() {
                         </td>
                         <td className="px-4 py-3">
                           {slip.status === "pending" ? (
-                            <div className="flex gap-2">
+                            <div className="flex flex-wrap gap-2">
                               <button
                                 type="button"
                                 disabled={pendingKey !== null}
@@ -974,11 +1023,29 @@ export default function AdminBillingPage() {
                               </button>
                             </div>
                           ) : (
-                            <span className="text-xs text-zinc-500 dark:text-zinc-400">
-                              {slip.reviewedAt
-                                ? `Reviewed ${formatDate(slip.reviewedAt)}`
-                                : "-"}
-                            </span>
+                            <div className="space-y-2">
+                              <span className="block text-xs text-zinc-500 dark:text-zinc-400">
+                                {slip.reviewedAt
+                                  ? `Reviewed ${formatDate(slip.reviewedAt)}`
+                                  : "-"}
+                              </span>
+                              {isSpecialDeal && slip.status === "approved" ? (
+                                <button
+                                  type="button"
+                                  disabled={pendingKey !== null}
+                                  onClick={() =>
+                                    void togglePersonalFilesSent(slip)
+                                  }
+                                  className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/40 dark:text-amber-100 dark:hover:bg-amber-500/10"
+                                >
+                                  {pendingKey === filesKey
+                                    ? "Saving..."
+                                    : slip.personalFilesSentAt
+                                      ? "Mark files unsent"
+                                      : "Mark files sent"}
+                                </button>
+                              ) : null}
+                            </div>
                           )}
                         </td>
                       </tr>
@@ -1463,10 +1530,16 @@ export default function AdminBillingPage() {
                       fleet.currentPeriodEnd,
                     );
                     const key = `fleet:${fleet.fleetId}`;
+                    const isSpecialDeal =
+                      fleet.latestPackageKey === "captain-pro-max";
                     return (
                       <tr
                         key={fleet.fleetId}
-                        className="border-t border-zinc-100 dark:border-white/10"
+                        className={`border-t border-zinc-100 dark:border-white/10 ${
+                          isSpecialDeal
+                            ? "bg-amber-50/70 dark:bg-amber-500/10"
+                            : ""
+                        }`}
                       >
                       <td className="px-4 py-3">
                         <p className="font-bold">{fleet.email}</p>
@@ -1496,6 +1569,14 @@ export default function AdminBillingPage() {
                                 fleet.latestPackageKey}{" "}
                               package
                             </p>
+                            {isSpecialDeal ? (
+                              <p className="inline-flex rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-800 dark:bg-amber-500/20 dark:text-amber-100">
+                                Captain Pro Max · personal files{" "}
+                                {fleet.latestPersonalFilesSentAt
+                                  ? "sent"
+                                  : "not sent"}
+                              </p>
+                            ) : null}
                             <p>
                               {fleet.latestPackageAmountThb !== null
                                 ? formatAmount(fleet.latestPackageAmountThb)
@@ -1525,6 +1606,34 @@ export default function AdminBillingPage() {
                             <p>
                               Expires {formatDateOnly(fleet.currentPeriodEnd)}
                             </p>
+                            {isSpecialDeal &&
+                            fleet.latestSlipId &&
+                            fleet.latestPersonalFilesSentAt ? (
+                              <p>
+                                Files sent{" "}
+                                {formatDate(fleet.latestPersonalFilesSentAt)}
+                              </p>
+                            ) : null}
+                            {isSpecialDeal && fleet.latestSlipId ? (
+                              <button
+                                type="button"
+                                disabled={pendingKey !== null}
+                                onClick={() =>
+                                  void togglePersonalFilesSentBySlipId(
+                                    fleet.latestSlipId as string,
+                                    !fleet.latestPersonalFilesSentAt,
+                                  )
+                                }
+                                className="rounded-lg border border-amber-300 px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/40 dark:text-amber-100 dark:hover:bg-amber-500/10"
+                              >
+                                {pendingKey ===
+                                `personal-files:${fleet.latestSlipId}`
+                                  ? "Saving..."
+                                  : fleet.latestPersonalFilesSentAt
+                                    ? "Mark files unsent"
+                                    : "Mark files sent"}
+                              </button>
+                            ) : null}
                           </div>
                         ) : (
                           <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">

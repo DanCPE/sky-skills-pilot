@@ -10,6 +10,7 @@ const DEFAULT_FLEET_MEMBER_LIMIT = 1;
 const PACKAGE_FLEET_MEMBER_LIMITS: Record<string, number> = {
   "first-officer": 2,
   captain: 3,
+  "captain-pro-max": 3,
 };
 
 let accountPool: Pool | null = null;
@@ -25,6 +26,8 @@ const subscriptionPackagesCache = new Map<
 let promotionCodesCache:
   | { expiresAt: number; promotions: PromotionCode[] }
   | null = null;
+
+const CAPTAIN_PRO_MAX_PACKAGE_KEY = "captain-pro-max";
 
 const CONFIG_CACHE_MS = 60 * 1000;
 
@@ -144,6 +147,8 @@ export interface AdminBillingFleet {
   latestPackageDurationMonths: number | null;
   latestSlipId: string | null;
   latestSlip2goTransRef: string | null;
+  latestPromotionCode: string | null;
+  latestPersonalFilesSentAt: string | null;
   profileCount: number;
   activeSessionCount: number;
   createdAt: string;
@@ -238,6 +243,7 @@ export interface ManualPaymentSlip {
   reviewedAt: string | null;
   reviewedBy: string | null;
   rejectionReason: string | null;
+  personalFilesSentAt: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -637,6 +643,7 @@ export async function ensureAccountSchema() {
       await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS original_amount_cents INT;");
       await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS discount_cents INT NOT NULL DEFAULT 0;");
       await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS promotion_code TEXT;");
+      await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS personal_files_sent_at TIMESTAMPTZ;");
 
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_subscription_packages (
@@ -743,6 +750,20 @@ export async function ensureAccountSchema() {
             durationMonths: 12,
             sortOrder: 30,
           },
+          {
+            key: CAPTAIN_PRO_MAX_PACKAGE_KEY,
+            title: "Captain Pro Max",
+            description: "Captain access plus personal file support from the SkySkills team.",
+            details: [
+              "All paid quizzes",
+              "Score history",
+              "Skill dashboard",
+              "Personal file delivery",
+            ],
+            priceCents: 202600,
+            durationMonths: 12,
+            sortOrder: 40,
+          },
         ];
 
         for (const item of defaultPackages) {
@@ -778,6 +799,41 @@ export async function ensureAccountSchema() {
           ["subscription_packages_v1"],
         );
       }
+
+      await pool.query(
+        `
+          INSERT INTO account_subscription_packages (
+            key,
+            title,
+            description,
+            details,
+            price_cents,
+            currency,
+            duration_months,
+            sort_order
+          )
+          VALUES (
+            $1,
+            'Captain Pro Max',
+            'Captain access plus personal file support from the SkySkills team.',
+            $2,
+            202600,
+            'THB',
+            12,
+            40
+          )
+          ON CONFLICT (key) DO NOTHING;
+        `,
+        [
+          CAPTAIN_PRO_MAX_PACKAGE_KEY,
+          JSON.stringify([
+            "All paid quizzes",
+            "Score history",
+            "Skill dashboard",
+            "Personal file delivery",
+          ]),
+        ],
+      );
 
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_quiz_access (
@@ -1501,6 +1557,9 @@ function mapManualPaymentSlip(row: Record<string, unknown>): ManualPaymentSlip {
     rejectionReason: row.rejection_reason
       ? String(row.rejection_reason)
       : null,
+    personalFilesSentAt: row.personal_files_sent_at
+      ? new Date(String(row.personal_files_sent_at)).toISOString()
+      : null,
     createdAt: new Date(String(row.created_at)).toISOString(),
     updatedAt: new Date(String(row.updated_at)).toISOString(),
   };
@@ -1575,6 +1634,7 @@ async function ensurePromotionSchema() {
   await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS original_amount_cents INT;");
   await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS discount_cents INT NOT NULL DEFAULT 0;");
   await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS promotion_code TEXT;");
+  await pool.query("ALTER TABLE account_manual_payment_slips ADD COLUMN IF NOT EXISTS personal_files_sent_at TIMESTAMPTZ;");
   await pool.query(`
     CREATE TABLE IF NOT EXISTS account_promotion_codes (
       code TEXT PRIMARY KEY,
@@ -3509,6 +3569,53 @@ export async function reviewManualPaymentSlip(input: {
   }
 }
 
+export async function setManualPaymentPersonalFilesSent(input: {
+  slipId: string;
+  sent: boolean;
+}) {
+  await ensureAccountSchema();
+  await ensurePromotionSchema();
+
+  const result = await getPool().query(
+    `
+      UPDATE account_manual_payment_slips
+      SET personal_files_sent_at = CASE WHEN $2::boolean THEN NOW() ELSE NULL END,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `,
+    [input.slipId, input.sent],
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("Payment slip not found.");
+  }
+
+  accountDebug("manual payment personal files updated", {
+    slipId: input.slipId,
+    sent: input.sent,
+  });
+
+  const decoratedResult = await getPool().query(
+    `
+      SELECT
+        s.*,
+        u.email,
+        p.call_sign,
+        pkg.title AS plan_title
+      FROM account_manual_payment_slips s
+      JOIN account_users u ON u.id = s.user_id
+      LEFT JOIN account_profiles p ON p.id = s.profile_id
+      LEFT JOIN account_subscription_packages pkg ON pkg.key = s.plan_key
+      WHERE s.id = $1
+      LIMIT 1;
+    `,
+    [input.slipId],
+  );
+
+  return mapManualPaymentSlip(decoratedResult.rows[0] ?? result.rows[0]);
+}
+
 export async function getAdminBillingOverview() {
   await ensureAccountSchema();
 
@@ -3535,6 +3642,8 @@ export async function getAdminBillingOverview() {
           latest_slip.plan_key AS latest_package_key,
           pkg.title AS latest_package_title,
           latest_slip.amount_cents AS latest_package_amount_cents,
+          latest_slip.promotion_code AS latest_promotion_code,
+          latest_slip.personal_files_sent_at AS latest_personal_files_sent_at,
           pkg.duration_months AS latest_package_duration_months,
           latest_slip.id AS latest_slip_id,
           latest_slip.slip2go_trans_ref AS latest_slip2go_trans_ref,
@@ -3571,6 +3680,8 @@ export async function getAdminBillingOverview() {
           latest_slip.plan_key,
           latest_slip.id,
           latest_slip.amount_cents,
+          latest_slip.promotion_code,
+          latest_slip.personal_files_sent_at,
           latest_slip.slip2go_trans_ref,
           pkg.title,
           pkg.duration_months
@@ -3612,6 +3723,12 @@ export async function getAdminBillingOverview() {
     latestSlipId: row.latest_slip_id ? String(row.latest_slip_id) : null,
     latestSlip2goTransRef: row.latest_slip2go_trans_ref
       ? String(row.latest_slip2go_trans_ref)
+      : null,
+    latestPromotionCode: row.latest_promotion_code
+      ? String(row.latest_promotion_code)
+      : null,
+    latestPersonalFilesSentAt: row.latest_personal_files_sent_at
+      ? new Date(String(row.latest_personal_files_sent_at)).toISOString()
       : null,
     profileCount: Number(row.profile_count ?? 0),
     activeSessionCount: Number(row.active_session_count ?? 0),

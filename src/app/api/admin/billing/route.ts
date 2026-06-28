@@ -3,6 +3,7 @@ import {
   getAdminBillingOverview,
   hasAccountDatabase,
   reviewManualPaymentSlip,
+  setManualPaymentPersonalFilesSent,
   setFleetManualSubscription,
   setQuizAccessRule,
   type SubscriptionStatus,
@@ -62,6 +63,7 @@ export async function PATCH(request: Request) {
           action?: "approve" | "reject";
           reviewedBy?: string;
           rejectionReason?: string;
+          sent?: boolean;
         }
       | null;
 
@@ -128,6 +130,25 @@ export async function PATCH(request: Request) {
         action: body.action,
         reviewedBy: body.reviewedBy,
         rejectionReason: body.rejectionReason,
+      });
+
+      return NextResponse.json({
+        slip,
+        overview: await getAdminBillingOverview(),
+      });
+    }
+
+    if (body.type === "personal-files") {
+      if (!body.slipId || typeof body.sent !== "boolean") {
+        return NextResponse.json(
+          { error: "slipId and sent are required." },
+          { status: 400 },
+        );
+      }
+
+      const slip = await setManualPaymentPersonalFilesSent({
+        slipId: body.slipId,
+        sent: body.sent,
       });
 
       return NextResponse.json({

@@ -32,6 +32,10 @@ const packageCardCopy = [
     icon: "/images/icons/Subscription/Star.png",
     description: "Command the cockpit with complete preparation access.",
   },
+  {
+    icon: "/images/icons/Subscription/Star.png",
+    description: "Captain access with personal file support from our team.",
+  },
 ];
 
 const paidFeatures = [
@@ -85,7 +89,10 @@ function PaidPackageCard({
   isFeatured: boolean;
 }) {
   const href = `/payment?package=${encodeURIComponent(pkg.key)}`;
-  const details = paidFeatures;
+  const details =
+    pkg.key === "captain-pro-max"
+      ? [...paidFeatures, "Personal file delivery"]
+      : paidFeatures;
   const description = descriptionForIndex(index, pkg.description);
   const fleetLimit = getFleetMemberLimitForPackageKey(pkg.key);
 
@@ -279,7 +286,7 @@ export default async function SubscriptionPage() {
       </section>
 
       <section className="relative z-10 -mt-9 bg-[#F7F6F8] px-5 pb-20">
-        <div className="mx-auto grid max-w-[1368px] gap-6 lg:grid-cols-4">
+        <div className="mx-auto grid max-w-[1600px] gap-6 lg:grid-cols-3 xl:grid-cols-5">
           <article className="flex min-h-[450px] flex-col rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)]">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F3F4F6] p-2 shadow-sm">
               <Image
