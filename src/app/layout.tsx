@@ -5,6 +5,7 @@ import Navbar from "@/components/Navbar";
 import { ThemeProvider } from "@/lib/use-theme";
 import FrontendUsageTracker from "@/components/analytics/FrontendUsageTracker";
 import BroadcastBand from "@/components/BroadcastBand";
+import TemporaryCloseRedirect from "@/components/TemporaryCloseRedirect";
 
 const inter = Inter({
   display: "swap",
@@ -48,6 +49,7 @@ export default function RootLayout({
         className={`${inter.variable} ${inter.className} antialiased`}
       >
         <ThemeProvider>
+          <TemporaryCloseRedirect />
           <script
             type="application/ld+json"
             suppressHydrationWarning
