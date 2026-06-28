@@ -3780,3 +3780,155 @@ export async function getAdminBillingOverview() {
     promotionCodes,
   };
 }
+
+export interface LeaderboardContextEntry {
+  profileId: string;
+  displayName: string;
+  imageUrl: string | null;
+  rank: number;
+  dashboardAverage: number;
+  isCurrentUser: boolean;
+}
+
+export async function getLeaderboardContext(
+  profileId: string,
+): Promise<LeaderboardContextEntry[]> {
+  await ensureAccountSchema();
+  const pool = getPool();
+  const result = await pool.query<{
+    profile_id: string;
+    name: string;
+    image_url: string | null;
+    actual_platform_rank: number;
+    dashboard_average: number;
+    is_current_user: boolean;
+  }>(
+    `
+      WITH normalized_scores AS (
+        SELECT
+          profile_id,
+          CASE
+            WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+            WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
+            ELSE skill_domain
+          END AS skill_domain,
+          percentage
+        FROM account_score_history
+        WHERE profile_id IS NOT NULL
+      ),
+      domain_avgs AS (
+        SELECT
+          profile_id,
+          skill_domain,
+          AVG(percentage)::float AS value,
+          COUNT(*)::int AS attempts
+        FROM normalized_scores
+        GROUP BY profile_id, skill_domain
+      ),
+      profile_avgs AS (
+        SELECT
+          profile_id,
+          ROUND(AVG(value))::int AS dashboard_average,
+          SUM(attempts)::int AS total_attempts
+        FROM domain_avgs
+        GROUP BY profile_id
+      ),
+      ranked_profiles AS (
+        SELECT
+          profile_id,
+          dashboard_average,
+          RANK() OVER (
+            ORDER BY dashboard_average DESC, total_attempts DESC, profile_id ASC
+          )::int AS actual_platform_rank
+        FROM profile_avgs
+      ),
+      user_rank AS (
+        SELECT actual_platform_rank AS r
+        FROM ranked_profiles
+        WHERE profile_id = $1
+      )
+      SELECT
+        rp.profile_id,
+        u.name,
+        u.image_url,
+        rp.actual_platform_rank,
+        rp.dashboard_average,
+        (rp.profile_id = $1) AS is_current_user
+      FROM ranked_profiles rp
+      JOIN account_profiles ap ON ap.id = rp.profile_id
+      JOIN account_users u ON u.id = ap.user_id
+      WHERE
+        rp.actual_platform_rank <= 3
+        OR rp.actual_platform_rank BETWEEN
+          GREATEST(1, (SELECT r FROM user_rank) - 2)
+          AND (SELECT r FROM user_rank) + 2
+      ORDER BY rp.actual_platform_rank
+    `,
+    [profileId],
+  );
+
+  return result.rows.map((row) => {
+    const parts = (row.name ?? "").trim().split(/\s+/);
+    const displayName =
+      parts.length >= 2
+        ? `${parts[0]} ${parts[parts.length - 1].slice(0, 1)}.`
+        : (parts[0] ?? "Pilot");
+    return {
+      profileId: row.profile_id,
+      displayName,
+      imageUrl: row.image_url ?? null,
+      rank: Number(row.actual_platform_rank),
+      dashboardAverage: Math.round(Number(row.dashboard_average)),
+      isCurrentUser: Boolean(row.is_current_user),
+    };
+  });
+}
+
+export async function getProfileRank(profileId: string): Promise<number | null> {
+  await ensureAccountSchema();
+  const pool = getPool();
+  const result = await pool.query<{ actual_platform_rank: number | null }>(
+    `
+      WITH normalized_scores AS (
+        SELECT
+          profile_id,
+          CASE
+            WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+            WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
+            ELSE skill_domain
+          END AS skill_domain,
+          percentage
+        FROM account_score_history
+        WHERE profile_id IS NOT NULL
+      ),
+      domain_avgs AS (
+        SELECT
+          profile_id,
+          skill_domain,
+          AVG(percentage)::float AS value,
+          COUNT(*)::int AS attempts
+        FROM normalized_scores
+        GROUP BY profile_id, skill_domain
+      ),
+      profile_avgs AS (
+        SELECT
+          profile_id,
+          ROUND(AVG(value))::int AS dashboard_average,
+          SUM(attempts)::int AS total_attempts
+        FROM domain_avgs
+        GROUP BY profile_id
+      ),
+      ranked_profiles AS (
+        SELECT
+          profile_id,
+          RANK() OVER (
+            ORDER BY dashboard_average DESC, total_attempts DESC, profile_id ASC
+          )::int AS actual_platform_rank
+        FROM profile_avgs
+      )
+      SELECT actual_platform_rank FROM ranked_profiles WHERE profile_id = $1 LIMIT 1
+    `,
+    [profileId],
+  );
+  return result.rows[0]?.actual_platform_rank ?? null;
+}

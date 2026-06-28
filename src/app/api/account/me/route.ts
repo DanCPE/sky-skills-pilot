@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { getCurrentAccountUser } from "@/lib/account/auth";
-import { hasAccountDatabase } from "@/lib/account/db";
+import { hasAccountDatabase, getProfileRank } from "@/lib/account/db";
 
 function routeDebug(message: string, meta?: Record<string, unknown>) {
   console.log(`[account-me] ${message}`, meta ?? {});
@@ -41,7 +41,10 @@ export async function GET() {
       return NextResponse.json({ user: null, configured: true }, { status: 200 });
     }
 
-    return NextResponse.json({ user, configured: true });
+    const rank = user.profileId
+      ? await getProfileRank(user.profileId).catch(() => null)
+      : null;
+    return NextResponse.json({ user, configured: true, rank });
   } catch (error) {
     routeError("failed", error, { durationMs: Date.now() - startedAt });
     return NextResponse.json(

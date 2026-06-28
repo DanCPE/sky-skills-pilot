@@ -3,7 +3,9 @@ import { redirect } from "next/navigation";
 import { getCurrentAccountUser } from "@/lib/account/auth";
 import {
   getAccountOverview,
+  getLeaderboardContext,
   hasAccountDatabase,
+  type LeaderboardContextEntry,
   type RadarPoint,
   type ScoreHistoryEntry,
 } from "@/lib/account/db";
@@ -323,6 +325,129 @@ function BenchmarkCard({ point }: { point: RadarPoint }) {
   );
 }
 
+function GlobalRankingCard({
+  entries,
+  userRank,
+  rankedProfiles,
+}: {
+  entries: LeaderboardContextEntry[];
+  userRank: number | null;
+  rankedProfiles: number;
+}) {
+  const top3 = entries.filter((e) => e.rank <= 3);
+  const rest = entries.filter((e) => e.rank > 3);
+  const lowestTop3 = top3.length > 0 ? top3[top3.length - 1].rank : 0;
+  const showSeparator = rest.length > 0 && rest[0].rank > lowestTop3 + 1;
+
+  const rankLabel = (rank: number) => {
+    if (rank === 1) return "🥇";
+    if (rank === 2) return "🥈";
+    if (rank === 3) return "🥉";
+    return `#${rank}`;
+  };
+
+  const Row = ({ entry }: { entry: LeaderboardContextEntry }) => (
+    <div
+      className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-colors ${
+        entry.isCurrentUser
+          ? "bg-violet-50 ring-1 ring-violet-200 dark:bg-violet-500/10 dark:ring-violet-500/30"
+          : "hover:bg-zinc-50 dark:hover:bg-white/5"
+      }`}
+    >
+      <span
+        className={`w-9 shrink-0 text-center text-sm font-bold ${
+          entry.rank <= 3
+            ? "text-base"
+            : entry.isCurrentUser
+              ? "text-violet-700 dark:text-violet-300"
+              : "text-zinc-400 dark:text-zinc-500"
+        }`}
+      >
+        {rankLabel(entry.rank)}
+      </span>
+
+      <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-[11px] font-bold text-white">
+        {entry.imageUrl ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={entry.imageUrl} alt="" className="h-full w-full object-cover" />
+        ) : (
+          entry.displayName.slice(0, 1).toUpperCase()
+        )}
+      </span>
+
+      <span className={`flex-1 truncate text-sm font-semibold ${entry.isCurrentUser ? "text-violet-700 dark:text-violet-300" : "text-zinc-700 dark:text-zinc-200"}`}>
+        {entry.displayName}
+        {entry.isCurrentUser && (
+          <span className="ml-2 rounded-full bg-violet-100 px-2 py-0.5 text-[10px] font-black uppercase tracking-wide text-violet-700 dark:bg-violet-500/20 dark:text-violet-300">
+            You
+          </span>
+        )}
+      </span>
+
+      <span className={`shrink-0 text-sm font-bold ${entry.isCurrentUser ? "text-violet-700 dark:text-violet-300" : "text-zinc-500 dark:text-zinc-400"}`}>
+        {entry.dashboardAverage}%
+      </span>
+    </div>
+  );
+
+  return (
+    <div className="rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
+      <div className="flex items-center justify-between border-b border-zinc-100 px-5 py-4 dark:border-white/10">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+            Global Leaderboard
+          </p>
+          <p className="mt-0.5 text-sm text-zinc-500 dark:text-zinc-400">
+            {rankedProfiles} ranked pilots
+          </p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-400 dark:text-zinc-500">
+            Your Rank
+          </p>
+          <p className="text-2xl font-bold text-violet-700 dark:text-violet-300">
+            {userRank ? `#${userRank}` : "—"}
+          </p>
+        </div>
+      </div>
+
+      <div className="p-3">
+        {entries.length === 0 ? (
+          <p className="py-6 text-center text-sm text-zinc-400 dark:text-zinc-500">
+            No ranked pilots yet. Finish a real-mode quiz to appear here.
+          </p>
+        ) : (
+          <>
+            {top3.map((entry) => (
+              <Row key={entry.profileId} entry={entry} />
+            ))}
+
+            {showSeparator && (
+              <div className="my-1 flex items-center gap-2 px-3 py-1">
+                <div className="h-px flex-1 border-t border-dashed border-zinc-200 dark:border-white/10" />
+                <span className="text-xs font-bold text-zinc-300 dark:text-zinc-600">
+                  ···
+                </span>
+                <div className="h-px flex-1 border-t border-dashed border-zinc-200 dark:border-white/10" />
+              </div>
+            )}
+
+            {rest.map((entry) => (
+              <Row key={entry.profileId} entry={entry} />
+            ))}
+
+            {!userRank && (
+              <p className="mt-3 rounded-xl bg-zinc-50 px-4 py-3 text-center text-xs text-zinc-400 dark:bg-white/5 dark:text-zinc-500">
+                Complete a real-mode quiz to enter the ranking.
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
 function HistoryPanel({ scoreHistory }: { scoreHistory: ScoreHistoryEntry[] }) {
   const recent = scoreHistory.slice(0, 6).reverse();
 
@@ -432,9 +557,13 @@ export default async function DashboardPage() {
   if (!user) redirect("/sign-in");
 
   let overview;
+  let leaderboard: LeaderboardContextEntry[] = [];
   try {
     const overviewStartedAt = monotonicMs();
-    overview = await getAccountOverview(user.profileId);
+    [overview, leaderboard] = await Promise.all([
+      getAccountOverview(user.profileId),
+      getLeaderboardContext(user.profileId).catch(() => []),
+    ]);
     console.log("[dashboard] overview resolved", {
       profileId: user.profileId,
       durationMs: monotonicMs() - overviewStartedAt,
@@ -543,6 +672,15 @@ export default async function DashboardPage() {
               <BenchmarkCard key={point.slug} point={point} />
             ))}
           </div>
+        </section>
+
+        <section className="mt-8">
+          <h2 className="mb-5 text-2xl font-bold">Global Ranking</h2>
+          <GlobalRankingCard
+            entries={leaderboard}
+            userRank={overview.ranking.actualPlatformRank}
+            rankedProfiles={overview.ranking.rankedProfiles}
+          />
         </section>
 
         <section className="mt-8">

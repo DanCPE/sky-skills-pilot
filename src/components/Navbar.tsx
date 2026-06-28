@@ -3,14 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { useTheme } from "@/lib/use-theme";
 
 export const ACCOUNT_REFRESH_EVENT = "sky-account-refresh";
 
 export type AccountNavState = {
   name: string;
+  email?: string | null;
   imageUrl: string | null;
+  rank?: number | null;
 };
 
 const navItems = [
@@ -38,6 +40,8 @@ export default function Navbar() {
     "loading" | "signed-in" | "signed-out"
   >("loading");
   const [account, setAccount] = useState<AccountNavState | null>(null);
+  const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const { theme, toggleTheme } = useTheme();
 
   const loadAccount = useCallback((signal?: AbortSignal) => {
@@ -47,7 +51,9 @@ export default function Navbar() {
         if (data?.user?.name) {
           setAccount({
             name: data.user.name,
+            email: data.user.email ?? null,
             imageUrl: data.user.imageUrl ?? null,
+            rank: data.rank ?? null,
           });
           setAccountStatus("signed-in");
           return;
@@ -112,6 +118,32 @@ export default function Navbar() {
       document.removeEventListener("visibilitychange", handleVisibilityChange);
   }, [loadAccount]);
 
+  useEffect(() => {
+    if (!accountMenuOpen) return;
+
+    function handlePointerDown(event: MouseEvent) {
+      if (
+        accountMenuRef.current &&
+        !accountMenuRef.current.contains(event.target as Node)
+      ) {
+        setAccountMenuOpen(false);
+      }
+    }
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        setAccountMenuOpen(false);
+      }
+    }
+
+    document.addEventListener("mousedown", handlePointerDown);
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.removeEventListener("mousedown", handlePointerDown);
+      document.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [accountMenuOpen]);
+
   if (pathname === "/sign-in") {
     return null;
   }
@@ -164,23 +196,153 @@ export default function Navbar() {
                 title="Loading account"
               />
             ) : account ? (
-              <Link
-                href="/account"
-                className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-violet-700 text-sm font-bold text-white transition-colors hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 dark:border-white/10 dark:focus:ring-offset-black"
-                aria-label={`Open account for ${account.name}`}
-                title={account.name}
-              >
-                {account.imageUrl ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
-                    src={account.imageUrl}
-                    alt=""
-                    className="h-full w-full object-cover"
-                  />
-                ) : (
-                  account.name.slice(0, 1).toUpperCase()
-                )}
-              </Link>
+              <div ref={accountMenuRef} className="relative">
+                <button
+                  type="button"
+                  onClick={() => setAccountMenuOpen((open) => !open)}
+                  className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-violet-700 text-sm font-bold text-white transition-colors hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 dark:border-white/10 dark:focus:ring-offset-black"
+                  aria-label={`Open profile menu for ${account.name}`}
+                  aria-expanded={accountMenuOpen}
+                  aria-haspopup="menu"
+                  title={account.name}
+                >
+                  {account.imageUrl ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={account.imageUrl}
+                      alt=""
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    account.name.slice(0, 1).toUpperCase()
+                  )}
+                </button>
+                {account.rank === 1 || account.rank === 2 || account.rank === 3 ? (
+                  <span
+                    className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 text-base leading-none"
+                    style={{
+                      transform: "rotate(15deg)",
+                      filter:
+                        account.rank === 1
+                          ? "drop-shadow(0 1px 2px rgba(0,0,0,0.4))"
+                          : account.rank === 2
+                            ? "grayscale(1) brightness(1.6) drop-shadow(0 1px 2px rgba(0,0,0,0.4))"
+                            : "sepia(1) saturate(1.2) brightness(0.85) drop-shadow(0 1px 2px rgba(0,0,0,0.4))",
+                    }}
+                    aria-label={`Rank #${account.rank}`}
+                  >
+                    👑
+                  </span>
+                ) : null}
+
+                {accountMenuOpen ? (
+                  <div
+                    role="menu"
+                    className="absolute right-0 top-12 w-56 overflow-hidden rounded-2xl border border-zinc-200/80 bg-white p-2 text-sm shadow-[0_16px_40px_rgba(15,23,42,0.14)] dark:border-white/10 dark:bg-zinc-950 dark:shadow-[0_16px_40px_rgba(0,0,0,0.55)]"
+                  >
+                    <div className="mb-2 flex items-center justify-between gap-3 rounded-xl border border-zinc-200 bg-white p-3 shadow-sm dark:border-white/10 dark:bg-zinc-900">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold leading-5 text-zinc-950 dark:text-zinc-50">
+                          {account.name}
+                        </p>
+                        {account.email ? (
+                          <p className="mt-0.5 truncate text-xs font-medium text-zinc-400 dark:text-zinc-500">
+                            {account.email}
+                          </p>
+                        ) : null}
+                      </div>
+                      <span className="flex h-9 w-9 shrink-0 items-center justify-center overflow-hidden rounded-full border-2 border-pink-200 bg-violet-700 text-xs font-bold text-white ring-1 ring-white dark:border-pink-400/50 dark:ring-zinc-950">
+                        {account.imageUrl ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={account.imageUrl}
+                            alt=""
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          account.name.slice(0, 1).toUpperCase()
+                        )}
+                      </span>
+                    </div>
+                    <Link
+                      href="/account"
+                      role="menuitem"
+                      onClick={() => setAccountMenuOpen(false)}
+                      className="flex items-center gap-2 rounded-xl bg-zinc-100 px-3 py-2 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-200 dark:bg-zinc-800 dark:text-zinc-50 dark:hover:bg-zinc-700"
+                    >
+                      <span className="flex h-5 w-5 items-center justify-center text-zinc-950 dark:text-zinc-50">
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          viewBox="0 0 24 24"
+                          strokeWidth="2"
+                          stroke="currentColor"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            d="M9 12.75 11.25 15 15 9.75M12 3.75l7.5 4.125v8.25L12 20.25l-7.5-4.125v-8.25L12 3.75Z"
+                          />
+                        </svg>
+                      </span>
+                      Account
+                    </Link>
+                    <Link
+                      href="/subscription"
+                      role="menuitem"
+                      onClick={() => setAccountMenuOpen(false)}
+                      className="mt-1 flex items-center justify-between gap-2 rounded-xl px-3 py-2 text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-100 dark:text-zinc-50 dark:hover:bg-zinc-800"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="flex h-5 w-5 items-center justify-center text-zinc-950 dark:text-zinc-50">
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth="2"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M3.75 7.5h16.5m-15 3.75h13.5m-12 5.25h3m3 0h4.5M4.5 5.25h15a.75.75 0 0 1 .75.75v12a.75.75 0 0 1-.75.75h-15a.75.75 0 0 1-.75-.75v-12a.75.75 0 0 1 .75-.75Z"
+                            />
+                          </svg>
+                        </span>
+                        Subscription
+                      </span>
+                      <span className="rounded-lg bg-emerald-200 px-2 py-0.5 text-xs font-black uppercase text-emerald-900 ring-1 ring-emerald-300">
+                        Pro
+                      </span>
+                    </Link>
+                    <div className="my-2 border-t border-zinc-100 dark:border-white/10" />
+                    <form action="/api/auth/logout" method="post">
+                      <button
+                        type="submit"
+                        role="menuitem"
+                        className="flex w-full items-center gap-2 rounded-xl px-3 py-2 text-left text-sm font-medium text-zinc-950 transition-colors hover:bg-zinc-100 hover:text-red-700 dark:text-zinc-50 dark:hover:bg-zinc-800 dark:hover:text-red-300"
+                      >
+                        <span className="flex h-5 w-5 items-center justify-center">
+                          <svg
+                            className="h-4 w-4"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            strokeWidth="2"
+                            stroke="currentColor"
+                          >
+                            <path
+                              strokeLinecap="round"
+                              strokeLinejoin="round"
+                              d="M15.75 9V5.25A2.25 2.25 0 0 0 13.5 3h-6A2.25 2.25 0 0 0 5.25 5.25v13.5A2.25 2.25 0 0 0 7.5 21h6a2.25 2.25 0 0 0 2.25-2.25V15m3-3h-9m9 0-3-3m3 3-3 3"
+                            />
+                          </svg>
+                        </span>
+                        Log out
+                      </button>
+                    </form>
+                  </div>
+                ) : null}
+              </div>
             ) : (
               <Link
                 href="/sign-in"
@@ -280,18 +442,14 @@ export default function Navbar() {
                 </Link>
               );
             })}
-            <Link
-              href={account ? "/account" : "/sign-in"}
-              className="flex items-center gap-3 rounded-lg px-4 py-2 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
-              onClick={() => setMobileMenuOpen(false)}
-            >
-              {accountStatus === "loading" ? (
-                <>
-                  <span className="h-8 w-8 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-800" />
-                  Loading account
-                </>
-              ) : account ? (
-                <>
+            {accountStatus === "loading" ? (
+              <div className="flex items-center gap-3 rounded-lg px-4 py-2 text-zinc-700 dark:text-zinc-300">
+                <span className="h-8 w-8 animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-800" />
+                Loading account
+              </div>
+            ) : account ? (
+              <div className="space-y-1">
+                <div className="flex items-center gap-3 rounded-lg px-4 py-2 text-zinc-700 dark:text-zinc-300">
                   <span className="flex h-8 w-8 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xs font-bold text-white">
                     {account.imageUrl ? (
                       // eslint-disable-next-line @next/next/no-img-element
@@ -304,12 +462,33 @@ export default function Navbar() {
                       account.name.slice(0, 1).toUpperCase()
                     )}
                   </span>
+                  {account.name}
+                </div>
+                <Link
+                  href="/account"
+                  className="block rounded-lg px-4 py-2 pl-16 font-semibold text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
                   Account
-                </>
-              ) : (
-                "Sign in"
-              )}
-            </Link>
+                </Link>
+                <form action="/api/auth/logout" method="post">
+                  <button
+                    type="submit"
+                    className="block w-full rounded-lg px-4 py-2 pl-16 text-left font-semibold text-zinc-700 hover:bg-zinc-100 hover:text-red-700 dark:text-zinc-300 dark:hover:bg-zinc-800 dark:hover:text-red-300"
+                  >
+                    Log out
+                  </button>
+                </form>
+              </div>
+            ) : (
+              <Link
+                href="/sign-in"
+                className="flex items-center gap-3 rounded-lg px-4 py-2 text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                onClick={() => setMobileMenuOpen(false)}
+              >
+                Sign in
+              </Link>
+            )}
           </div>
         ) : null}
       </div>
