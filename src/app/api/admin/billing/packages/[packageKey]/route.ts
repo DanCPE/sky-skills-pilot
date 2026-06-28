@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiAccess } from "@/lib/account/admin";
 import {
   getAdminBillingOverview,
   hasAccountDatabase,
@@ -54,6 +55,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ packageKey: string }> },
 ) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   if (!hasAccountDatabase()) {
     return NextResponse.json(
       { error: "Account database is not configured." },

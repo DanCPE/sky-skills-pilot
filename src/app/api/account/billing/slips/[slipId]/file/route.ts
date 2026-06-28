@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { isAdminAccountUser } from "@/lib/account/admin";
 import { getCurrentAccountUser } from "@/lib/account/auth";
 import { getManualPaymentSlipFile, hasAccountDatabase } from "@/lib/account/db";
 
@@ -25,6 +26,10 @@ export async function GET(
 
   const user = await getCurrentAccountUser();
   const isAdminView = new URL(request.url).searchParams.get("admin") === "1";
+
+  if (isAdminView && !isAdminAccountUser(user)) {
+    return NextResponse.redirect(new URL("/", request.url), 303);
+  }
 
   if (!isAdminView && user?.fleetId !== file.fleetId) {
     return NextResponse.json({ error: "Forbidden." }, { status: 403 });

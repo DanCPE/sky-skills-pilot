@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiAccess } from "@/lib/account/admin";
 import {
   getAdminAccountFleets,
   hasAccountDatabase,
@@ -78,7 +79,10 @@ function getOrdinalSuffix(value: number) {
   }
 }
 
-export async function GET() {
+export async function GET(request: Request) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   if (!hasAccountDatabase()) {
     return NextResponse.json(
       { error: "Account database is not configured." },

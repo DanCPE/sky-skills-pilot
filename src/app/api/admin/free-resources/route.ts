@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { requireAdminApiAccess } from "@/lib/account/admin";
 import {
   createFreeResource,
   deleteFreeResource,
@@ -46,7 +47,10 @@ function normalizeBody(body: Record<string, unknown>) {
   };
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   try {
     return NextResponse.json({ resources: await readFreeResources() });
   } catch (error) {
@@ -59,6 +63,9 @@ export async function GET() {
 }
 
 export async function POST(request: NextRequest) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   try {
     const resource = await createFreeResource(normalizeBody(await readBody(request)));
     return NextResponse.json({ resource }, { status: 201 });
@@ -70,6 +77,9 @@ export async function POST(request: NextRequest) {
 }
 
 export async function PUT(request: NextRequest) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   try {
     const body = await readBody(request);
     const id = getString(body.id);
@@ -92,6 +102,9 @@ export async function PUT(request: NextRequest) {
 }
 
 export async function DELETE(request: NextRequest) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   try {
     const id = request.nextUrl.searchParams.get("id");
 

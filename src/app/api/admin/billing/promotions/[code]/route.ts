@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiAccess } from "@/lib/account/admin";
 import {
   deletePromotionCode,
   getAdminBillingOverview,
@@ -27,6 +28,9 @@ export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   if (!hasAccountDatabase()) {
     return NextResponse.json(
       { error: "Account database is not configured." },
@@ -75,9 +79,12 @@ export async function PATCH(
 }
 
 export async function DELETE(
-  _request: Request,
+  request: Request,
   { params }: { params: Promise<{ code: string }> },
 ) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   if (!hasAccountDatabase()) {
     return NextResponse.json(
       { error: "Account database is not configured." },

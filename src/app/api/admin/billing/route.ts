@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiAccess } from "@/lib/account/admin";
 import {
   getAdminBillingOverview,
   hasAccountDatabase,
@@ -19,7 +20,10 @@ const subscriptionStatuses = new Set<SubscriptionStatus>([
   "trialing",
 ]);
 
-export async function GET() {
+export async function GET(request: Request) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   if (!hasAccountDatabase()) {
     return NextResponse.json(
       { error: "Account database is not configured." },
@@ -43,6 +47,9 @@ export async function GET() {
 }
 
 export async function PATCH(request: Request) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   if (!hasAccountDatabase()) {
     return NextResponse.json(
       { error: "Account database is not configured." },

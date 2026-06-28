@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { requireAdminApiAccess } from "@/lib/account/admin";
 import {
   getAdminBillingOverview,
   hasAccountDatabase,
@@ -13,6 +14,9 @@ const MAX_IMAGE_BYTES = 4 * 1024 * 1024;
 const allowedImageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
 
 export async function PATCH(request: Request) {
+  const forbiddenResponse = await requireAdminApiAccess(request);
+  if (forbiddenResponse) return forbiddenResponse;
+
   if (!hasAccountDatabase()) {
     return NextResponse.json(
       { error: "Account database is not configured." },
