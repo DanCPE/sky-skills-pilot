@@ -38,16 +38,6 @@ const packageCardCopy = [
   },
 ];
 
-const paidFeatures = [
-  "Full access to all Sky Quests",
-  "Unlimited access to all tests",
-  "Access to Mock Tests",
-  "Skills Dashboard",
-];
-
-const dashboardFeatureNote =
-  "compare, and analyze your scores to identify strengths and areas for improvement";
-
 function formatAmount(value: number) {
   return new Intl.NumberFormat("th-TH", {
     style: "currency",
@@ -75,32 +65,114 @@ function iconForIndex(index: number) {
   return packageCardCopy[index]?.icon ?? "/images/icons/Subscription/purple.png";
 }
 
-function descriptionForIndex(index: number, fallback: string) {
-  return packageCardCopy[index]?.description ?? fallback;
+function detailKey(detail: SubscriptionPackage["details"][number], index: number) {
+  return `${detail.label}:${index}`;
 }
 
 function PaidPackageCard({
   pkg,
   index,
-  isFeatured,
+  badgeLabel,
 }: {
   pkg: SubscriptionPackage;
   index: number;
-  isFeatured: boolean;
+  badgeLabel: string | null;
 }) {
   const href = `/payment?package=${encodeURIComponent(pkg.key)}`;
-  const details =
-    pkg.key === "captain-pro-max"
-      ? [...paidFeatures, "Personal file delivery"]
-      : paidFeatures;
-  const description = descriptionForIndex(index, pkg.description);
+  const details = pkg.details;
+  const description = pkg.description;
   const fleetLimit = getFleetMemberLimitForPackageKey(pkg.key);
+  const isProMax = pkg.key === "captain-pro-max";
 
-  if (isFeatured) {
+  if (badgeLabel) {
+    if (isProMax) {
+      return (
+        <article className="relative flex min-h-[450px] flex-col overflow-hidden rounded-2xl border-2 border-[#FF3B3B] bg-[radial-gradient(184.71%_103.88%_at_50%_0%,rgba(255,59,59,0.20)_0%,rgba(255,59,59,0)_100%),linear-gradient(135deg,#3D1111_0%,#2A0606_50%,#100202_100%)] p-6 text-white shadow-[0_20px_50px_rgba(255,59,59,0.35)]">
+          <span className="absolute right-0 top-0 rounded-bl-xl bg-[#FF3B3B] px-5 py-2 text-[10.5px] font-bold uppercase leading-4 tracking-[1.05px] text-white shadow-sm">
+            {badgeLabel}
+          </span>
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#FF3B3B] p-2 shadow-[0_0_20px_rgba(255,59,59,0.4)]">
+            <div
+              className="h-7 w-7 shrink-0"
+              style={{
+                backgroundColor: "#ad3b3b",
+                WebkitMaskImage: `url('${iconForIndex(index)}')`,
+                maskImage: `url('${iconForIndex(index)}')`,
+                WebkitMaskSize: "contain",
+                maskSize: "contain",
+                WebkitMaskRepeat: "no-repeat",
+                maskRepeat: "no-repeat",
+                WebkitMaskPosition: "center",
+                maskPosition: "center",
+              }}
+            />
+          </div>
+          <h2 className="mt-4 text-2xl font-bold leading-8">
+            {pkg.title}
+          </h2>
+          <div className="mt-1 flex items-end gap-2">
+            <span className="text-[40px] font-bold leading-10 tracking-tight">
+              {formatAmount(pkg.priceThb)}
+            </span>
+            <span className="pb-1 text-[14.7px] font-bold leading-[21px] text-[#FF3B3B]/80">
+              {periodLabel(pkg.durationMonths)}
+            </span>
+          </div>
+          <span className="mt-2 inline-flex w-fit rounded-full bg-[#FF3B3B]/15 px-3 py-1 text-xs font-bold text-[#FF3B3B] ring-1 ring-[#FF3B3B]/35">
+            {fleetLabel(fleetLimit)}
+          </span>
+          <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-white/80">
+            {description}
+          </p>
+          <Link
+            href={href}
+            className="mt-4 inline-flex h-10 items-center justify-center rounded-xl bg-[#FF3B3B] px-5 text-sm font-bold leading-5 text-white shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] transition hover:bg-red-400"
+          >
+            Upgrade to {pkg.title}
+          </Link>
+          <div className="mt-4 border-t border-white/20 pt-4">
+            <ul className="space-y-2 text-[13px] leading-[18px]">
+              {details.map((detail, detailIndex) => (
+                <li key={detailKey(detail, detailIndex)} className="flex gap-3">
+                  <Image
+                    src="/images/icons/Subscription/yellow.png"
+                    alt=""
+                    width={20}
+                    height={20}
+                    className="mt-0.5 h-5 w-5 shrink-0 object-contain"
+                    style={{ filter: "hue-rotate(310deg) saturate(1.4)" }}
+                  />
+                  <span>
+                    <span className="font-semibold">{detail.label}</span>
+                    {detail.subDetail ? (
+                      <span className="mt-1 block text-[11px] font-light leading-[15px] text-white/55">
+                        {detail.subDetail}
+                      </span>
+                    ) : null}
+                  </span>
+                </li>
+              ))}
+              <li className="flex gap-3 text-[#FF3B3B]">
+                <Image
+                  src="/images/icons/Subscription/yellow.png"
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="mt-0.5 h-5 w-5 shrink-0 object-contain"
+                  style={{ filter: "hue-rotate(310deg) saturate(1.4)" }}
+                />
+                <span className="font-bold">{validityLabel(pkg.durationMonths)}</span>
+              </li>
+            </ul>
+          </div>
+        </article>
+      );
+    }
+
     return (
       <article className="relative flex min-h-[450px] flex-col overflow-hidden rounded-2xl border-2 border-[#FFD700] bg-[radial-gradient(184.71%_103.88%_at_50%_0%,rgba(255,215,0,0.15)_0%,rgba(255,215,0,0)_100%),linear-gradient(135deg,#413256_0%,#2D1B4E_50%,#181121_100%)] p-6 text-white shadow-[0_20px_50px_rgba(80,18,165,0.4)]">
         <span className="absolute right-0 top-0 rounded-bl-xl bg-[#FFD700] px-5 py-2 text-[10.5px] font-bold uppercase leading-4 tracking-[1.05px] text-[#5012A5] shadow-sm">
-          Recommended
+          {badgeLabel}
         </span>
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#FFD700] p-2 shadow-[0_0_20px_rgba(255,215,0,0.3)]">
           <Image
@@ -136,8 +208,8 @@ function PaidPackageCard({
         </Link>
         <div className="mt-4 border-t border-white/20 pt-4">
           <ul className="space-y-2 text-[13px] leading-[18px]">
-            {details.map((detail) => (
-              <li key={detail} className="flex gap-3">
+            {details.map((detail, detailIndex) => (
+              <li key={detailKey(detail, detailIndex)} className="flex gap-3">
                 <Image
                   src="/images/icons/Subscription/yellow.png"
                   alt=""
@@ -146,10 +218,10 @@ function PaidPackageCard({
                   className="mt-0.5 h-5 w-5 shrink-0 object-contain"
                 />
                 <span>
-                  <span className="font-semibold">{detail}</span>
-                  {detail === "Skills Dashboard" ? (
-                    <span className="mt-1 block text-[11px] font-light leading-[15px] text-white/90">
-                      {dashboardFeatureNote}
+                  <span className="font-semibold">{detail.label}</span>
+                  {detail.subDetail ? (
+                    <span className="mt-1 block text-[11px] font-light leading-[15px] text-white/55">
+                      {detail.subDetail}
                     </span>
                   ) : null}
                 </span>
@@ -207,8 +279,8 @@ function PaidPackageCard({
       </Link>
       <div className="mt-3 border-t border-[#F3F4F6] pt-3">
         <ul className="space-y-2 text-[13px] leading-[18px] text-[#4B5563]">
-          {details.map((detail) => (
-            <li key={detail} className="flex gap-3">
+          {details.map((detail, detailIndex) => (
+            <li key={detailKey(detail, detailIndex)} className="flex gap-3">
               <Image
                 src="/images/icons/Subscription/purple.png"
                 alt=""
@@ -217,10 +289,10 @@ function PaidPackageCard({
                 className="mt-0.5 h-5 w-5 shrink-0 object-contain"
               />
               <span>
-                {detail}
-                {detail === "Skills Dashboard" ? (
-                  <span className="mt-1 block text-[11px] leading-[15px] text-[#4B5563]">
-                    {dashboardFeatureNote}
+                {detail.label}
+                {detail.subDetail ? (
+                  <span className="mt-1 block text-[11px] leading-[15px] text-[#9CA3AF]">
+                    {detail.subDetail}
                   </span>
                 ) : null}
               </span>
@@ -254,7 +326,6 @@ export default async function SubscriptionPage() {
   }
 
   const packages = await getSubscriptionPackages();
-  const featuredIndex = Math.max(0, packages.length - 1);
 
   return (
     <main className="min-h-screen bg-[#F7F6F8] text-zinc-950">
@@ -336,7 +407,13 @@ export default async function SubscriptionPage() {
               key={pkg.key}
               pkg={pkg}
               index={index}
-              isFeatured={index === featuredIndex}
+              badgeLabel={
+                pkg.key === "captain-pro-max"
+                  ? "Best Value"
+                  : pkg.key === "captain"
+                    ? "Recommended"
+                    : null
+              }
             />
           ))}
         </div>

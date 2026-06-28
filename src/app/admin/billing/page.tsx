@@ -1179,14 +1179,39 @@ export default function AdminBillingPage() {
                   </label>
                   <label className="block">
                     <span className="text-xs font-bold">
-                      Details (one per line)
+                      Details
                     </span>
-                    <textarea
-                      name="details"
-                      defaultValue={pkg.details.join("\n")}
-                      rows={4}
-                      className="mt-1 w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
-                    />
+                    <div className="mt-1 space-y-2">
+                      <div className="grid gap-2 text-[11px] font-bold uppercase tracking-wide text-zinc-500 dark:text-zinc-400 md:grid-cols-[0.85fr_1.15fr]">
+                        <span>Detail</span>
+                        <span>Sub-detail</span>
+                      </div>
+                      {[
+                        ...pkg.details,
+                        ...Array.from({ length: Math.max(2, 6 - pkg.details.length) }, () => ({
+                          label: "",
+                          subDetail: "",
+                        })),
+                      ].map((detail, detailIndex) => (
+                        <div
+                          key={`${pkg.key}:detail:${detailIndex}`}
+                          className="grid gap-2 md:grid-cols-[0.85fr_1.15fr]"
+                        >
+                          <input
+                            name="detailLabel"
+                            defaultValue={detail.label}
+                            placeholder="Skills Dashboard"
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm dark:border-white/10 dark:bg-black"
+                          />
+                          <input
+                            name="detailSubDetail"
+                            defaultValue={detail.subDetail ?? ""}
+                            placeholder="compare, and analyze your scores..."
+                            className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2 text-sm text-zinc-600 dark:border-white/10 dark:bg-black dark:text-zinc-300"
+                          />
+                        </div>
+                      ))}
+                    </div>
                   </label>
                   <div className="grid grid-cols-3 gap-3">
                     <label className="block">

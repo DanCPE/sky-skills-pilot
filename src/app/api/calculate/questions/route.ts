@@ -53,7 +53,7 @@ export async function GET(req: NextRequest) {
     );
 
     const timeLimit =
-      mode === "real" ? Math.floor((questionCount / 10) * 300) : undefined;
+      mode === "real" ? questionCount * 21 : undefined;
 
     const response: CalculationQuizResponse = {
       questions,

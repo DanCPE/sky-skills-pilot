@@ -8,6 +8,48 @@ import {
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
+function parsePackageDetailsInput(value: string) {
+  const details: { label: string; subDetail?: string | null }[] = [];
+
+  for (const rawLine of value.split("\n")) {
+    const line = rawLine.trimEnd();
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const isSubDetail =
+      /^\s+/.test(rawLine) || trimmed.startsWith("- ") || trimmed.startsWith("– ");
+    const cleanedSubDetail = trimmed.replace(/^[-–]\s*/, "").trim();
+
+    if (isSubDetail && details.length > 0) {
+      const previous = details[details.length - 1];
+      previous.subDetail = previous.subDetail
+        ? `${previous.subDetail} ${cleanedSubDetail}`
+        : cleanedSubDetail;
+      continue;
+    }
+
+    details.push({ label: trimmed });
+  }
+
+  return details;
+}
+
+function parsePackageDetailsFormData(formData: FormData) {
+  const labels = formData.getAll("detailLabel").map(String);
+  const subDetails = formData.getAll("detailSubDetail").map(String);
+
+  if (labels.length > 0) {
+    return labels
+      .map((label, index) => ({
+        label: label.trim(),
+        subDetail: subDetails[index]?.trim() || null,
+      }))
+      .filter((detail) => detail.label);
+  }
+
+  return parsePackageDetailsInput(String(formData.get("details") ?? ""));
+}
+
 export async function PATCH(
   request: Request,
   { params }: { params: Promise<{ packageKey: string }> },
@@ -22,10 +64,7 @@ export async function PATCH(
   try {
     const { packageKey } = await params;
     const formData = await request.formData();
-    const details = String(formData.get("details") ?? "")
-      .split("\n")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    const details = parsePackageDetailsFormData(formData);
 
     const pkg = await updateSubscriptionPackage({
       key: packageKey,

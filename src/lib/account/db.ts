@@ -171,7 +171,7 @@ export interface SubscriptionPackage {
   key: string;
   title: string;
   description: string;
-  details: string[];
+  details: SubscriptionPackageDetail[];
   priceCents: number;
   priceThb: number;
   currency: string;
@@ -182,6 +182,11 @@ export interface SubscriptionPackage {
   sortOrder: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface SubscriptionPackageDetail {
+  label: string;
+  subDetail?: string | null;
 }
 
 export type PromotionDiscountType = "percent" | "fixed";
@@ -1565,12 +1570,34 @@ function mapManualPaymentSlip(row: Record<string, unknown>): ManualPaymentSlip {
   };
 }
 
-function getRowsFromJsonArray(value: unknown) {
-  if (Array.isArray(value)) return value.map(String);
+function getRowsFromJsonArray(value: unknown): SubscriptionPackageDetail[] {
+  if (Array.isArray(value)) {
+    return value
+      .map((item) => {
+        if (typeof item === "string") {
+          return { label: item };
+        }
+        if (item && typeof item === "object" && !Array.isArray(item)) {
+          const record = item as Record<string, unknown>;
+          const label = String(record.label ?? record.text ?? "").trim();
+          const subDetail = String(
+            record.subDetail ?? record.sub_detail ?? record.description ?? "",
+          ).trim();
+          return label
+            ? {
+                label,
+                subDetail: subDetail || null,
+              }
+            : null;
+        }
+        return null;
+      })
+      .filter((item): item is SubscriptionPackageDetail => Boolean(item));
+  }
   if (typeof value === "string") {
     try {
       const parsed = JSON.parse(value) as unknown;
-      return Array.isArray(parsed) ? parsed.map(String) : [];
+      return getRowsFromJsonArray(parsed);
     } catch {
       return [];
     }
@@ -2961,7 +2988,7 @@ export async function updateSubscriptionPackage(input: {
   key: string;
   title: string;
   description: string;
-  details: string[];
+  details: SubscriptionPackageDetail[];
   priceThb: number;
   durationMonths: number;
   currency?: string;
@@ -3022,7 +3049,14 @@ export async function updateSubscriptionPackage(input: {
       input.key.trim(),
       input.title.trim(),
       input.description.trim(),
-      JSON.stringify(input.details.map((item) => item.trim()).filter(Boolean)),
+      JSON.stringify(
+        input.details
+          .map((item) => ({
+            label: item.label.trim(),
+            subDetail: item.subDetail?.trim() || null,
+          }))
+          .filter((item) => item.label),
+      ),
       Math.round(input.priceThb * 100),
       input.currency || "THB",
       input.durationMonths,
