@@ -23,9 +23,20 @@ const PART_COLORS = [
   ["#16a34a", "#15803d", "#14532d"],
 ];
 
-const SHELL_GRID_SHADOW = "rgba(12, 16, 28, 0.95)";
-const SHELL_GRID_HIGHLIGHT = "rgba(239, 239, 232, 0.95)";
-const INNER_GRID_LINE = "rgba(255, 255, 255, 0.32)";
+const CUBE_VISUAL_SCALE = 0.92;
+const SHELL_GRID_SHADOW = "rgba(0, 0, 0, 0.49)";
+const SHELL_GRID_HIGHLIGHT = "rgb(0, 0, 0)";
+const INNER_GRID_LINE = "rgb(0, 0, 0)";
+const CUBE_CORNERS: readonly (readonly [number, number, number])[] = [
+  [0, 0, 0],
+  [1, 0, 0],
+  [0, 1, 0],
+  [0, 0, 1],
+  [1, 1, 0],
+  [1, 0, 1],
+  [0, 1, 1],
+  [1, 1, 1],
+];
 
 const FACE_DEFS = [
   {
@@ -178,6 +189,17 @@ function transformPartPoint(
   ] as [number, number, number];
 }
 
+function getVisualCornerPoint(
+  cell: CubeCell,
+  corner: readonly [number, number, number],
+): [number, number, number] {
+  return [
+    cell.x + 0.5 + (corner[0] - 0.5) * CUBE_VISUAL_SCALE,
+    cell.y + 0.5 + (corner[1] - 0.5) * CUBE_VISUAL_SCALE,
+    cell.z + 0.5 + (corner[2] - 0.5) * CUBE_VISUAL_SCALE,
+  ];
+}
+
 function isShellFace(
   cell: CubeCell,
   neighbor: CubeCell,
@@ -209,7 +231,7 @@ export default function VoxelViewer({
   className = "",
   compact = false,
   interactive = true,
-  opacity = 1,
+  opacity = 0.8,
   shellSize,
   exteriorGrid = false,
   assemblyProgress = 0,
@@ -229,21 +251,12 @@ export default function VoxelViewer({
   const renderData = useMemo(() => {
     const allCorners = parts.flatMap((part) =>
       part.cells.flatMap((cell) =>
-        [
-          [0, 0, 0],
-          [1, 0, 0],
-          [0, 1, 0],
-          [0, 0, 1],
-          [1, 1, 0],
-          [1, 0, 1],
-          [0, 1, 1],
-          [1, 1, 1],
-        ].map((corner) =>
-          transformPartPoint(part, [
-            cell.x + corner[0],
-            cell.y + corner[1],
-            cell.z + corner[2],
-          ], assemblyProgress),
+        CUBE_CORNERS.map((corner) =>
+          transformPartPoint(
+            part,
+            getVisualCornerPoint(cell, corner),
+            assemblyProgress,
+          ),
         ),
       ),
     );
@@ -274,7 +287,7 @@ export default function VoxelViewer({
             y: cell.y + face.neighbor.y,
             z: cell.z + face.neighbor.z,
           };
-          if (partKeys.has(cellKey(next))) return;
+          if (CUBE_VISUAL_SCALE >= 0.999 && partKeys.has(cellKey(next))) return;
 
           const localRotation = part.displayRotation ?? { yaw: 0, pitch: 0, roll: 0 };
           const separation = 1 - assemblyProgress;
@@ -294,11 +307,11 @@ export default function VoxelViewer({
           const rotated = face.corners.map((corner) =>
             rotatePoint(
               [
-                ...transformPartPoint(part, [
-                  cell.x + corner[0],
-                  cell.y + corner[1],
-                  cell.z + corner[2],
-                ], assemblyProgress).map((value, axis) => value - center[axis]) as [
+                ...transformPartPoint(
+                  part,
+                  getVisualCornerPoint(cell, corner),
+                  assemblyProgress,
+                ).map((value, axis) => value - center[axis]) as [
                   number,
                   number,
                   number,
@@ -386,7 +399,7 @@ export default function VoxelViewer({
                   fill="none"
                   stroke={INNER_GRID_LINE}
                   strokeLinejoin="round"
-                  strokeWidth={0.08}
+                  strokeWidth={0.5}
                   vectorEffect="non-scaling-stroke"
                 />
               )}

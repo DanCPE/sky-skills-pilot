@@ -165,7 +165,6 @@ function QuestionReview({
               parts={[selected]}
               yaw={question.initialRotation.yaw}
               pitch={question.initialRotation.pitch}
-              opacity={1}
               exteriorGrid
               compact
             />
@@ -288,10 +287,9 @@ function QuestionCard({
               </div>
               <VoxelViewer
                 parts={[option]}
-                yaw={45}
-                pitch={45}
+                yaw={question.initialRotation.yaw}
+                pitch={question.initialRotation.pitch}
                 interactive={canTilt}
-                opacity={1}
                 exteriorGrid
                 compact
               />

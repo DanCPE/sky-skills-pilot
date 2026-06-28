@@ -180,12 +180,64 @@ function generateMissingPiece(size: number, blockCount: number) {
   return surfaceCells.slice(0, blockCount);
 }
 
+function rotatePoint(
+  point: [number, number, number],
+  yawDeg: number,
+  pitchDeg: number,
+  rollDeg = 0,
+): [number, number, number] {
+  const yaw = (yawDeg * Math.PI) / 180;
+  const pitch = (pitchDeg * Math.PI) / 180;
+  const roll = (rollDeg * Math.PI) / 180;
+  const cosY = Math.cos(yaw);
+  const sinY = Math.sin(yaw);
+  const cosX = Math.cos(pitch);
+  const sinX = Math.sin(pitch);
+  const cosZ = Math.cos(roll);
+  const sinZ = Math.sin(roll);
+
+  const x1 = point[0] * cosY - point[2] * sinY;
+  const z1 = point[0] * sinY + point[2] * cosY;
+  const y2 = point[1] * cosX - z1 * sinX;
+  const z2 = point[1] * sinX + z1 * cosX;
+  const x3 = x1 * cosZ - y2 * sinZ;
+  const y3 = x1 * sinZ + y2 * cosZ;
+
+  return [x3, y3, z2];
+}
+
+function isObliqueFragmentRotation(rotation: {
+  yaw: number;
+  pitch: number;
+  roll: number;
+}) {
+  const axes: [number, number, number][] = [
+    [1, 0, 0],
+    [0, 1, 0],
+    [0, 0, 1],
+  ];
+  const projectedAxisLengths = axes.map((axis) => {
+    const local = rotatePoint(axis, rotation.yaw, rotation.pitch, rotation.roll);
+    const global = rotatePoint(local, 45, 45);
+    return Math.hypot(global[0], global[1]);
+  });
+
+  return Math.min(...projectedAxisLengths) >= 0.35;
+}
+
 function randomFragmentRotation() {
-  return {
-    yaw: randomItem([45, 135, 225, 315]),
-    pitch: randomItem([-45, 45]),
-    roll: randomItem([0, 90, 180, 270]),
-  };
+  const candidates = [45, 135, 225, 315].flatMap((yaw) =>
+    [-45, -30, 30, 45].flatMap((pitch) =>
+      [0, 45, 90, 135, 180, 225, 270, 315].map((roll) => ({
+        yaw,
+        pitch,
+        roll,
+      })),
+    ),
+  );
+  const obliqueCandidates = candidates.filter(isObliqueFragmentRotation);
+
+  return randomItem(obliqueCandidates);
 }
 
 function splitVisibleParts(
