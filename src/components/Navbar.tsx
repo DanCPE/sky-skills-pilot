@@ -13,6 +13,7 @@ export type AccountNavState = {
   email?: string | null;
   imageUrl: string | null;
   rank?: number | null;
+  planTitle?: string | null;
 };
 
 const navItems = [
@@ -54,6 +55,7 @@ export default function Navbar() {
             email: data.user.email ?? null,
             imageUrl: data.user.imageUrl ?? null,
             rank: data.rank ?? null,
+            planTitle: data.planTitle ?? null,
           });
           setAccountStatus("signed-in");
           return;
@@ -311,9 +313,11 @@ export default function Navbar() {
                         </span>
                         Subscription
                       </span>
-                      <span className="rounded-lg bg-emerald-200 px-2 py-0.5 text-xs font-black uppercase text-emerald-900 ring-1 ring-emerald-300">
-                        Pro
-                      </span>
+                      {account.planTitle ? (
+                        <span className="rounded-lg bg-emerald-200 px-2 py-0.5 text-xs font-black uppercase text-emerald-900 ring-1 ring-emerald-300">
+                          {account.planTitle}
+                        </span>
+                      ) : null}
                     </Link>
                     <div className="my-2 border-t border-zinc-100 dark:border-white/10" />
                     <form action="/api/auth/logout" method="post">

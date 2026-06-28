@@ -3790,6 +3790,50 @@ export interface LeaderboardContextEntry {
   isCurrentUser: boolean;
 }
 
+export async function getActivePackageForFleet(
+  fleetId: string,
+): Promise<{ key: string; title: string } | null> {
+  await ensureAccountSchema();
+  const result = await getPool().query<{ plan_key: string; title: string }>(
+    `
+      WITH active_subscription AS (
+        SELECT *
+        FROM account_subscriptions
+        WHERE user_id = $1
+          AND status IN ('active', 'trialing')
+          AND (current_period_end IS NULL OR current_period_end > NOW())
+        ORDER BY created_at DESC
+        LIMIT 1
+      )
+      SELECT slip.plan_key, pkg.title
+      FROM active_subscription sub
+      LEFT JOIN LATERAL (
+        SELECT s.plan_key
+        FROM account_manual_payment_slips s
+        WHERE s.user_id = $1
+          AND s.status = 'approved'
+        ORDER BY
+          CASE
+            WHEN sub.provider_subscription_id IS NOT NULL
+             AND (
+               s.id::text = sub.provider_subscription_id
+               OR s.slip2go_trans_ref = sub.provider_subscription_id
+             )
+            THEN 0
+            ELSE 1
+          END,
+          s.reviewed_at DESC NULLS LAST,
+          s.created_at DESC
+        LIMIT 1
+      ) slip ON TRUE
+      JOIN account_subscription_packages pkg ON pkg.key = slip.plan_key
+    `,
+    [fleetId],
+  );
+  if (!result.rows[0]?.plan_key) return null;
+  return { key: result.rows[0].plan_key, title: result.rows[0].title };
+}
+
 export async function getLeaderboardContext(
   profileId: string,
 ): Promise<LeaderboardContextEntry[]> {

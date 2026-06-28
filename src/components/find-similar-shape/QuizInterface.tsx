@@ -20,6 +20,8 @@ interface QuizInterfaceProps {
   onRestart: () => void;
 }
 
+const SHAPE_DIAGRAM_SIZE = 138;
+
 function difficultyLabel(difficulty: string) {
   return difficulty.charAt(0).toUpperCase() + difficulty.slice(1);
 }
@@ -45,7 +47,7 @@ function getSharedFitBounds(polygons: JigsawPoint[][]) {
 
 function ReviewShapeBox({ children }: { children: ReactNode }) {
   return (
-    <div className="flex h-full min-h-40 items-center justify-center rounded-xl border-2 border-zinc-200 bg-white p-3 dark:border-white/10 dark:bg-zinc-950">
+    <div className="flex h-full min-h-40 items-center justify-center rounded-xl border-2 border-zinc-200 bg-white p-1 dark:border-white/10 dark:bg-zinc-950">
       {children}
     </div>
   );
@@ -90,12 +92,13 @@ function OptionCell({
         type="button"
         disabled={isSubmitted || isAnswered}
         onClick={onSelect}
-        className={`h-full min-h-[150px] w-full overflow-hidden rounded-xl border-2 p-4 transition-all active:scale-[0.98] ${stateClass}`}
+        className={`h-full min-h-[150px] w-full overflow-hidden rounded-xl border-2 p-1 transition-all active:scale-[0.98] ${stateClass}`}
       >
         <ShapeViewer
           polygons={option.polygons}
           compact
           fitBounds={fitBounds}
+          fixedPixelSize={SHAPE_DIAGRAM_SIZE}
           highContrastBoundaries
         />
       </button>
@@ -152,11 +155,12 @@ function QuestionCard({
             </span>
           </div>
 
-          <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border-2 border-zinc-200 bg-white p-4 dark:border-white/10 dark:bg-zinc-950">
+          <div className="flex min-h-0 flex-1 items-center justify-center rounded-xl border-2 border-zinc-200 bg-white p-1 dark:border-white/10 dark:bg-zinc-950">
             <ShapeViewer
               polygons={question.targetPolygons}
               compact
               fitBounds={fitBounds}
+              fixedPixelSize={SHAPE_DIAGRAM_SIZE}
               highContrastBoundaries
               className="min-h-0"
             />
@@ -313,6 +317,7 @@ function QuestionReview({
               compact
               className="min-h-0"
               fitBounds={fitBounds}
+              fixedPixelSize={SHAPE_DIAGRAM_SIZE}
               highContrastBoundaries
             />
               {isComparing && selected && (
@@ -329,6 +334,7 @@ function QuestionReview({
                     compact
                     className="min-h-0"
                     fitBounds={fitBounds}
+                    fixedPixelSize={SHAPE_DIAGRAM_SIZE}
                     hideBaseShape
                   />
                 </div>
@@ -352,6 +358,7 @@ function QuestionReview({
                   compact
                   className="min-h-0"
                   fitBounds={fitBounds}
+                  fixedPixelSize={SHAPE_DIAGRAM_SIZE}
                   highContrastBoundaries
                 />
               </div>
@@ -375,6 +382,7 @@ function QuestionReview({
                 compact
                 className="min-h-0"
                 fitBounds={fitBounds}
+                fixedPixelSize={SHAPE_DIAGRAM_SIZE}
                 highContrastBoundaries
               />
             </ReviewShapeBox>

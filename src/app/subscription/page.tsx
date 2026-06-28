@@ -11,7 +11,7 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const freePlan = {
-  title: "Economy",
+  title: "Passenger",
   price: "฿0",
   period: "/mo",
   description: "Foundations for new student pilots.",
@@ -87,15 +87,15 @@ function PaidPackageCard({
   if (badgeLabel) {
     if (isProMax) {
       return (
-        <article className="relative flex min-h-[450px] flex-col overflow-hidden rounded-2xl border-2 border-[#FF3B3B] bg-[radial-gradient(184.71%_103.88%_at_50%_0%,rgba(255,59,59,0.20)_0%,rgba(255,59,59,0)_100%),linear-gradient(135deg,#3D1111_0%,#2A0606_50%,#100202_100%)] p-6 text-white shadow-[0_20px_50px_rgba(255,59,59,0.35)]">
-          <span className="absolute right-0 top-0 rounded-bl-xl bg-[#FF3B3B] px-5 py-2 text-[10.5px] font-bold uppercase leading-4 tracking-[1.05px] text-white shadow-sm">
+        <article className="relative flex min-h-[450px] flex-col overflow-hidden rounded-2xl border-2 border-[#10B981]/40 bg-[radial-gradient(184.71%_103.88%_at_50%_0%,rgba(16,185,129,0.18)_0%,rgba(16,185,129,0)_100%),linear-gradient(135deg,#0F4C3A_0%,#083325_50%,#061A10_100%)] p-6 text-white shadow-[0_20px_50px_rgba(16,185,129,0.25)]">
+          <span className="absolute right-0 top-0 rounded-bl-xl bg-[#10B981] px-5 py-2 text-[10.5px] font-bold uppercase leading-4 tracking-[1.05px] text-white shadow-sm">
             {badgeLabel}
           </span>
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#FF3B3B] p-2 shadow-[0_0_20px_rgba(255,59,59,0.4)]">
+          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#10B981]/20 p-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] ring-1 ring-[#10B981]/40">
             <div
               className="h-7 w-7 shrink-0"
               style={{
-                backgroundColor: "#ad3b3b",
+                backgroundColor: "#10B981",
                 WebkitMaskImage: `url('${iconForIndex(index)}')`,
                 maskImage: `url('${iconForIndex(index)}')`,
                 WebkitMaskSize: "contain",
@@ -114,23 +114,23 @@ function PaidPackageCard({
             <span className="text-[40px] font-bold leading-10 tracking-tight">
               {formatAmount(pkg.priceThb)}
             </span>
-            <span className="pb-1 text-[14.7px] font-bold leading-[21px] text-[#FF3B3B]/80">
+            <span className="pb-1 text-[14.7px] font-bold leading-[21px] text-[#10B981]/80">
               {periodLabel(pkg.durationMonths)}
             </span>
           </div>
-          <span className="mt-2 inline-flex w-fit rounded-full bg-[#FF3B3B]/15 px-3 py-1 text-xs font-bold text-[#FF3B3B] ring-1 ring-[#FF3B3B]/35">
+          <span className="mt-2 inline-flex w-fit rounded-full bg-[#10B981]/15 px-3 py-1 text-xs font-bold text-[#10B981] ring-1 ring-[#10B981]/35">
             {fleetLabel(fleetLimit)}
           </span>
-          <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-white/80">
+          <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-white/70">
             {description}
           </p>
           <Link
             href={href}
-            className="mt-4 inline-flex h-10 items-center justify-center rounded-xl bg-[#FF3B3B] px-5 text-sm font-bold leading-5 text-white shadow-[0_20px_25px_-5px_rgba(0,0,0,0.1),0_8px_10px_-6px_rgba(0,0,0,0.1)] transition hover:bg-red-400"
+            className="mt-4 inline-flex h-10 items-center justify-center rounded-xl bg-[#10B981] px-5 text-sm font-bold leading-5 text-white shadow-[0_20px_25px_-5px_rgba(16,185,129,0.3),0_8px_10px_-6px_rgba(0,0,0,0.2)] transition hover:bg-emerald-400"
           >
-            Upgrade to {pkg.title}
+            CAPTAIN PRO MAX !!
           </Link>
-          <div className="mt-4 border-t border-white/20 pt-4">
+          <div className="mt-4 border-t border-white/10 pt-4">
             <ul className="space-y-2 text-[13px] leading-[18px]">
               {details.map((detail, detailIndex) => (
                 <li key={detailKey(detail, detailIndex)} className="flex gap-3">
@@ -140,26 +140,39 @@ function PaidPackageCard({
                     width={20}
                     height={20}
                     className="mt-0.5 h-5 w-5 shrink-0 object-contain"
-                    style={{ filter: "hue-rotate(310deg) saturate(1.4)" }}
                   />
                   <span>
                     <span className="font-semibold">{detail.label}</span>
                     {detail.subDetail ? (
-                      <span className="mt-1 block text-[11px] font-light leading-[15px] text-white/55">
+                      <span className="mt-1 block text-[11px] font-light leading-[15px] text-white/40">
                         {detail.subDetail}
                       </span>
                     ) : null}
                   </span>
                 </li>
               ))}
-              <li className="flex gap-3 text-[#FF3B3B]">
+              <li className="flex gap-3 text-[#10B981]">
                 <Image
                   src="/images/icons/Subscription/yellow.png"
                   alt=""
                   width={20}
                   height={20}
                   className="mt-0.5 h-5 w-5 shrink-0 object-contain"
-                  style={{ filter: "hue-rotate(310deg) saturate(1.4)" }}
+                />
+                <span>
+                  <span className="font-bold">Mock Test File</span>
+                  <span className="mt-1 block text-[11px] font-light leading-[15px] text-[#10B981]/70">
+                    Receive a mock test file with over 500 questions via email.
+                  </span>
+                </span>
+              </li>
+              <li className="flex gap-3 text-[#10B981]">
+                <Image
+                  src="/images/icons/Subscription/yellow.png"
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="mt-0.5 h-5 w-5 shrink-0 object-contain"
                 />
                 <span className="font-bold">{validityLabel(pkg.durationMonths)}</span>
               </li>
@@ -244,8 +257,8 @@ function PaidPackageCard({
   }
 
   return (
-    <article className="flex min-h-[450px] flex-col rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)]">
-      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F6F3FA] p-2 shadow-sm">
+    <article className="flex min-h-[450px] flex-col rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] dark:border-white/10 dark:bg-zinc-950">
+      <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F6F3FA] p-2 shadow-sm dark:bg-zinc-800">
         <Image
           src={iconForIndex(index)}
           alt=""
@@ -254,31 +267,31 @@ function PaidPackageCard({
           className="h-7 w-7 object-contain"
         />
       </div>
-      <h2 className="mt-3 text-xl font-bold leading-7 text-[#111827]">
+      <h2 className="mt-3 text-xl font-bold leading-7 text-[#111827] dark:text-white">
         {pkg.title}
       </h2>
       <div className="mt-1 flex items-end gap-2">
-        <span className="text-[32px] font-bold leading-9 tracking-tight text-[#111827]">
+        <span className="text-[32px] font-bold leading-9 tracking-tight text-[#111827] dark:text-white">
           {formatAmount(pkg.priceThb)}
         </span>
-        <span className="pb-1 text-sm font-medium leading-5 text-[#6B7280]">
+        <span className="pb-1 text-sm font-medium leading-5 text-[#6B7280] dark:text-zinc-400">
           {periodLabel(pkg.durationMonths)}
         </span>
       </div>
-      <span className="mt-2 inline-flex w-fit rounded-full bg-[#F6F3FA] px-3 py-1 text-xs font-bold text-[#5012A5] ring-1 ring-[#5012A5]/15">
+      <span className="mt-2 inline-flex w-fit rounded-full bg-[#F6F3FA] px-3 py-1 text-xs font-bold text-[#5012A5] ring-1 ring-[#5012A5]/15 dark:bg-violet-500/10 dark:text-violet-300 dark:ring-violet-500/20">
         {fleetLabel(fleetLimit)}
       </span>
-      <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-[#6B7280]">
+      <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-[#6B7280] dark:text-zinc-400">
         {description}
       </p>
       <Link
         href={href}
-        className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border-2 border-[#5012A5] px-4 text-sm font-bold leading-5 text-[#5012A5] transition hover:bg-violet-50"
+        className="mt-3 inline-flex h-10 items-center justify-center rounded-xl border-2 border-[#5012A5] px-4 text-sm font-bold leading-5 text-[#5012A5] transition hover:bg-violet-50 dark:border-violet-400 dark:text-violet-400 dark:hover:bg-violet-500/10"
       >
         Upgrade to {pkg.title}
       </Link>
-      <div className="mt-3 border-t border-[#F3F4F6] pt-3">
-        <ul className="space-y-2 text-[13px] leading-[18px] text-[#4B5563]">
+      <div className="mt-3 border-t border-[#F3F4F6] pt-3 dark:border-white/10">
+        <ul className="space-y-2 text-[13px] leading-[18px] text-[#4B5563] dark:text-zinc-400">
           {details.map((detail, detailIndex) => (
             <li key={detailKey(detail, detailIndex)} className="flex gap-3">
               <Image
@@ -291,14 +304,14 @@ function PaidPackageCard({
               <span>
                 {detail.label}
                 {detail.subDetail ? (
-                  <span className="mt-1 block text-[11px] leading-[15px] text-[#9CA3AF]">
+                  <span className="mt-1 block text-[11px] leading-[15px] text-[#9CA3AF] dark:text-zinc-500">
                     {detail.subDetail}
                   </span>
                 ) : null}
               </span>
             </li>
           ))}
-          <li className="flex gap-3 font-bold text-[#4F12A6]">
+          <li className="flex gap-3 font-bold text-[#4F12A6] dark:text-violet-400">
             <Image
               src="/images/icons/Subscription/purple.png"
               alt=""
@@ -328,7 +341,7 @@ export default async function SubscriptionPage() {
   const packages = await getSubscriptionPackages();
 
   return (
-    <main className="min-h-screen bg-[#F7F6F8] text-zinc-950">
+    <main className="min-h-screen bg-[#F7F6F8] text-zinc-950 dark:bg-zinc-900 dark:text-zinc-100">
       <section className="relative h-[260px] overflow-hidden bg-[#5012A5] text-white">
         <Image
           src="/images/backgrounds/home-dark.png"
@@ -341,7 +354,7 @@ export default async function SubscriptionPage() {
         />
         <div className="absolute inset-0 bg-[#5012A5]/80 mix-blend-multiply" />
         <div className="absolute inset-0 bg-black/40" />
-        <div className="absolute inset-x-0 bottom-0 h-12 bg-[#F7F6F8]" />
+        <div className="absolute inset-x-0 bottom-0 h-12 bg-[#F7F6F8] dark:bg-zinc-900" />
         <div className="relative z-10 mx-auto flex h-[212px] max-w-[1400px] flex-col items-center px-6 pt-6 text-center">
           <span className="rounded-full border border-white/20 bg-white/10 px-8 py-[7px] text-xs font-bold uppercase leading-4 tracking-[0.6px] shadow-inner backdrop-blur-sm">
             Subscription
@@ -356,10 +369,10 @@ export default async function SubscriptionPage() {
         </div>
       </section>
 
-      <section className="relative z-10 -mt-9 bg-[#F7F6F8] px-5 pb-20">
+      <section className="relative z-10 -mt-9 bg-[#F7F6F8] px-5 pb-20 dark:bg-zinc-900">
         <div className="mx-auto grid max-w-[1600px] gap-6 lg:grid-cols-3 xl:grid-cols-5">
-          <article className="flex min-h-[450px] flex-col rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)]">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F3F4F6] p-2 shadow-sm">
+          <article className="flex min-h-[450px] flex-col rounded-2xl border border-[#E5E7EB] bg-white p-6 shadow-[0_10px_15px_-3px_rgba(0,0,0,0.1),0_4px_6px_-4px_rgba(0,0,0,0.1)] dark:border-white/10 dark:bg-zinc-950">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#F3F4F6] p-2 shadow-sm dark:bg-zinc-800">
               <Image
                 src={freePlan.icon}
                 alt=""
@@ -368,31 +381,31 @@ export default async function SubscriptionPage() {
                 className="h-7 w-7 object-contain"
               />
             </div>
-            <h2 className="mt-3 text-xl font-bold leading-7 text-[#111827]">
+            <h2 className="mt-3 text-xl font-bold leading-7 text-[#111827] dark:text-white">
               {freePlan.title}
             </h2>
             <div className="mt-1 flex items-end gap-2">
-              <span className="text-[32px] font-bold leading-9 tracking-tight text-[#111827]">
+              <span className="text-[32px] font-bold leading-9 tracking-tight text-[#111827] dark:text-white">
                 {freePlan.price}
               </span>
-              <span className="pb-1 text-sm font-medium leading-5 text-[#6B7280]">
+              <span className="pb-1 text-sm font-medium leading-5 text-[#6B7280] dark:text-zinc-400">
                 {freePlan.period}
               </span>
             </div>
-            <span className="mt-2 inline-flex w-fit rounded-full bg-[#F3F4F6] px-3 py-1 text-xs font-bold text-[#6B7280] ring-1 ring-[#9CA3AF]/20">
+            <span className="mt-2 inline-flex w-fit rounded-full bg-[#F3F4F6] px-3 py-1 text-xs font-bold text-[#6B7280] ring-1 ring-[#9CA3AF]/20 dark:bg-zinc-800 dark:text-zinc-400">
               {fleetLabel(1)}
             </span>
-            <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-[#6B7280]">
+            <p className="mt-1 min-h-9 text-[13px] leading-[18px] text-[#6B7280] dark:text-zinc-400">
               {freePlan.description}
             </p>
-            <span className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-[#EEEEEF] px-4 text-sm font-bold leading-5 text-[#6B7280]">
+            <span className="mt-3 inline-flex h-10 items-center justify-center rounded-xl bg-[#EEEEEF] px-4 text-sm font-bold leading-5 text-[#6B7280] dark:bg-zinc-800 dark:text-zinc-400">
               Current Plan
             </span>
-            <div className="mt-3 border-t border-[#F3F4F6] pt-3">
-              <ul className="space-y-2 text-[13px] leading-[18px] text-[#4B5563]">
+            <div className="mt-3 border-t border-[#F3F4F6] pt-3 dark:border-white/10">
+              <ul className="space-y-2 text-[13px] leading-[18px] text-[#4B5563] dark:text-zinc-400">
                 {freePlan.details.map((detail) => (
                   <li key={detail} className="flex gap-3">
-                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#9CA3AF] text-[10px] text-[#9CA3AF]">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full border border-[#9CA3AF] text-[10px] text-[#9CA3AF] dark:border-zinc-600 dark:text-zinc-500">
                       ✓
                     </span>
                     <span>{detail}</span>
@@ -409,7 +422,7 @@ export default async function SubscriptionPage() {
               index={index}
               badgeLabel={
                 pkg.key === "captain-pro-max"
-                  ? "Best Value"
+                  ? "Limited Offer !!"
                   : pkg.key === "captain"
                     ? "Recommended"
                     : null

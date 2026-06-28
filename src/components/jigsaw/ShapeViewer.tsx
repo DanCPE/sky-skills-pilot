@@ -11,6 +11,7 @@ interface ShapeViewerProps {
   className?: string;
   highContrastBoundaries?: boolean;
   hideBaseShape?: boolean;
+  fixedPixelSize?: number;
   fitBounds?: {
     width: number;
     height: number;
@@ -42,6 +43,7 @@ export default function ShapeViewer({
   className = "",
   highContrastBoundaries = false,
   hideBaseShape = false,
+  fixedPixelSize,
   fitBounds,
 }: ShapeViewerProps) {
   const sourcePolygons = polygons ?? pieces?.map((piece) => piece.polygon) ?? [];
@@ -59,7 +61,7 @@ export default function ShapeViewer({
   }
 
   const box = getBounds(boundsPolygons);
-  const padding = compact ? 1.25 : 1.5;
+  const padding = fixedPixelSize ? 0.5 : compact ? 1.25 : 1.5;
   const sourceWidth = box.maxX - box.minX;
   const sourceHeight = box.maxY - box.minY;
   const frameWidth = fitBounds?.width ?? sourceWidth;
@@ -68,26 +70,35 @@ export default function ShapeViewer({
   const minY = box.minY - Math.max((frameHeight - sourceHeight) / 2, 0) - padding;
   const width = Math.max(sourceWidth, frameWidth) + padding * 2;
   const height = Math.max(sourceHeight, frameHeight) + padding * 2;
-  const scaledSize = fitBounds
+  const scaledSize = fixedPixelSize
+    ? {
+        width: `${fixedPixelSize}px`,
+        height: `${fixedPixelSize}px`,
+        flex: "0 0 auto",
+      }
+    : fitBounds
     ? {
         width: `${width * 13}px`,
         height: `${height * 13}px`,
       }
     : undefined;
+  const svgClass = fixedPixelSize
+    ? "shrink-0 max-h-none max-w-none"
+    : fitBounds
+      ? "max-h-full max-w-full shrink-0"
+      : compact
+        ? "h-28 w-28 shrink-0"
+        : "h-44 w-44 shrink-0";
 
   return (
     <div
-      className={`flex h-full min-h-32 items-center justify-center rounded-xl bg-transparent p-3 ${className}`}
+      className={`flex h-full w-full items-center justify-center rounded-xl bg-transparent ${
+        fixedPixelSize ? "min-h-0 p-0" : "min-h-32 p-3"
+      } ${className}`}
     >
       <svg
         viewBox={`0 0 ${width} ${height}`}
-        className={
-          fitBounds
-            ? "max-h-full max-w-full shrink-0"
-            : compact
-              ? "h-28 w-28 shrink-0"
-              : "h-44 w-44 shrink-0"
-        }
+        className={svgClass}
         style={scaledSize}
         role="img"
         aria-label="Shape diagram"
