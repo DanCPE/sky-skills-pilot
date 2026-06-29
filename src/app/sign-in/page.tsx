@@ -76,11 +76,11 @@ export default async function SignInPage({
             <footer className="relative z-10 mt-auto flex flex-wrap gap-5 pb-6 text-sm font-medium text-white/60">
               <span>© 2026 SkySkills Inc.</span>
               <span>•</span>
-              <Link href="/" className="transition hover:text-white">
+              <Link href="/privacy" className="transition hover:text-white">
                 Privacy
               </Link>
               <span>•</span>
-              <Link href="/" className="transition hover:text-white">
+              <Link href="/terms" className="transition hover:text-white">
                 Terms
               </Link>
             </footer>
