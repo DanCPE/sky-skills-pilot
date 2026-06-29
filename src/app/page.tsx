@@ -1,7 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
-import { getRegisteredUserCount } from "@/lib/account/db";
-import { getUniqueClientCount } from "@/lib/usage-analytics";
+import { getHomeAudienceStats } from "@/lib/home-stats";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -11,28 +10,7 @@ function formatCount(value: number) {
 }
 
 async function getHomeStats() {
-  try {
-    const [registeredUsers, uniqueClients] = await Promise.all([
-      getRegisteredUserCount(),
-      getUniqueClientCount(),
-    ]);
-
-    return {
-      registeredUsers,
-      uniqueClients,
-      estimatedUnregisteredUsers: Math.max(0, uniqueClients - registeredUsers),
-    };
-  } catch (error) {
-    console.error("[home] failed to load audience stats", {
-      error: error instanceof Error ? error.message : String(error),
-    });
-
-    return {
-      registeredUsers: 0,
-      uniqueClients: 0,
-      estimatedUnregisteredUsers: 0,
-    };
-  }
+  return getHomeAudienceStats();
 }
 
 export default async function Home() {
