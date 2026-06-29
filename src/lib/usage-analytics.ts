@@ -132,6 +132,9 @@ function getPool() {
     analyticsLog("Creating PostgreSQL connection pool");
     analyticsPool = new Pool({
       connectionString: dbUrl,
+      max: Number(process.env.PG_POOL_MAX ?? 1) || 1,
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 5_000,
       ssl: { rejectUnauthorized: false },
     });
 

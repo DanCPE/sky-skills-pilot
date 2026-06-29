@@ -39,6 +39,9 @@ function getPool() {
   if (!broadcastPool) {
     broadcastPool = new Pool({
       connectionString: databaseUrl,
+      max: Number(process.env.PG_POOL_MAX ?? 1) || 1,
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 5_000,
       ssl: { rejectUnauthorized: false },
     });
   }

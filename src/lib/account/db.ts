@@ -303,6 +303,11 @@ function getDatabaseUrl() {
   );
 }
 
+function getPoolMax() {
+  const value = Number(process.env.PG_POOL_MAX ?? 1);
+  return Number.isFinite(value) && value > 0 ? value : 1;
+}
+
 function getPool() {
   const databaseUrl = getDatabaseUrl();
   if (!databaseUrl) {
@@ -314,6 +319,9 @@ function getPool() {
   if (!accountPool) {
     accountPool = new Pool({
       connectionString: databaseUrl,
+      max: getPoolMax(),
+      idleTimeoutMillis: 10_000,
+      connectionTimeoutMillis: 5_000,
       ssl: { rejectUnauthorized: false },
     });
   }
