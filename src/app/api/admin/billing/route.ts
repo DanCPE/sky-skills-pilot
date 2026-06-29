@@ -7,6 +7,7 @@ import {
   setManualPaymentPersonalFilesSent,
   setFleetManualSubscription,
   setQuizAccessRule,
+  setQuizAccessRules,
   type SubscriptionStatus,
 } from "@/lib/account/db";
 
@@ -65,6 +66,7 @@ export async function PATCH(request: Request) {
           email?: string;
           status?: SubscriptionStatus;
           topicSlug?: string;
+          topicSlugs?: string[];
           isLocked?: boolean;
           slipId?: string;
           action?: "approve" | "reject";
@@ -115,6 +117,39 @@ export async function PATCH(request: Request) {
 
       const quizAccess = await setQuizAccessRule({
         topicSlug: body.topicSlug,
+        isLocked: body.isLocked,
+      });
+
+      return NextResponse.json({
+        quizAccess,
+        overview: await getAdminBillingOverview(),
+      });
+    }
+
+    if (body.type === "quiz-bulk") {
+      if (
+        !Array.isArray(body.topicSlugs) ||
+        body.topicSlugs.length === 0 ||
+        typeof body.isLocked !== "boolean"
+      ) {
+        return NextResponse.json(
+          { error: "topicSlugs and isLocked are required." },
+          { status: 400 },
+        );
+      }
+
+      const topicSlugs = body.topicSlugs.filter(
+        (topicSlug): topicSlug is string => typeof topicSlug === "string",
+      );
+      if (topicSlugs.length === 0) {
+        return NextResponse.json(
+          { error: "At least one valid topic is required." },
+          { status: 400 },
+        );
+      }
+
+      const quizAccess = await setQuizAccessRules({
+        topicSlugs,
         isLocked: body.isLocked,
       });
 

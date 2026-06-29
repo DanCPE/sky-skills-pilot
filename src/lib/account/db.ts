@@ -2556,6 +2556,40 @@ export async function setQuizAccessRule(input: {
   return mapQuizAccessRule(result.rows[0]);
 }
 
+export async function setQuizAccessRules(input: {
+  topicSlugs: string[];
+  isLocked: boolean;
+}) {
+  const uniqueTopicSlugs = Array.from(new Set(input.topicSlugs));
+  if (uniqueTopicSlugs.length === 0) {
+    throw new Error("At least one topic is required.");
+  }
+
+  for (const topicSlug of uniqueTopicSlugs) {
+    if (!topicSlugs.has(topicSlug)) {
+      throw new Error("Topic not found.");
+    }
+  }
+
+  await ensureAccountSchema();
+  const result = await getPool().query(
+    `
+      INSERT INTO account_quiz_access (topic_slug, is_locked)
+      SELECT topic_slug, $2::boolean
+      FROM UNNEST($1::text[]) AS selected_topic(topic_slug)
+      ON CONFLICT (topic_slug)
+      DO UPDATE SET
+        is_locked = EXCLUDED.is_locked,
+        updated_at = NOW()
+      RETURNING *;
+    `,
+    [uniqueTopicSlugs, input.isLocked],
+  );
+
+  quizAccessRulesCache = null;
+  return result.rows.map(mapQuizAccessRule);
+}
+
 export async function setFleetManualSubscription(input: {
   fleetId?: string;
   email?: string;

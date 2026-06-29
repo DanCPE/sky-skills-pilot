@@ -69,6 +69,7 @@ function detailKey(detail: SubscriptionPackage["details"][number], index: number
   return `${detail.label}:${index}`;
 }
 
+
 function PaidPackageCard({
   pkg,
   index,
@@ -82,6 +83,7 @@ function PaidPackageCard({
   const details = pkg.details;
   const description = pkg.description;
   const fleetLimit = getFleetMemberLimitForPackageKey(pkg.key);
+  const isCaptain = pkg.key === "captain";
   const isProMax = pkg.key === "captain-pro-max";
 
   if (badgeLabel) {
@@ -183,10 +185,19 @@ function PaidPackageCard({
     }
 
     return (
-      <article className="relative flex min-h-[450px] flex-col overflow-hidden rounded-2xl border-2 border-[#FFD700] bg-[radial-gradient(184.71%_103.88%_at_50%_0%,rgba(255,215,0,0.15)_0%,rgba(255,215,0,0)_100%),linear-gradient(135deg,#413256_0%,#2D1B4E_50%,#181121_100%)] p-6 text-white shadow-[0_20px_50px_rgba(80,18,165,0.4)]">
+      <article className="relative flex min-h-[450px] flex-col overflow-visible rounded-2xl border-2 border-[#FFD700] bg-[radial-gradient(184.71%_103.88%_at_50%_0%,rgba(255,215,0,0.15)_0%,rgba(255,215,0,0)_100%),linear-gradient(135deg,#413256_0%,#2D1B4E_50%,#181121_100%)] p-6 text-white shadow-[0_20px_50px_rgba(80,18,165,0.4)]">
         <span className="absolute right-0 top-0 rounded-bl-xl bg-[#FFD700] px-5 py-2 text-[10.5px] font-bold uppercase leading-4 tracking-[1.05px] text-[#5012A5] shadow-sm">
           {badgeLabel}
         </span>
+        {isCaptain && (
+          <div className="absolute -right-12 bottom-5 z-20 w-40 -rotate-45">
+            <span className="absolute -left-3 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[9px] border-r-[14px] border-y-transparent border-r-red-800" />
+            <span className="absolute -right-3 top-1/2 h-0 w-0 -translate-y-1/2 border-y-[9px] border-l-[14px] border-y-transparent border-l-red-800" />
+            <span className="relative block bg-red-600 px-2 py-2 text-center text-[9px] font-black uppercase leading-3 tracking-[0.08em] text-white shadow-xl ring-1 ring-red-300/50">Only for soft opening !!</span>
+            <span className="absolute -bottom-2 left-0 h-0 w-0 border-r-[12px] border-t-[8px] border-r-transparent border-t-red-950" />
+            <span className="absolute -bottom-2 right-0 h-0 w-0 border-l-[12px] border-t-[8px] border-l-transparent border-t-red-950" />
+          </div>
+        )}
         <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#FFD700] p-2 shadow-[0_0_20px_rgba(255,215,0,0.3)]">
           <Image
             src={iconForIndex(index)}
@@ -199,6 +210,11 @@ function PaidPackageCard({
         <h2 className="mt-4 text-2xl font-bold leading-8">
           {pkg.title}
         </h2>
+        {isCaptain ? (
+          <span className="mt-1 text-sm font-bold leading-5 text-white/55 line-through decoration-red-400 decoration-2">
+            ฿2,997
+          </span>
+        ) : null}
         <div className="mt-1 flex items-end gap-2">
           <span className="text-[40px] font-bold leading-10 tracking-tight">
             {formatAmount(pkg.priceThb)}

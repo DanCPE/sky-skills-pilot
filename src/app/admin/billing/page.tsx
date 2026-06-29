@@ -155,6 +155,9 @@ export default function AdminBillingPage() {
   const [selectedPromotionCodes, setSelectedPromotionCodes] = useState<
     Set<string>
   >(new Set());
+  const [selectedQuizSlugs, setSelectedQuizSlugs] = useState<Set<string>>(
+    new Set(),
+  );
   const [slipPage, setSlipPage] = useState(1);
   const [fleetPage, setFleetPage] = useState(1);
   const [sharedPromotionPage, setSharedPromotionPage] = useState(1);
@@ -234,12 +237,14 @@ export default function AdminBillingPage() {
       }
 
       if (json?.overview) setData(json.overview);
+      return true;
     } catch (patchError) {
       setError(
         patchError instanceof Error
           ? patchError.message
           : "Failed to update billing config.",
       );
+      return false;
     } finally {
       setPendingKey(null);
     }
@@ -259,6 +264,44 @@ export default function AdminBillingPage() {
   const rulesBySlug = new Map(
     (data?.quizAccess ?? []).map((rule) => [rule.topicSlug, rule]),
   );
+  const selectedQuizCount = selectedQuizSlugs.size;
+  const isAllQuizzesSelected = selectedQuizCount === topics.length;
+
+  function toggleQuizSelection(topicSlug: string) {
+    setSelectedQuizSlugs((current) => {
+      const next = new Set(current);
+      if (next.has(topicSlug)) {
+        next.delete(topicSlug);
+      } else {
+        next.add(topicSlug);
+      }
+      return next;
+    });
+  }
+
+  function setAllQuizSelection(isSelected: boolean) {
+    setSelectedQuizSlugs(
+      isSelected ? new Set(topics.map((topic) => topic.slug)) : new Set(),
+    );
+  }
+
+  async function bulkUpdateQuizAccess(isLocked: boolean) {
+    const topicSlugs = Array.from(selectedQuizSlugs);
+    if (topicSlugs.length === 0) return;
+
+    const didUpdate = await patchBilling(
+      {
+        type: "quiz-bulk",
+        topicSlugs,
+        isLocked,
+      },
+      `quiz-bulk:${isLocked ? "lock" : "unlock"}`,
+    );
+    if (didUpdate) {
+      setSelectedQuizSlugs(new Set());
+    }
+  }
+
   const pendingSlipCount =
     data?.manualPaymentSlips.filter((slip) => slip.status === "pending").length ??
     0;
@@ -1725,32 +1768,92 @@ export default function AdminBillingPage() {
               Locked quizzes require paid access for free fleets.
             </p>
           </div>
+          <div className="flex flex-col gap-3 border-b border-zinc-100 px-5 py-4 text-sm dark:border-white/10 sm:flex-row sm:items-center sm:justify-between">
+            <label className="flex items-center gap-3 font-bold text-zinc-700 dark:text-zinc-200">
+              <input
+                type="checkbox"
+                checked={isAllQuizzesSelected}
+                onChange={(event) => setAllQuizSelection(event.target.checked)}
+                className="h-4 w-4 rounded border-zinc-300 text-violet-700 focus:ring-violet-500"
+              />
+              Select all quizzes
+            </label>
+            <div className="flex flex-wrap items-center gap-2">
+              <span className="text-xs font-bold text-zinc-500 dark:text-zinc-400">
+                {selectedQuizCount} selected
+              </span>
+              <button
+                type="button"
+                disabled={selectedQuizCount === 0 || pendingKey !== null}
+                onClick={() => void bulkUpdateQuizAccess(true)}
+                className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs font-bold text-amber-800 transition hover:border-amber-300 hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-100 dark:hover:border-amber-400/40"
+              >
+                {pendingKey === "quiz-bulk:lock" ? "Saving..." : "Lock selected"}
+              </button>
+              <button
+                type="button"
+                disabled={selectedQuizCount === 0 || pendingKey !== null}
+                onClick={() => void bulkUpdateQuizAccess(false)}
+                className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-1.5 text-xs font-bold text-emerald-700 transition hover:border-emerald-300 hover:bg-emerald-100 disabled:cursor-not-allowed disabled:opacity-50 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-100 dark:hover:border-emerald-400/40"
+              >
+                {pendingKey === "quiz-bulk:unlock"
+                  ? "Saving..."
+                  : "Unlock selected"}
+              </button>
+              <button
+                type="button"
+                disabled={selectedQuizCount === 0 || pendingKey !== null}
+                onClick={() => setAllQuizSelection(false)}
+                className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold text-zinc-600 transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:text-zinc-300 dark:hover:border-violet-400 dark:hover:text-violet-200"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
           <div className="grid gap-3 p-5 sm:grid-cols-2 lg:grid-cols-3">
             {topics.map((topic) => {
               const rule = rulesBySlug.get(topic.slug);
               const isLocked = rule?.isLocked ?? Boolean(topic.isLocked);
               const key = `quiz:${topic.slug}`;
+              const isSelected = selectedQuizSlugs.has(topic.slug);
               return (
                 <div
                   key={topic.slug}
-                  className="rounded-xl border border-zinc-200 p-4 dark:border-white/10"
+                  className={`rounded-xl border p-4 transition ${
+                    isSelected
+                      ? "border-violet-300 bg-violet-50/60 dark:border-violet-400/40 dark:bg-violet-500/10"
+                      : "border-zinc-200 dark:border-white/10"
+                  }`}
                 >
                   <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-bold">{topic.title}</p>
+                    <label className="flex min-w-0 items-start gap-3">
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => toggleQuizSelection(topic.slug)}
+                        className="mt-0.5 h-4 w-4 rounded border-zinc-300 text-violet-700 focus:ring-violet-500"
+                      />
+                      <div className="min-w-0">
+                        <p className="text-sm font-bold">{topic.title}</p>
+                        <p className="mt-1 text-xs capitalize text-zinc-500 dark:text-zinc-400">
+                          {topic.category.replaceAll("-", " ")}
+                        </p>
+                      </div>
+                    </label>
+                    <div className="flex shrink-0 flex-col items-end gap-2">
+                      <span
+                        className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                          isLocked
+                            ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100"
+                            : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
+                        }`}
+                      >
+                        {isLocked ? "Locked" : "Free"}
+                      </span>
                       <p className="mt-1 text-xs capitalize text-zinc-500 dark:text-zinc-400">
-                        {topic.category.replaceAll("-", " ")}
+                        {isSelected ? "Selected" : ""}
                       </p>
                     </div>
-                    <span
-                      className={`rounded-full px-2.5 py-1 text-xs font-bold ${
-                        isLocked
-                          ? "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100"
-                          : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-200"
-                      }`}
-                    >
-                      {isLocked ? "Locked" : "Free"}
-                    </span>
                   </div>
                   <button
                     type="button"
