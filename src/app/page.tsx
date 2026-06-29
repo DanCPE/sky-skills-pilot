@@ -31,6 +31,12 @@ export default function Home() {
             skill areas such as logical reasoning, spatial orientation, visual
             scanning, mental math, multitasking, and short-term memory.
           </p>
+          <Link
+            href="/sky-quest"
+            className="mt-10 inline-flex min-h-12 items-center justify-center rounded-xl bg-amber-400 px-7 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-400/20 transition hover:bg-amber-300"
+          >
+            Open SkySkills
+          </Link>
         </div>
       </section>
 

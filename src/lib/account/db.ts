@@ -3841,8 +3841,7 @@ export async function getLeaderboardContext(
   const pool = getPool();
   const result = await pool.query<{
     profile_id: string;
-    name: string;
-    image_url: string | null;
+    call_sign: string;
     actual_platform_rank: number;
     dashboard_average: number;
     is_current_user: boolean;
@@ -3893,14 +3892,12 @@ export async function getLeaderboardContext(
       )
       SELECT
         rp.profile_id,
-        u.name,
-        u.image_url,
+        ap.call_sign,
         rp.actual_platform_rank,
         rp.dashboard_average,
         (rp.profile_id = $1) AS is_current_user
       FROM ranked_profiles rp
       JOIN account_profiles ap ON ap.id = rp.profile_id
-      JOIN account_users u ON u.id = ap.user_id
       WHERE
         rp.actual_platform_rank <= 3
         OR rp.actual_platform_rank BETWEEN
@@ -3912,15 +3909,11 @@ export async function getLeaderboardContext(
   );
 
   return result.rows.map((row) => {
-    const parts = (row.name ?? "").trim().split(/\s+/);
-    const displayName =
-      parts.length >= 2
-        ? `${parts[0]} ${parts[parts.length - 1].slice(0, 1)}.`
-        : (parts[0] ?? "Pilot");
+    const displayName = row.call_sign?.trim() || "Pilot";
     return {
       profileId: row.profile_id,
       displayName,
-      imageUrl: row.image_url ?? null,
+      imageUrl: null,
       rank: Number(row.actual_platform_rank),
       dashboardAverage: Math.round(Number(row.dashboard_average)),
       isCurrentUser: Boolean(row.is_current_user),

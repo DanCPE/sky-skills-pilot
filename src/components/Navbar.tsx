@@ -146,7 +146,7 @@ export default function Navbar() {
     };
   }, [accountMenuOpen]);
 
-  if (pathname === "/sign-in" || pathname === "/temporarily-closed") {
+  if (pathname === "/sign-in") {
     return null;
   }
 

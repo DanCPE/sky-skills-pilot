@@ -367,12 +367,7 @@ function GlobalRankingCard({
       </span>
 
       <span className="flex h-7 w-7 shrink-0 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-[11px] font-bold text-white">
-        {entry.imageUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={entry.imageUrl} alt="" className="h-full w-full object-cover" />
-        ) : (
-          entry.displayName.slice(0, 1).toUpperCase()
-        )}
+        {entry.displayName.slice(0, 1).toUpperCase()}
       </span>
 
       <span className={`flex-1 truncate text-sm font-semibold ${entry.isCurrentUser ? "text-violet-700 dark:text-violet-300" : "text-zinc-700 dark:text-zinc-200"}`}>
