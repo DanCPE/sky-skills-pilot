@@ -3,52 +3,80 @@ import Image from "next/image";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-black text-white" style={{ "--font-scale": 1 } as React.CSSProperties}>
-      {/* Hero Section */}
-      <div className="relative min-h-[calc(100vh-4rem)] flex items-center justify-center overflow-hidden">
-        {/* Fixed Background Image Layer */}
-        <div className="fixed inset-0 z-0 bg-black">
-          <Image
-            src="/images/backgrounds/home-dark.png"
-            alt="Cockpit background"
-            fill
-            priority
-            quality={90}
-            className="object-cover opacity-80"
-            sizes="100vw"
-          />
-          {/* Dark gradient overlay for readability */}
-          <div className="absolute inset-0 bg-gradient-to-b from-violet-950/40 via-violet-900/10 to-black" />
-        </div>
+    <main className="relative min-h-screen overflow-hidden bg-black text-white">
+      <div className="fixed inset-0 z-0 bg-black">
+        <Image
+          src="/images/backgrounds/home-dark.png"
+          alt="Cockpit background"
+          fill
+          priority
+          quality={90}
+          className="object-cover opacity-75"
+          sizes="100vw"
+        />
+        <div className="absolute inset-0 bg-gradient-to-b from-violet-950/45 via-black/45 to-black" />
+      </div>
 
-        {/* Content Layer */}
-        <div className="relative z-10 mx-auto max-w-4xl px-6 text-center mt-[-10vh]">
-          <h1 className="text-[71.4px] md:text-7xl font-bold tracking-tight text-white mb-2 shadow-sm drop-shadow-md">
-            Clear for Takeoff
-          </h1>
-          <h2 className="text-[71.4px] md:text-7xl font-bold tracking-tight text-white drop-shadow-md">
-            Ace Your <span className="text-amber-400">SkySkills</span>
-          </h2>
-
-          <p className="mx-auto mt-8 max-w-2xl text-[20px] md:text-xl text-zinc-300 font-light leading-relaxed">
-            Develop the logical, spatial, scanning and short-term memory skills
-            essential for your exams. The most comprehensive, distraction-free
-            preparation platform designed for your success.
+      <section className="relative z-10 flex min-h-[calc(100vh-4rem)] items-center justify-center px-6 py-24 text-center">
+        <div className="mx-auto max-w-4xl">
+          <p className="mb-5 text-sm font-bold uppercase tracking-[0.24em] text-amber-300">
+            SkySkills
           </p>
+          <h1 className="text-5xl font-bold tracking-tight text-white drop-shadow-md md:text-7xl">
+            Pilot Aptitude Practice Platform
+          </h1>
 
-          <div className="mt-10 flex flex-col items-center">
-            <Link
-              href="/sky-quest"
-              className="inline-flex items-center justify-center rounded-lg bg-violet-700 px-8 py-3.5 text-base font-bold text-white transition-colors hover:bg-violet-600 shadow-lg active:scale-95"
-            >
-              Our Quests 
-            </Link>
-            {/* <p className="mt-3 text-sm text-zinc-400 font-medium">
-              No credit card required for trial
-            </p> */}
+          <p className="mx-auto mt-8 max-w-2xl text-lg font-medium leading-8 text-zinc-300 md:text-xl">
+            SkySkills helps students and pilot candidates practice cognitive
+            skill areas such as logical reasoning, spatial orientation, visual
+            scanning, mental math, multitasking, and short-term memory.
+          </p>
+        </div>
+      </section>
+
+      <section className="relative z-10 border-t border-white/10 bg-black/70 px-6 py-16 backdrop-blur">
+        <div className="mx-auto grid max-w-5xl gap-8 md:grid-cols-3">
+          <div>
+            <h2 className="text-xl font-bold">What the app does</h2>
+            <p className="mt-4 text-sm leading-7 text-zinc-300">
+              Users can complete practice quizzes, review performance, track
+              score history, and prepare across multiple aptitude-test
+              categories.
+            </p>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">Why Google sign-in is used</h2>
+            <p className="mt-4 text-sm leading-7 text-zinc-300">
+              Google sign-in is used to create a secure SkySkills account and
+              connect practice progress to the user&apos;s email address.
+            </p>
+          </div>
+          <div>
+            <h2 className="text-xl font-bold">Data requested</h2>
+            <p className="mt-4 text-sm leading-7 text-zinc-300">
+              SkySkills requests basic Google profile data: name, email address,
+              profile image, and Google account identifier. This data is used
+              only for account access and platform features.
+            </p>
           </div>
         </div>
-      </div>
-    </div>
+
+        <div className="mx-auto mt-12 flex max-w-5xl flex-wrap items-center gap-5 border-t border-white/10 pt-8 text-sm font-semibold text-zinc-300">
+          <span>© 2026 SkySkills</span>
+          <Link href="/privacy" className="text-amber-300 hover:text-amber-200">
+            Privacy Policy
+          </Link>
+          <Link href="/terms" className="text-amber-300 hover:text-amber-200">
+            Terms of Service
+          </Link>
+          <a
+            href="mailto:skyskills.contact@gmail.com"
+            className="text-amber-300 hover:text-amber-200"
+          >
+            Contact
+          </a>
+        </div>
+      </section>
+    </main>
   );
 }
