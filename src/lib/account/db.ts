@@ -429,6 +429,20 @@ async function canUseExistingAccountSchema(pool: Pool) {
             AND table_name = 'account_manual_payment_slips'
             AND column_name = 'slip2go_trans_ref'
         ) AS has_slip2go_columns,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'account_users'
+            AND column_name = 'is_mock'
+        ) AS has_mock_users,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
+            AND table_name = 'account_profiles'
+            AND column_name = 'is_mock'
+        ) AS has_mock_profiles,
         to_regclass('public.account_manual_payment_slips_trans_ref_unique_idx') IS NOT NULL AS has_slip2go_unique_index;
     `,
   );
@@ -494,6 +508,7 @@ export async function ensureAccountSchema() {
         name TEXT NOT NULL,
         image_url TEXT,
         email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+        is_mock BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
@@ -518,6 +533,7 @@ export async function ensureAccountSchema() {
         call_sign TEXT NOT NULL,
         image_url TEXT,
         is_default BOOLEAN NOT NULL DEFAULT FALSE,
+        is_mock BOOLEAN NOT NULL DEFAULT FALSE,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
@@ -546,6 +562,8 @@ export async function ensureAccountSchema() {
 
       await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS active_profile_id UUID;");
       await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS ip_hash TEXT;");
+      await pool.query("ALTER TABLE account_users ADD COLUMN IF NOT EXISTS is_mock BOOLEAN NOT NULL DEFAULT FALSE;");
+      await pool.query("ALTER TABLE account_profiles ADD COLUMN IF NOT EXISTS is_mock BOOLEAN NOT NULL DEFAULT FALSE;");
       await pool.query("ALTER TABLE account_score_history ADD COLUMN IF NOT EXISTS profile_id UUID;");
 
       const profileMigration = await pool.query(
@@ -905,6 +923,12 @@ export async function ensureAccountSchema() {
       );
       await pool.query(
         "CREATE INDEX IF NOT EXISTS account_profiles_user_idx ON account_profiles(user_id);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_users_mock_idx ON account_users(is_mock) WHERE is_mock = TRUE;",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_profiles_mock_idx ON account_profiles(is_mock) WHERE is_mock = TRUE;",
       );
       await pool.query(
         "CREATE INDEX IF NOT EXISTS account_score_history_user_completed_idx ON account_score_history(user_id, completed_at DESC);",
