@@ -333,6 +333,16 @@ export function hasAccountDatabase() {
   return Boolean(getDatabaseUrl());
 }
 
+export async function getRegisteredUserCount() {
+  if (!hasAccountDatabase()) return 0;
+
+  await ensureAccountSchema();
+  const result = await getPool().query<{ count: string }>(
+    "SELECT COUNT(*)::text AS count FROM account_users;",
+  );
+  return Number(result.rows[0]?.count ?? "0");
+}
+
 export function getSessionCookieName() {
   return SESSION_COOKIE_NAME;
 }

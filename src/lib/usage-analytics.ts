@@ -414,6 +414,19 @@ export async function readAnalyticsEvents(): Promise<AnalyticsEvent[]> {
   }));
 }
 
+export async function getUniqueClientCount() {
+  if (!hasDatabaseUrl()) {
+    const events = await readAnalyticsEventsFromFile();
+    return new Set(events.map((event) => event.ipHash)).size;
+  }
+
+  await ensureAnalyticsTable();
+  const result = await getPool().query<{ count: string }>(
+    "SELECT COUNT(DISTINCT ip_hash)::text AS count FROM analytics_events;",
+  );
+  return Number(result.rows[0]?.count ?? "0");
+}
+
 export async function getAnalyticsStorageHealth() {
   const dbConfigured = hasDatabaseUrl();
   const dbInfo = getMaskedDbInfo();

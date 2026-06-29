@@ -1,7 +1,43 @@
 import Link from "next/link";
 import Image from "next/image";
+import { getRegisteredUserCount } from "@/lib/account/db";
+import { getUniqueClientCount } from "@/lib/usage-analytics";
 
-export default function Home() {
+export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+
+function formatCount(value: number) {
+  return new Intl.NumberFormat("en-US").format(value);
+}
+
+async function getHomeStats() {
+  try {
+    const [registeredUsers, uniqueClients] = await Promise.all([
+      getRegisteredUserCount(),
+      getUniqueClientCount(),
+    ]);
+
+    return {
+      registeredUsers,
+      uniqueClients,
+      estimatedUnregisteredUsers: Math.max(0, uniqueClients - registeredUsers),
+    };
+  } catch (error) {
+    console.error("[home] failed to load audience stats", {
+      error: error instanceof Error ? error.message : String(error),
+    });
+
+    return {
+      registeredUsers: 0,
+      uniqueClients: 0,
+      estimatedUnregisteredUsers: 0,
+    };
+  }
+}
+
+export default async function Home() {
+  const stats = await getHomeStats();
+
   return (
     <main className="relative min-h-screen overflow-hidden bg-black text-white">
       <div className="fixed inset-0 z-0 bg-black">
@@ -31,9 +67,30 @@ export default function Home() {
             skill areas such as logical reasoning, spatial orientation, visual
             scanning, mental math, multitasking, and short-term memory.
           </p>
+          <div className="mx-auto mt-8 grid max-w-2xl gap-3 sm:grid-cols-2">
+            <div className="border border-white/10 bg-white/10 px-5 py-4 text-left shadow-xl backdrop-blur">
+              <p className="text-3xl font-bold text-white">
+                {formatCount(stats.registeredUsers)}
+              </p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-300">
+                Registered users
+              </p>
+            </div>
+            <div className="border border-white/10 bg-white/10 px-5 py-4 text-left shadow-xl backdrop-blur">
+              <p className="text-3xl font-bold text-white">
+                {formatCount(stats.estimatedUnregisteredUsers)}
+              </p>
+              <p className="mt-1 text-xs font-bold uppercase tracking-[0.16em] text-amber-300">
+                Unregistered users
+              </p>
+            </div>
+          </div>
+          <p className="mt-8 text-xs font-medium text-amber-300 md:text-sm opacity-60">
+            Don&apos;t want to be left behind ?
+          </p>
           <Link
             href="/sky-quest"
-            className="mt-10 inline-flex min-h-12 items-center justify-center rounded-xl bg-amber-400 px-7 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-400/20 transition hover:bg-amber-300"
+            className="mt-1 inline-flex min-h-12 items-center justify-center rounded-xl bg-amber-400 px-7 text-sm font-bold text-zinc-950 shadow-lg shadow-amber-400/20 transition hover:bg-amber-300"
           >
             Open SkySkills
           </Link>
