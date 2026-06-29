@@ -43,6 +43,7 @@ function formatRank(rank: number | null) {
 function HexRadar({ points }: { points: RadarPoint[] }) {
   const center = 160;
   const maxRadius = 102;
+  const labelRadius = maxRadius + 20;
   const safePoints = points.length > 0 ? points : [];
   const angleStep = safePoints.length > 0 ? (Math.PI * 2) / safePoints.length : 0;
   const chartPoints = safePoints.map((point, index) => {
@@ -57,8 +58,8 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
       y: center + Math.sin(angle) * radius,
       axisX: center + Math.cos(angle) * maxRadius,
       axisY: center + Math.sin(angle) * maxRadius,
-      labelX: center + Math.cos(angle) * (maxRadius + 30),
-      labelY: center + Math.sin(angle) * (maxRadius + 22),
+      labelX: center + Math.cos(angle) * labelRadius,
+      labelY: center + Math.sin(angle) * labelRadius,
     };
   });
   const polygon = chartPoints.map((point) => `${point.x},${point.y}`).join(" ");
@@ -78,7 +79,7 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
       </div>
 
       <svg
-        viewBox="0 0 320 320"
+        viewBox="-12 -12 344 344"
         className="mx-auto mt-8 aspect-square w-full max-w-[500px]"
       >
         <defs>
