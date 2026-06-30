@@ -1,6 +1,7 @@
 import { cookies } from "next/headers";
 import {
   getSessionCookieName,
+  getTopicsWithAccessForToken,
   getUserBySessionToken,
   type AccountUser,
 } from "./db";
@@ -11,6 +12,12 @@ export async function getCurrentAccountUser(): Promise<AccountUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(getSessionCookieName())?.value;
   return getUserBySessionToken(token);
+}
+
+export async function getCurrentTopicsWithAccess() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get(getSessionCookieName())?.value;
+  return getTopicsWithAccessForToken(token);
 }
 
 export function getAppBaseUrl(requestOrigin?: string) {

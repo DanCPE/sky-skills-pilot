@@ -31,6 +31,9 @@ let promotionCodesCache:
 const CAPTAIN_PRO_MAX_PACKAGE_KEY = "captain-pro-max";
 
 const CONFIG_CACHE_MS = 60 * 1000;
+// Subscription packages and quiz access rules are admin-managed and change
+// rarely; admin writes clear the cache explicitly, so a longer TTL is safe.
+const PACKAGES_CACHE_MS = 5 * 60 * 1000;
 
 export interface AccountUser {
   id: string;
@@ -1543,6 +1546,94 @@ export async function getUserBySessionToken(rawToken: string | undefined) {
   return mapUser(result.rows[0]);
 }
 
+// Combines session lookup + subscription status in a single round trip.
+async function getUserWithFleetPaid(
+  rawToken: string | undefined,
+): Promise<{ user: AccountUser | null; isPaid: boolean }> {
+  if (!rawToken || !hasAccountDatabase()) return { user: null, isPaid: false };
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        u.id AS fleet_id,
+        p.id AS profile_id,
+        u.google_sub,
+        u.email,
+        p.call_sign,
+        p.image_url AS profile_image_url,
+        u.email_verified,
+        p.created_at,
+        p.updated_at,
+        sub.status AS subscription_status,
+        sub.current_period_end AS subscription_period_end
+      FROM account_sessions s
+      JOIN account_users u ON u.id = s.user_id
+      LEFT JOIN LATERAL (
+        SELECT status, current_period_end
+        FROM account_subscriptions
+        WHERE user_id = u.id
+        ORDER BY created_at DESC, updated_at DESC, id DESC
+        LIMIT 1
+      ) sub ON TRUE
+      LEFT JOIN account_profiles active_p
+        ON active_p.id = s.active_profile_id
+        AND active_p.user_id = u.id
+      JOIN account_profiles p ON p.id = COALESCE(
+        active_p.id,
+        (
+          SELECT p2.id
+          FROM account_profiles p2
+          WHERE p2.user_id = u.id
+          ORDER BY p2.is_default DESC, p2.created_at ASC
+          LIMIT 1
+        )
+      )
+      WHERE s.token_hash = $1
+        AND s.expires_at > NOW()
+      LIMIT 1;
+    `,
+    [hashSessionToken(rawToken)],
+  );
+
+  if (result.rowCount === 0) return { user: null, isPaid: false };
+
+  const row = result.rows[0];
+  const status = row.subscription_status ? String(row.subscription_status) : null;
+  const periodEnd = row.subscription_period_end
+    ? new Date(String(row.subscription_period_end)).getTime()
+    : null;
+  const isPaid =
+    isPaidSubscriptionStatus(status) &&
+    (periodEnd === null || periodEnd > Date.now());
+
+  return { user: mapUser(row), isPaid };
+}
+
+// Fetches topic access for a raw session token, parallelising the session+paid
+// lookup with the quiz-access-rules query so only one network round trip
+// waits on the other.
+export async function getTopicsWithAccessForToken(rawToken: string | undefined) {
+  const [{ user, isPaid }, rules] = await Promise.all([
+    getUserWithFleetPaid(rawToken),
+    getQuizAccessRules(),
+  ]);
+
+  const rulesBySlug = new Map(rules.map((rule) => [rule.topicSlug, rule]));
+  return {
+    user,
+    isPaid,
+    topics: quizTopics.map((topic) => {
+      const requiresPaid = Boolean(rulesBySlug.get(topic.slug)?.isLocked);
+      return {
+        ...topic,
+        isLocked: requiresPaid && !isPaid,
+        requiresPaid,
+      };
+    }),
+  };
+}
+
 function mapSubscription(row: Record<string, unknown> | null) {
   if (!row) return null;
   return {
@@ -2996,7 +3087,7 @@ export async function getSubscriptionPackages(input?: { includeInactive?: boolea
   const packages = result.rows.map(mapSubscriptionPackage);
   subscriptionPackagesCache.set(cacheKey, {
     packages,
-    expiresAt: now + CONFIG_CACHE_MS,
+    expiresAt: now + PACKAGES_CACHE_MS,
   });
   return packages;
 }
