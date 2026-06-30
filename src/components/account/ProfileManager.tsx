@@ -38,7 +38,7 @@ export default function ProfileManager({
     const target = isSlotsTourActive ? slotsRef.current : sectionRef.current;
     target?.scrollIntoView({
       behavior: "instant",
-      block: "center",
+      block: window.innerWidth < 640 ? "start" : "center",
     });
   }, [isFleetTourActive, isSlotsTourActive]);
 
@@ -135,7 +135,7 @@ export default function ProfileManager({
       }`}
     >
       {isFleetTourActive ? (
-        <div className="absolute -top-4 right-4 z-10 w-72 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+        <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72">
           <button
             type="button"
             onClick={closeFleetTour}
@@ -190,7 +190,7 @@ export default function ProfileManager({
           }`}
         >
           {isSlotsTourActive ? (
-            <div className="absolute right-0 top-full z-10 mt-3 w-72 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+            <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:bottom-auto sm:z-10 sm:mt-3 sm:w-72">
               <button
                 type="button"
                 onClick={closeFleetTour}

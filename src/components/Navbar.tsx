@@ -60,6 +60,22 @@ function getServerFleetSetupNudgeSnapshot() {
   return true;
 }
 
+function subscribeToLocationSearch(onStoreChange: () => void) {
+  window.addEventListener("popstate", onStoreChange);
+
+  return () => {
+    window.removeEventListener("popstate", onStoreChange);
+  };
+}
+
+function getLocationSearchSnapshot() {
+  return window.location.search;
+}
+
+function getServerLocationSearchSnapshot() {
+  return "";
+}
+
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -68,12 +84,19 @@ export default function Navbar() {
   >("loading");
   const [account, setAccount] = useState<AccountNavState | null>(null);
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
+  const [hideFleetSetupNudgeForNow, setHideFleetSetupNudgeForNow] =
+    useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const { theme, toggleTheme } = useTheme();
   const isFleetSetupNudgeDismissed = useSyncExternalStore(
     subscribeToFleetSetupNudge,
     getFleetSetupNudgeSnapshot,
     getServerFleetSetupNudgeSnapshot,
+  );
+  const currentSearch = useSyncExternalStore(
+    subscribeToLocationSearch,
+    getLocationSearchSnapshot,
+    getServerLocationSearchSnapshot,
   );
 
   function dismissFleetSetupNudge() {
@@ -189,8 +212,9 @@ export default function Navbar() {
   const showFleetSetupNudge =
     accountStatus === "signed-in" &&
     Boolean(account) &&
+    !hideFleetSetupNudgeForNow &&
     !isFleetSetupNudgeDismissed &&
-    pathname !== "/account";
+    !new URLSearchParams(currentSearch).get("tour");
 
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-200 bg-white transition-colors dark:border-white/10 dark:bg-black">
@@ -273,7 +297,7 @@ export default function Navbar() {
                     <div className="absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-violet-200 bg-white dark:border-violet-400/20 dark:bg-zinc-950" />
                     <button
                       type="button"
-                      onClick={dismissFleetSetupNudge}
+                      onClick={() => setHideFleetSetupNudgeForNow(true)}
                       aria-label="Close tutorial"
                       className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
                     >
@@ -289,12 +313,12 @@ export default function Navbar() {
                       Open your profile menu to set up fleet slots, switch the
                       active pilot, and keep each pilot&apos;s scores separate.
                     </p>
-                    <div className="mt-4 flex gap-2">
+                    <div className="mt-4 flex flex-wrap gap-2">
                       <Link
                         href="/account?tour=fleet"
                         onClick={() => {
                           setAccountMenuOpen(false);
-                          dismissFleetSetupNudge();
+                          setHideFleetSetupNudgeForNow(true);
                         }}
                         className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600"
                       >
@@ -305,7 +329,7 @@ export default function Navbar() {
                         onClick={dismissFleetSetupNudge}
                         className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-600 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/5"
                       >
-                        Later
+                        Never show again
                       </button>
                     </div>
                   </div>

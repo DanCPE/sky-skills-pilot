@@ -23,7 +23,7 @@ export default function DashboardProfileTour({
 
     sectionRef.current?.scrollIntoView({
       behavior: "instant",
-      block: "center",
+      block: window.innerWidth < 640 ? "start" : "center",
     });
   }, [isTourActive]);
 
@@ -42,7 +42,7 @@ export default function DashboardProfileTour({
       }`}
     >
       {isTourActive ? (
-        <div className="absolute -top-4 right-4 z-10 w-72 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+        <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72">
           <button
             type="button"
             onClick={closeTour}
