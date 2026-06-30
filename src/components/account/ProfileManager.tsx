@@ -3,7 +3,11 @@
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { AccountProfile } from "@/lib/account/db";
-import { notifyAccountChanged } from "@/components/Navbar";
+import {
+  FLEET_SETUP_NUDGE_EVENT,
+  FLEET_SETUP_NUDGE_STORAGE_KEY,
+  notifyAccountChanged,
+} from "@/components/Navbar";
 
 export default function ProfileManager({
   profiles,
@@ -21,16 +25,39 @@ export default function ProfileManager({
   const [callSign, setCallSign] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
+  const [isIntroDismissed, setIsIntroDismissed] = useState(true);
+  const [hideIntroForNow, setHideIntroForNow] = useState(false);
   const canCreate = profiles.length < maxProfiles;
   const remainingProfiles = Math.max(0, maxProfiles - profiles.length);
   const [localTourStep, setLocalTourStep] = useState<string | null>(null);
   const tourStep = localTourStep ?? searchParams.get("tour");
   const isFleetTourActive = tourStep === "fleet";
   const isSlotsTourActive = tourStep === "slots";
+  const showIntroNudge =
+    !tourStep && !isIntroDismissed && !hideIntroForNow;
 
   useEffect(() => {
     setLocalTourStep(searchParams.get("tour"));
   }, [searchParams]);
+
+  useEffect(() => {
+    setIsIntroDismissed(
+      localStorage.getItem(FLEET_SETUP_NUDGE_STORAGE_KEY) === "true",
+    );
+
+    function handleNudgeDismissed() {
+      setIsIntroDismissed(
+        localStorage.getItem(FLEET_SETUP_NUDGE_STORAGE_KEY) === "true",
+      );
+    }
+
+    window.addEventListener("storage", handleNudgeDismissed);
+    window.addEventListener(FLEET_SETUP_NUDGE_EVENT, handleNudgeDismissed);
+    return () => {
+      window.removeEventListener("storage", handleNudgeDismissed);
+      window.removeEventListener(FLEET_SETUP_NUDGE_EVENT, handleNudgeDismissed);
+    };
+  }, []);
 
   useLayoutEffect(() => {
     if (!isFleetTourActive && !isSlotsTourActive) return;
@@ -116,6 +143,18 @@ export default function ProfileManager({
     setLocalTourStep(null);
   }
 
+  function startFleetTour() {
+    window.history.replaceState(null, "", "/account?tour=fleet");
+    setHideIntroForNow(true);
+    setLocalTourStep("fleet");
+  }
+
+  function dismissIntroNudge() {
+    localStorage.setItem(FLEET_SETUP_NUDGE_STORAGE_KEY, "true");
+    setIsIntroDismissed(true);
+    window.dispatchEvent(new Event(FLEET_SETUP_NUDGE_EVENT));
+  }
+
   function showSlotsTour() {
     window.history.replaceState(null, "", "/account?tour=slots");
     setLocalTourStep("slots");
@@ -134,6 +173,44 @@ export default function ProfileManager({
           : "border-zinc-200 dark:border-white/10"
       }`}
     >
+      {showIntroNudge ? (
+        <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72">
+          <button
+            type="button"
+            onClick={() => setHideIntroForNow(true)}
+            aria-label="Close tutorial"
+            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
+          >
+            <span aria-hidden="true">x</span>
+          </button>
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
+            Fleet setup
+          </p>
+          <p className="mt-2 font-bold text-zinc-950 dark:text-zinc-50">
+            Your pilots live here.
+          </p>
+          <p className="mt-2 leading-6 text-zinc-600 dark:text-zinc-300">
+            Let me point out where to add pilot profiles, check available slots,
+            and understand profile progress.
+          </p>
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={startFleetTour}
+              className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600"
+            >
+              Show me
+            </button>
+            <button
+              type="button"
+              onClick={dismissIntroNudge}
+              className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-600 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/5"
+            >
+              Never show again
+            </button>
+          </div>
+        </div>
+      ) : null}
       {isFleetTourActive ? (
         <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72">
           <button

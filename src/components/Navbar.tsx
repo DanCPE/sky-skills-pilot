@@ -13,8 +13,9 @@ import {
 import { useTheme } from "@/lib/use-theme";
 
 export const ACCOUNT_REFRESH_EVENT = "sky-account-refresh";
-const FLEET_SETUP_NUDGE_EVENT = "sky-fleet-setup-nudge";
-const FLEET_SETUP_NUDGE_STORAGE_KEY = "sky_fleet_setup_nudge_dismissed";
+export const FLEET_SETUP_NUDGE_EVENT = "sky-fleet-setup-nudge";
+export const FLEET_SETUP_NUDGE_STORAGE_KEY =
+  "sky_fleet_setup_nudge_dismissed_v2";
 
 export type AccountNavState = {
   name: string;
@@ -214,6 +215,7 @@ export default function Navbar() {
     Boolean(account) &&
     !hideFleetSetupNudgeForNow &&
     !isFleetSetupNudgeDismissed &&
+    pathname !== "/account" &&
     !new URLSearchParams(currentSearch).get("tour");
 
   return (
