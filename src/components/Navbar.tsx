@@ -3,10 +3,18 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useCallback, useEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 import { useTheme } from "@/lib/use-theme";
 
 export const ACCOUNT_REFRESH_EVENT = "sky-account-refresh";
+const FLEET_SETUP_NUDGE_EVENT = "sky-fleet-setup-nudge";
+const FLEET_SETUP_NUDGE_STORAGE_KEY = "sky_fleet_setup_nudge_dismissed";
 
 export type AccountNavState = {
   name: string;
@@ -34,6 +42,24 @@ export function notifyAccountChanged(account?: AccountNavState) {
   }
 }
 
+function subscribeToFleetSetupNudge(onStoreChange: () => void) {
+  window.addEventListener("storage", onStoreChange);
+  window.addEventListener(FLEET_SETUP_NUDGE_EVENT, onStoreChange);
+
+  return () => {
+    window.removeEventListener("storage", onStoreChange);
+    window.removeEventListener(FLEET_SETUP_NUDGE_EVENT, onStoreChange);
+  };
+}
+
+function getFleetSetupNudgeSnapshot() {
+  return localStorage.getItem(FLEET_SETUP_NUDGE_STORAGE_KEY) === "true";
+}
+
+function getServerFleetSetupNudgeSnapshot() {
+  return true;
+}
+
 export default function Navbar() {
   const pathname = usePathname();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -44,6 +70,16 @@ export default function Navbar() {
   const [accountMenuOpen, setAccountMenuOpen] = useState(false);
   const accountMenuRef = useRef<HTMLDivElement | null>(null);
   const { theme, toggleTheme } = useTheme();
+  const isFleetSetupNudgeDismissed = useSyncExternalStore(
+    subscribeToFleetSetupNudge,
+    getFleetSetupNudgeSnapshot,
+    getServerFleetSetupNudgeSnapshot,
+  );
+
+  function dismissFleetSetupNudge() {
+    localStorage.setItem(FLEET_SETUP_NUDGE_STORAGE_KEY, "true");
+    window.dispatchEvent(new Event(FLEET_SETUP_NUDGE_EVENT));
+  }
 
   const loadAccount = useCallback((signal?: AbortSignal) => {
     return fetch("/api/account/me", { cache: "no-store", signal })
@@ -150,6 +186,12 @@ export default function Navbar() {
     return null;
   }
 
+  const showFleetSetupNudge =
+    accountStatus === "signed-in" &&
+    Boolean(account) &&
+    !isFleetSetupNudgeDismissed &&
+    pathname !== "/account";
+
   return (
     <nav className="sticky top-0 z-50 border-b border-zinc-200 bg-white transition-colors dark:border-white/10 dark:bg-black">
       <div className="mx-auto max-w-7xl px-6 lg:px-8">
@@ -199,10 +241,17 @@ export default function Navbar() {
               />
             ) : account ? (
               <div ref={accountMenuRef} className="relative">
+                {showFleetSetupNudge ? (
+                  <span className="pointer-events-none absolute inset-[-6px] rounded-full bg-violet-400/30 blur-sm" />
+                ) : null}
                 <button
                   type="button"
                   onClick={() => setAccountMenuOpen((open) => !open)}
-                  className="relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border border-zinc-200 bg-violet-700 text-sm font-bold text-white transition-colors hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 dark:border-white/10 dark:focus:ring-offset-black"
+                  className={`relative flex h-10 w-10 items-center justify-center overflow-hidden rounded-full border bg-violet-700 text-sm font-bold text-white transition-colors hover:border-violet-300 focus:outline-none focus:ring-2 focus:ring-violet-500 focus:ring-offset-2 dark:focus:ring-offset-black ${
+                    showFleetSetupNudge
+                      ? "border-violet-300 shadow-[0_0_0_4px_rgba(139,92,246,0.18),0_0_28px_rgba(139,92,246,0.45)]"
+                      : "border-zinc-200 dark:border-white/10"
+                  }`}
                   aria-label={`Open profile menu for ${account.name}`}
                   aria-expanded={accountMenuOpen}
                   aria-haspopup="menu"
@@ -219,6 +268,40 @@ export default function Navbar() {
                     account.name.slice(0, 1).toUpperCase()
                   )}
                 </button>
+                {showFleetSetupNudge && !accountMenuOpen ? (
+                  <div className="absolute right-0 top-14 z-50 w-72 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+                    <div className="absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-violet-200 bg-white dark:border-violet-400/20 dark:bg-zinc-950" />
+                    <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
+                      Fleet setup
+                    </p>
+                    <p className="mt-2 font-bold text-zinc-950 dark:text-zinc-50">
+                      Manage pilots from this button.
+                    </p>
+                    <p className="mt-2 leading-6 text-zinc-600 dark:text-zinc-300">
+                      Open your profile menu to set up fleet slots, switch the
+                      active pilot, and keep each pilot&apos;s scores separate.
+                    </p>
+                    <div className="mt-4 flex gap-2">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setAccountMenuOpen(true);
+                          dismissFleetSetupNudge();
+                        }}
+                        className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600"
+                      >
+                        Show me
+                      </button>
+                      <button
+                        type="button"
+                        onClick={dismissFleetSetupNudge}
+                        className="rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-600 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/5"
+                      >
+                        Later
+                      </button>
+                    </div>
+                  </div>
+                ) : null}
                 {account.rank === 1 || account.rank === 2 || account.rank === 3 ? (
                   <span
                     className="pointer-events-none absolute -top-3 left-1/2 -translate-x-1/2 text-base leading-none"
@@ -287,7 +370,7 @@ export default function Navbar() {
                           />
                         </svg>
                       </span>
-                      Account
+                      Fleet setup
                     </Link>
                     <Link
                       href="/subscription"
@@ -473,7 +556,7 @@ export default function Navbar() {
                   className="block rounded-lg px-4 py-2 pl-16 font-semibold text-zinc-700 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:bg-zinc-800"
                   onClick={() => setMobileMenuOpen(false)}
                 >
-                  Account
+                  Fleet setup
                 </Link>
                 <form action="/api/auth/logout" method="post">
                   <button

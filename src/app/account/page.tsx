@@ -1,7 +1,6 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import DeleteAccountSection from "@/components/account/DeleteAccountSection";
-import FleetProfileGuide from "@/components/account/FleetProfileGuide";
 import ProfileEditor from "@/components/account/ProfileEditor";
 import ProfileManager from "@/components/account/ProfileManager";
 import { getCurrentAccountUser } from "@/lib/account/auth";
@@ -125,10 +124,6 @@ export default async function AccountPage() {
 
         <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_360px]">
           <div className="space-y-6">
-            <FleetProfileGuide
-              profileCount={overview.profiles.length}
-              maxProfiles={overview.maxProfiles}
-            />
             <ProfileEditor
               initialName={overview.user.name}
               initialImageUrl={overview.user.imageUrl}
