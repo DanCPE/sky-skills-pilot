@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, type ReactNode } from "react";
+import { useLayoutEffect, useRef, type ReactNode } from "react";
 
 export default function DashboardProfileTour({
   children,
@@ -13,14 +13,12 @@ export default function DashboardProfileTour({
   const sectionRef = useRef<HTMLElement | null>(null);
   const isTourActive = searchParams.get("tour") === "profiles";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isTourActive) return;
 
-    window.requestAnimationFrame(() => {
-      sectionRef.current?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+    sectionRef.current?.scrollIntoView({
+      behavior: "instant",
+      block: "center",
     });
   }, [isTourActive]);
 

@@ -1,7 +1,7 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type { AccountProfile } from "@/lib/account/db";
 import { notifyAccountChanged } from "@/components/Navbar";
 
@@ -27,17 +27,20 @@ export default function ProfileManager({
   const isFleetTourActive = tourStep === "fleet";
   const isSlotsTourActive = tourStep === "slots";
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!isFleetTourActive && !isSlotsTourActive) return;
 
-    window.requestAnimationFrame(() => {
-      const target = isSlotsTourActive ? slotsRef.current : sectionRef.current;
-      target?.scrollIntoView({
-        behavior: "smooth",
-        block: "center",
-      });
+    const target = isSlotsTourActive ? slotsRef.current : sectionRef.current;
+    target?.scrollIntoView({
+      behavior: "instant",
+      block: "center",
     });
   }, [isFleetTourActive, isSlotsTourActive]);
+
+  useEffect(() => {
+    if (!isSlotsTourActive) return;
+    router.prefetch("/dashboard?tour=profiles");
+  }, [isSlotsTourActive, router]);
 
   async function createProfile() {
     setError(null);
