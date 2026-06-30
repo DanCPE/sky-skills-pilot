@@ -1,17 +1,22 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useLayoutEffect, useRef, type ReactNode } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 
 export default function DashboardProfileTour({
   children,
 }: {
   children: ReactNode;
 }) {
-  const router = useRouter();
   const searchParams = useSearchParams();
   const sectionRef = useRef<HTMLElement | null>(null);
-  const isTourActive = searchParams.get("tour") === "profiles";
+  const [localTourStep, setLocalTourStep] = useState<string | null>(null);
+  const tourStep = localTourStep ?? searchParams.get("tour");
+  const isTourActive = tourStep === "profiles";
+
+  useEffect(() => {
+    setLocalTourStep(searchParams.get("tour"));
+  }, [searchParams]);
 
   useLayoutEffect(() => {
     if (!isTourActive) return;
@@ -23,7 +28,8 @@ export default function DashboardProfileTour({
   }, [isTourActive]);
 
   function closeTour() {
-    router.replace("/dashboard", { scroll: false });
+    window.history.replaceState(null, "", "/dashboard");
+    setLocalTourStep(null);
   }
 
   return (
