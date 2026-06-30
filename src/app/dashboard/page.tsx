@@ -13,6 +13,8 @@ import {
 
 export const dynamic = "force-dynamic";
 
+type SearchParams = Promise<{ tour?: string }>;
+
 const domainShortLabels: Record<string, string> = {
   "logical-reasoning": "Logical",
   "spatial-orientation": "Spatial",
@@ -621,7 +623,12 @@ function monotonicMs() {
   return Number(process.hrtime.bigint() / BigInt(1000000));
 }
 
-export default async function DashboardPage() {
+export default async function DashboardPage({
+  searchParams,
+}: {
+  searchParams: SearchParams;
+}) {
+  const { tour = null } = await searchParams;
   const pageStartedAt = monotonicMs();
   if (!hasAccountDatabase()) {
     return (
@@ -732,7 +739,7 @@ export default async function DashboardPage() {
           </p>
         </header>
 
-        <DashboardProfileTour>
+        <DashboardProfileTour initialTour={tour}>
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xl font-bold text-white">
               {overview.user.imageUrl ? (

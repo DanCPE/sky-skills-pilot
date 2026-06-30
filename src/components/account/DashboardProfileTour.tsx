@@ -1,26 +1,24 @@
 "use client";
 
-import { useSearchParams } from "next/navigation";
-import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import {
+  FLEET_SETUP_NUDGE_EVENT,
+  FLEET_SETUP_NUDGE_STORAGE_KEY,
+} from "@/components/Navbar";
 
 export default function DashboardProfileTour({
   children,
+  initialTour,
 }: {
   children: ReactNode;
+  initialTour: string | null;
 }) {
-  const searchParams = useSearchParams();
   const sectionRef = useRef<HTMLElement | null>(null);
-  const [localTourStep, setLocalTourStep] = useState<string | null>(null);
-  const tourStep = localTourStep ?? searchParams.get("tour");
+  const [tourStep, setTourStep] = useState<string | null>(initialTour);
   const isTourActive = tourStep === "profiles";
-
-  useEffect(() => {
-    setLocalTourStep(searchParams.get("tour"));
-  }, [searchParams]);
 
   useLayoutEffect(() => {
     if (!isTourActive) return;
-
     sectionRef.current?.scrollIntoView({
       behavior: "instant",
       block: window.innerWidth < 640 ? "start" : "center",
@@ -29,7 +27,9 @@ export default function DashboardProfileTour({
 
   function closeTour() {
     window.history.replaceState(null, "", "/dashboard");
-    setLocalTourStep(null);
+    setTourStep(null);
+    localStorage.setItem(FLEET_SETUP_NUDGE_STORAGE_KEY, "true");
+    window.dispatchEvent(new Event(FLEET_SETUP_NUDGE_EVENT));
   }
 
   return (
@@ -42,17 +42,21 @@ export default function DashboardProfileTour({
       }`}
     >
       {isTourActive ? (
-        <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72">
+        <div
+          role="dialog"
+          aria-label="Profile dashboard tutorial"
+          className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72"
+        >
           <button
             type="button"
             onClick={closeTour}
             aria-label="Close tutorial"
             className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
           >
-            <span aria-hidden="true">x</span>
+            <span aria-hidden="true">✕</span>
           </button>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
-            Profile dashboard
+            Step 3 of 3 · Profile dashboard
           </p>
           <p className="mt-2 font-bold text-zinc-950 dark:text-zinc-50">
             Every pilot has separate stats.

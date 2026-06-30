@@ -29,16 +29,13 @@ export default function ProfileManager({
   const [hideIntroForNow, setHideIntroForNow] = useState(false);
   const canCreate = profiles.length < maxProfiles;
   const remainingProfiles = Math.max(0, maxProfiles - profiles.length);
-  const [localTourStep, setLocalTourStep] = useState<string | null>(null);
-  const tourStep = localTourStep ?? searchParams.get("tour");
+  // undefined = uninitialized (falls back to URL); null = explicitly closed (overrides URL)
+  const [localTourStep, setLocalTourStep] = useState<string | null | undefined>(undefined);
+  const tourStep = localTourStep !== undefined ? localTourStep : searchParams.get("tour");
   const isFleetTourActive = tourStep === "fleet";
   const isSlotsTourActive = tourStep === "slots";
   const showIntroNudge =
     !tourStep && !isIntroDismissed && !hideIntroForNow;
-
-  useEffect(() => {
-    setLocalTourStep(searchParams.get("tour"));
-  }, [searchParams]);
 
   useEffect(() => {
     setIsIntroDismissed(
@@ -174,14 +171,18 @@ export default function ProfileManager({
       }`}
     >
       {showIntroNudge ? (
-        <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72">
+        <div
+          role="dialog"
+          aria-label="Fleet setup tutorial"
+          className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72"
+        >
           <button
             type="button"
             onClick={() => setHideIntroForNow(true)}
             aria-label="Close tutorial"
             className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
           >
-            <span aria-hidden="true">x</span>
+            <span aria-hidden="true">✕</span>
           </button>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
             Fleet setup
@@ -212,17 +213,21 @@ export default function ProfileManager({
         </div>
       ) : null}
       {isFleetTourActive ? (
-        <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72">
+        <div
+          role="dialog"
+          aria-label="Fleet setup tutorial step 1"
+          className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:-top-4 sm:right-4 sm:bottom-auto sm:z-10 sm:w-72"
+        >
           <button
             type="button"
             onClick={closeFleetTour}
             aria-label="Close tutorial"
             className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
           >
-            <span aria-hidden="true">x</span>
+            <span aria-hidden="true">✕</span>
           </button>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
-            Fleet setup
+            Step 1 of 3 · Fleet setup
           </p>
           <p className="mt-2 font-bold text-zinc-950 dark:text-zinc-50">
             This is where pilots are managed.
@@ -267,17 +272,21 @@ export default function ProfileManager({
           }`}
         >
           {isSlotsTourActive ? (
-            <div className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:bottom-auto sm:z-10 sm:mt-3 sm:w-72">
+            <div
+              role="dialog"
+              aria-label="Fleet setup tutorial step 2"
+              className="fixed inset-x-4 bottom-4 z-50 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)] sm:absolute sm:inset-x-auto sm:right-0 sm:top-full sm:bottom-auto sm:z-10 sm:mt-3 sm:w-72"
+            >
               <button
                 type="button"
                 onClick={closeFleetTour}
                 aria-label="Close tutorial"
                 className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
               >
-                <span aria-hidden="true">x</span>
+                <span aria-hidden="true">✕</span>
               </button>
               <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
-                Available slots
+                Step 2 of 3 · Available slots
               </p>
               <p className="mt-2 font-bold text-zinc-950 dark:text-zinc-50">
                 Your package controls how many pilots fit in this fleet.
