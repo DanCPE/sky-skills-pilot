@@ -19,6 +19,7 @@ export default function ProfileManager({
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const canCreate = profiles.length < maxProfiles;
+  const remainingProfiles = Math.max(0, maxProfiles - profiles.length);
 
   async function createProfile() {
     setError(null);
@@ -91,9 +92,32 @@ export default function ProfileManager({
       </p>
       <h2 className="mt-1 text-xl font-bold">Profiles in this fleet</h2>
       <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-        This package allows {maxProfiles}{" "}
-        {maxProfiles === 1 ? "profile" : "profiles"} in this fleet.
+        Switch the active pilot before practicing. Scores, rankings, and
+        dashboard progress are saved to that profile only.
       </p>
+      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
+        <div className="rounded-xl bg-zinc-50 p-3 dark:bg-white/5">
+          <p className="font-bold text-zinc-950 dark:text-zinc-100">
+            Fleet slots
+          </p>
+          <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+            {profiles.length} / {maxProfiles}{" "}
+            {maxProfiles === 1 ? "profile" : "profiles"} used.
+          </p>
+        </div>
+        <div className="rounded-xl bg-zinc-50 p-3 dark:bg-white/5">
+          <p className="font-bold text-zinc-950 dark:text-zinc-100">
+            Available slots
+          </p>
+          <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+            {remainingProfiles === 0
+              ? "Upgrade your package to add more pilots."
+              : `${remainingProfiles} ${
+                  remainingProfiles === 1 ? "profile" : "profiles"
+                } remaining.`}
+          </p>
+        </div>
+      </div>
 
       <div className="mt-5 space-y-3">
         {profiles.map((profile) => (
@@ -113,7 +137,9 @@ export default function ProfileManager({
               <div>
                 <p className="font-bold">{profile.callSign}</p>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                  {profile.id === activeProfileId ? "Active account" : "Available account"}
+                  {profile.id === activeProfileId
+                    ? "Active pilot - new quiz scores save here"
+                    : "Available pilot profile"}
                 </p>
               </div>
             </div>
@@ -147,7 +173,9 @@ export default function ProfileManager({
         <input
           value={callSign}
           onChange={(event) => setCallSign(event.target.value)}
-          placeholder={canCreate ? "New call sign" : "Fleet profile limit reached"}
+          placeholder={
+            canCreate ? "New pilot call sign" : "Fleet profile limit reached"
+          }
           disabled={!canCreate || isBusy}
           className="min-h-10 flex-1 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-semibold outline-none dark:border-white/10 dark:bg-black/40"
         />
@@ -157,9 +185,16 @@ export default function ProfileManager({
           onClick={createProfile}
           className="rounded-xl bg-zinc-950 px-4 py-2 text-sm font-bold text-white disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-white dark:text-zinc-950 dark:disabled:bg-zinc-800 dark:disabled:text-zinc-500"
         >
-          Create
+          Add pilot
         </button>
       </div>
+
+      {!canCreate ? (
+        <p className="mt-3 text-sm text-zinc-500 dark:text-zinc-400">
+          Your current package has no open profile slots. Choose a larger
+          package to add more pilots to this fleet.
+        </p>
+      ) : null}
 
       {error ? (
         <p className="mt-3 text-sm font-semibold text-red-700 dark:text-red-300">
