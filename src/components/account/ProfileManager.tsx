@@ -23,9 +23,14 @@ export default function ProfileManager({
   const [isBusy, setIsBusy] = useState(false);
   const canCreate = profiles.length < maxProfiles;
   const remainingProfiles = Math.max(0, maxProfiles - profiles.length);
-  const tourStep = searchParams.get("tour");
+  const [localTourStep, setLocalTourStep] = useState<string | null>(null);
+  const tourStep = localTourStep ?? searchParams.get("tour");
   const isFleetTourActive = tourStep === "fleet";
   const isSlotsTourActive = tourStep === "slots";
+
+  useEffect(() => {
+    setLocalTourStep(searchParams.get("tour"));
+  }, [searchParams]);
 
   useLayoutEffect(() => {
     if (!isFleetTourActive && !isSlotsTourActive) return;
@@ -107,11 +112,13 @@ export default function ProfileManager({
   }
 
   function closeFleetTour() {
-    router.replace("/account", { scroll: false });
+    window.history.replaceState(null, "", "/account");
+    setLocalTourStep(null);
   }
 
   function showSlotsTour() {
-    router.replace("/account?tour=slots", { scroll: false });
+    window.history.replaceState(null, "", "/account?tour=slots");
+    setLocalTourStep("slots");
   }
 
   function showDashboardTour() {
