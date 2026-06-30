@@ -65,6 +65,7 @@ export async function PATCH(request: Request) {
           fleetId?: string;
           email?: string;
           status?: SubscriptionStatus;
+          packageKey?: string | null;
           topicSlug?: string;
           topicSlugs?: string[];
           isLocked?: boolean;
@@ -99,6 +100,7 @@ export async function PATCH(request: Request) {
         fleetId: body.fleetId,
         email: body.email,
         status: body.status,
+        packageKey: body.packageKey,
       });
 
       return NextResponse.json({

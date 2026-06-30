@@ -622,12 +622,15 @@ export async function ensureAccountSchema() {
         provider TEXT,
         provider_customer_id TEXT,
         provider_subscription_id TEXT,
+        plan_key TEXT,
         status TEXT NOT NULL DEFAULT 'not_started',
         current_period_end TIMESTAMPTZ,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
       );
     `);
+
+      await pool.query("ALTER TABLE account_subscriptions ADD COLUMN IF NOT EXISTS plan_key TEXT;");
 
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_payment_intents (
@@ -1270,12 +1273,10 @@ export async function getFleetProfileLimit(fleetId: string) {
         SELECT *
         FROM account_subscriptions
         WHERE user_id = $1
-          AND status IN ('active', 'trialing')
-          AND (current_period_end IS NULL OR current_period_end > NOW())
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, updated_at DESC, id DESC
         LIMIT 1
       )
-      SELECT slip.plan_key
+      SELECT COALESCE(sub.plan_key, slip.plan_key) AS plan_key
       FROM active_subscription sub
       LEFT JOIN LATERAL (
         SELECT s.plan_key
@@ -1295,7 +1296,9 @@ export async function getFleetProfileLimit(fleetId: string) {
           s.reviewed_at DESC NULLS LAST,
           s.created_at DESC
         LIMIT 1
-      ) slip ON TRUE;
+      ) slip ON TRUE
+      WHERE sub.status IN ('active', 'trialing')
+        AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW());
     `,
     [fleetId],
   );
@@ -1876,15 +1879,15 @@ export async function getAccountSettingsOverview(
         WHERE p.user_id = $1
       ),
       latest_subscription AS (
-        SELECT to_jsonb(s) AS row
+        SELECT s.*, to_jsonb(s) AS row
         FROM account_subscriptions s
         WHERE s.user_id = $1
-        ORDER BY s.created_at DESC
+        ORDER BY s.created_at DESC, s.updated_at DESC, s.id DESC
         LIMIT 1
       ),
       active_package AS (
-        SELECT slip.plan_key
-        FROM account_subscriptions sub
+        SELECT COALESCE(sub.plan_key, slip.plan_key) AS plan_key
+        FROM latest_subscription sub
         LEFT JOIN LATERAL (
           SELECT s.plan_key
           FROM account_manual_payment_slips s
@@ -1904,10 +1907,8 @@ export async function getAccountSettingsOverview(
             s.created_at DESC
           LIMIT 1
         ) slip ON TRUE
-        WHERE sub.user_id = $1
-          AND sub.status IN ('active', 'trialing')
+        WHERE sub.status IN ('active', 'trialing')
           AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW())
-        ORDER BY sub.created_at DESC
         LIMIT 1
       ),
       latest_payment_slip AS (
@@ -2072,15 +2073,15 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
         WHERE profile_id = $1
       ),
       latest_subscription AS (
-        SELECT to_jsonb(s) AS row
+        SELECT s.*, to_jsonb(s) AS row
         FROM account_subscriptions s
         JOIN active_profile ap ON ap.fleet_id = s.user_id
-        ORDER BY s.created_at DESC
+        ORDER BY s.created_at DESC, s.updated_at DESC, s.id DESC
         LIMIT 1
       ),
       active_package AS (
-        SELECT slip.plan_key
-        FROM account_subscriptions sub
+        SELECT COALESCE(sub.plan_key, slip.plan_key) AS plan_key
+        FROM latest_subscription sub
         JOIN active_profile ap ON ap.fleet_id = sub.user_id
         LEFT JOIN LATERAL (
           SELECT s.plan_key
@@ -2103,7 +2104,6 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
         ) slip ON TRUE
         WHERE sub.status IN ('active', 'trialing')
           AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW())
-        ORDER BY sub.created_at DESC
         LIMIT 1
       )
       SELECT
@@ -2444,7 +2444,7 @@ export async function isFleetPaid(fleetId: string) {
       SELECT status, current_period_end
       FROM account_subscriptions
       WHERE user_id = $1
-      ORDER BY created_at DESC
+      ORDER BY created_at DESC, updated_at DESC, id DESC
       LIMIT 1;
     `,
     [fleetId],
@@ -2628,6 +2628,7 @@ export async function setFleetManualSubscription(input: {
   fleetId?: string;
   email?: string;
   status: SubscriptionStatus;
+  packageKey?: string | null;
 }) {
   await ensureAccountSchema();
 
@@ -2651,25 +2652,60 @@ export async function setFleetManualSubscription(input: {
   }
 
   const fleetId = String(userResult.rows[0].id);
+  let packageKey = input.packageKey?.trim() || null;
+  let packageDurationMonths: number | null = null;
+  let currentPeriodEndExpression = "NULL";
+
+  if (input.status === "active" || input.status === "trialing") {
+    if (!packageKey) {
+      throw new Error("Package is required for paid access.");
+    }
+
+    const packageResult = await getPool().query(
+      `
+        SELECT duration_months
+        FROM account_subscription_packages
+        WHERE key = $1
+        LIMIT 1;
+      `,
+      [packageKey],
+    );
+
+    if (packageResult.rowCount === 0) {
+      throw new Error("Subscription package not found.");
+    }
+
+    packageDurationMonths = Number(packageResult.rows[0].duration_months ?? 1);
+    currentPeriodEndExpression = `
+      NOW() + make_interval(
+        months => GREATEST(1, COALESCE($4::int, 1))
+      )
+    `;
+  } else {
+    packageKey = null;
+  }
+
   const result = await getPool().query(
     `
       INSERT INTO account_subscriptions (
         user_id,
         provider,
+        plan_key,
         status,
         current_period_end,
         updated_at
       )
-      VALUES ($1, 'manual', $2, NULL, NOW())
+      VALUES ($1, 'manual', $2, $3, ${currentPeriodEndExpression}, NOW())
       RETURNING *;
     `,
-    [fleetId, input.status],
+    [fleetId, packageKey, input.status, packageDurationMonths],
   );
 
   accountDebug("manual subscription updated", {
     fleetId,
     email: input.email,
     status: input.status,
+    packageKey,
   });
 
   return mapSubscription(result.rows[0]);
@@ -2813,6 +2849,7 @@ export async function createManualPaymentSlip(input: {
             user_id,
             provider,
             provider_subscription_id,
+            plan_key,
             status,
             current_period_end,
             updated_at
@@ -2821,6 +2858,7 @@ export async function createManualPaymentSlip(input: {
             $1,
             'slip2go',
             $2,
+            $3,
             'active',
             NOW() + make_interval(
               months => GREATEST(
@@ -3603,6 +3641,7 @@ export async function reviewManualPaymentSlip(input: {
             user_id,
             provider,
             provider_subscription_id,
+            plan_key,
             status,
             current_period_end,
             updated_at
@@ -3611,6 +3650,7 @@ export async function reviewManualPaymentSlip(input: {
             $1,
             'manual-slip',
             $2,
+            $3,
             'active',
             NOW() + make_interval(
               months => GREATEST(
@@ -3749,9 +3789,9 @@ export async function getAdminBillingOverview() {
           COALESCE(s.status, 'not_started') AS subscription_status,
           s.provider,
           s.current_period_end,
-          latest_slip.plan_key AS latest_package_key,
+          COALESCE(s.plan_key, latest_slip.plan_key) AS latest_package_key,
           pkg.title AS latest_package_title,
-          latest_slip.amount_cents AS latest_package_amount_cents,
+          COALESCE(latest_slip.amount_cents, pkg.price_cents) AS latest_package_amount_cents,
           latest_slip.promotion_code AS latest_promotion_code,
           latest_slip.personal_files_sent_at AS latest_personal_files_sent_at,
           pkg.duration_months AS latest_package_duration_months,
@@ -3764,7 +3804,7 @@ export async function getAdminBillingOverview() {
           SELECT *
           FROM account_subscriptions sub
           WHERE sub.user_id = u.id
-          ORDER BY sub.created_at DESC
+          ORDER BY sub.created_at DESC, sub.updated_at DESC, sub.id DESC
           LIMIT 1
         ) s ON TRUE
         LEFT JOIN LATERAL (
@@ -3776,7 +3816,7 @@ export async function getAdminBillingOverview() {
           LIMIT 1
         ) latest_slip ON TRUE
         LEFT JOIN account_subscription_packages pkg
-          ON pkg.key = latest_slip.plan_key
+          ON pkg.key = COALESCE(s.plan_key, latest_slip.plan_key)
         LEFT JOIN account_profiles p
           ON p.user_id = u.id
         LEFT JOIN account_sessions sess
@@ -3786,6 +3826,7 @@ export async function getAdminBillingOverview() {
           u.id,
           s.status,
           s.provider,
+          s.plan_key,
           s.current_period_end,
           latest_slip.plan_key,
           latest_slip.id,
@@ -3876,12 +3917,10 @@ export async function getActivePackageForFleet(
         SELECT *
         FROM account_subscriptions
         WHERE user_id = $1
-          AND status IN ('active', 'trialing')
-          AND (current_period_end IS NULL OR current_period_end > NOW())
-        ORDER BY created_at DESC
+        ORDER BY created_at DESC, updated_at DESC, id DESC
         LIMIT 1
       )
-      SELECT slip.plan_key, pkg.title
+      SELECT COALESCE(sub.plan_key, slip.plan_key) AS plan_key, pkg.title
       FROM active_subscription sub
       LEFT JOIN LATERAL (
         SELECT s.plan_key
@@ -3902,7 +3941,10 @@ export async function getActivePackageForFleet(
           s.created_at DESC
         LIMIT 1
       ) slip ON TRUE
-      JOIN account_subscription_packages pkg ON pkg.key = slip.plan_key
+      JOIN account_subscription_packages pkg
+        ON pkg.key = COALESCE(sub.plan_key, slip.plan_key)
+      WHERE sub.status IN ('active', 'trialing')
+        AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW())
     `,
     [fleetId],
   );

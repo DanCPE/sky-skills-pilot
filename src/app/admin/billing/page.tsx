@@ -145,6 +145,7 @@ export default function AdminBillingPage() {
   const [query, setQuery] = useState("");
   const [slipReferenceQuery, setSlipReferenceQuery] = useState("");
   const [newEmail, setNewEmail] = useState("");
+  const [newPackageKey, setNewPackageKey] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -218,6 +219,12 @@ export default function AdminBillingPage() {
     );
   }, [data, query]);
 
+  const assignablePackages = useMemo(
+    () => (data?.subscriptionPackages ?? []).filter((pkg) => pkg.isActive),
+    [data],
+  );
+  const selectedNewPackageKey = newPackageKey || assignablePackages[0]?.key || "";
+
   async function patchBilling(body: Record<string, unknown>, key: string) {
     setPendingKey(key);
     setError(null);
@@ -252,10 +259,15 @@ export default function AdminBillingPage() {
 
   async function markEmailPaid() {
     const email = newEmail.trim();
-    if (!email) return;
+    if (!email || !selectedNewPackageKey) return;
 
     await patchBilling(
-      { type: "fleet", email, status: "active" },
+      {
+        type: "fleet",
+        email,
+        status: "active",
+        packageKey: selectedNewPackageKey,
+      },
       `email:${email}`,
     );
     setNewEmail("");
@@ -1538,8 +1550,8 @@ export default function AdminBillingPage() {
             <div>
               <h2 className="text-lg font-bold">Manual Paid Fleets</h2>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Use registered email addresses. Paid fleets can access every
-                quiz regardless of lock settings.
+                Assign subscription packages to registered email addresses.
+                Package fleets can access every quiz regardless of lock settings.
               </p>
             </div>
             <div className="flex flex-col gap-2 sm:flex-row">
@@ -1555,13 +1567,33 @@ export default function AdminBillingPage() {
                 placeholder="email@domain.com"
                 className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
               />
+              <select
+                value={selectedNewPackageKey}
+                onChange={(event) => setNewPackageKey(event.target.value)}
+                disabled={assignablePackages.length === 0 || pendingKey !== null}
+                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-black"
+              >
+                {assignablePackages.length === 0 ? (
+                  <option value="">No active packages</option>
+                ) : (
+                  assignablePackages.map((pkg) => (
+                    <option key={pkg.key} value={pkg.key}>
+                      {pkg.title}
+                    </option>
+                  ))
+                )}
+              </select>
               <button
                 type="button"
                 onClick={() => void markEmailPaid()}
-                disabled={!newEmail.trim() || pendingKey !== null}
+                disabled={
+                  !newEmail.trim() ||
+                  !selectedNewPackageKey ||
+                  pendingKey !== null
+                }
                 className="rounded-xl bg-zinc-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
               >
-                Mark Paid
+                Assign Package
               </button>
             </div>
           </div>
@@ -1600,6 +1632,12 @@ export default function AdminBillingPage() {
                     const key = `fleet:${fleet.fleetId}`;
                     const isSpecialDeal =
                       fleet.latestPackageKey === "captain-pro-max";
+                    const selectedPackageKey =
+                      isPaid && fleet.latestPackageKey
+                        ? fleet.latestPackageKey
+                        : isPaid
+                          ? "__paid_without_package"
+                          : "";
                     return (
                       <tr
                         key={fleet.fleetId}
@@ -1723,27 +1761,39 @@ export default function AdminBillingPage() {
                       <td className="px-4 py-3">{fleet.activeSessionCount}</td>
                       <td className="px-4 py-3">{formatDate(fleet.updatedAt)}</td>
                       <td className="px-4 py-3">
-                        <button
-                          type="button"
+                        <select
+                          value={selectedPackageKey}
                           disabled={pendingKey !== null}
-                          onClick={() =>
+                          onChange={(event) => {
+                            const packageKey = event.target.value;
+                            if (packageKey === "__paid_without_package") return;
+
                             void patchBilling(
                               {
                                 type: "fleet",
                                 fleetId: fleet.fleetId,
-                                status: isPaid ? "not_started" : "active",
+                                status: packageKey ? "active" : "not_started",
+                                packageKey: packageKey || null,
                               },
                               key,
-                            )
-                          }
-                          className="rounded-lg border border-zinc-200 px-3 py-1.5 text-xs font-bold transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:hover:border-violet-400 dark:hover:text-violet-200"
+                            );
+                          }}
+                          className="min-w-44 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-black dark:hover:border-violet-400 dark:hover:text-violet-200"
                         >
-                          {pendingKey === key
-                            ? "Saving..."
-                            : isPaid
-                              ? "Mark Free"
-                              : "Mark Paid"}
-                        </button>
+                          <option value="">
+                            {pendingKey === key ? "Saving..." : "Free"}
+                          </option>
+                          {selectedPackageKey === "__paid_without_package" ? (
+                            <option value="__paid_without_package">
+                              Paid - no package
+                            </option>
+                          ) : null}
+                          {assignablePackages.map((pkg) => (
+                            <option key={pkg.key} value={pkg.key}>
+                              {pkg.title}
+                            </option>
+                          ))}
+                        </select>
                       </td>
                     </tr>
                     );
