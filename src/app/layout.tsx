@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import Navbar from "@/components/Navbar";
+import NavigationProgress from "@/components/NavigationProgress";
 import { ThemeProvider } from "@/lib/use-theme";
 import FrontendUsageTracker from "@/components/analytics/FrontendUsageTracker";
 import BroadcastBand from "@/components/BroadcastBand";
@@ -63,6 +64,7 @@ export default function RootLayout({
               }),
             }}
           />
+          <NavigationProgress />
           <FrontendUsageTracker />
           <Navbar />
           <BroadcastBand />
