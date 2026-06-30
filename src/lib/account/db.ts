@@ -16,6 +16,7 @@ const PACKAGE_FLEET_MEMBER_LIMITS: Record<string, number> = {
 let accountPool: Pool | null = null;
 let schemaReady = false;
 let schemaPromise: Promise<void> | null = null;
+let subscriptionPlanKeyColumnReady = false;
 let quizAccessRulesCache:
   | { expiresAt: number; rules: QuizAccessRule[] }
   | null = null;
@@ -422,6 +423,13 @@ async function canUseExistingAccountSchema(pool: Pool) {
           SELECT 1
           FROM information_schema.columns
           WHERE table_schema = 'public'
+            AND table_name = 'account_subscriptions'
+            AND column_name = 'plan_key'
+        ) AS has_subscription_plan_key,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
             AND table_name = 'account_subscription_packages'
             AND column_name = 'duration_months'
         ) AS has_package_duration,
@@ -476,6 +484,15 @@ async function ensureBillingAssetMetadataColumn() {
   );
 }
 
+async function ensureSubscriptionPlanKeyColumn() {
+  if (!hasAccountDatabase() || subscriptionPlanKeyColumnReady) return;
+
+  await getPool().query(
+    "ALTER TABLE account_subscriptions ADD COLUMN IF NOT EXISTS plan_key TEXT;",
+  );
+  subscriptionPlanKeyColumnReady = true;
+}
+
 export function rankScore(percentage: number) {
   if (percentage >= 90) return "Captain";
   if (percentage >= 75) return "First Officer";
@@ -485,7 +502,11 @@ export function rankScore(percentage: number) {
 }
 
 export async function ensureAccountSchema() {
-  if (!hasAccountDatabase() || schemaReady) return;
+  if (!hasAccountDatabase()) return;
+  if (schemaReady) {
+    await ensureSubscriptionPlanKeyColumn();
+    return;
+  }
   if (schemaPromise) return schemaPromise;
 
   schemaPromise = (async () => {
@@ -631,6 +652,7 @@ export async function ensureAccountSchema() {
     `);
 
       await pool.query("ALTER TABLE account_subscriptions ADD COLUMN IF NOT EXISTS plan_key TEXT;");
+      subscriptionPlanKeyColumnReady = true;
 
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_payment_intents (
