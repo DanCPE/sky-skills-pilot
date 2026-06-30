@@ -195,13 +195,13 @@ export default function SkyQuestBrowser({
         </div>
         <p className="text-[10px] font-medium text-zinc-400 dark:text-zinc-500">
           © 2026 SkySkills. All rights reserved. <br />
-          <span className="cursor-pointer hover:text-zinc-600 dark:hover:text-zinc-300">
+          <Link href="/privacy" className="hover:text-zinc-600 dark:hover:text-zinc-300">
             Privacy Policy
-          </span>{" "}
+          </Link>{" "}
           •{" "}
-          <span className="cursor-pointer hover:text-zinc-600 dark:hover:text-zinc-300">
+          <Link href="/terms" className="hover:text-zinc-600 dark:hover:text-zinc-300">
             Terms of Service
-          </span>
+          </Link>
         </p>
       </footer>
     </div>
