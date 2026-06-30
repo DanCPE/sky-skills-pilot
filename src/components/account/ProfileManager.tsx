@@ -1,7 +1,7 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import type { AccountProfile } from "@/lib/account/db";
 import { notifyAccountChanged } from "@/components/Navbar";
 
@@ -15,11 +15,25 @@ export default function ProfileManager({
   maxProfiles: number;
 }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const sectionRef = useRef<HTMLElement | null>(null);
   const [callSign, setCallSign] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const canCreate = profiles.length < maxProfiles;
   const remainingProfiles = Math.max(0, maxProfiles - profiles.length);
+  const isFleetTourActive = searchParams.get("tour") === "fleet";
+
+  useEffect(() => {
+    if (!isFleetTourActive) return;
+
+    window.requestAnimationFrame(() => {
+      sectionRef.current?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+    });
+  }, [isFleetTourActive]);
 
   async function createProfile() {
     setError(null);
@@ -85,8 +99,40 @@ export default function ProfileManager({
     router.refresh();
   }
 
+  function finishFleetTour() {
+    router.replace("/account", { scroll: false });
+  }
+
   return (
-    <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+    <section
+      ref={sectionRef}
+      className={`relative rounded-2xl border bg-white p-5 shadow-sm transition dark:bg-zinc-950 ${
+        isFleetTourActive
+          ? "border-violet-300 shadow-[0_0_0_4px_rgba(139,92,246,0.12),0_22px_60px_rgba(76,29,149,0.18)] dark:border-violet-400/40"
+          : "border-zinc-200 dark:border-white/10"
+      }`}
+    >
+      {isFleetTourActive ? (
+        <div className="absolute -top-4 right-4 z-10 w-72 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+          <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
+            Fleet setup
+          </p>
+          <p className="mt-2 font-bold text-zinc-950 dark:text-zinc-50">
+            This is where pilots are managed.
+          </p>
+          <p className="mt-2 leading-6 text-zinc-600 dark:text-zinc-300">
+            Add pilot profiles, switch the active pilot before practicing, and
+            check how many profile slots your package includes.
+          </p>
+          <button
+            type="button"
+            onClick={finishFleetTour}
+            className="mt-4 rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600"
+          >
+            Got it
+          </button>
+        </div>
+      ) : null}
       <p className="text-xs font-bold uppercase tracking-[0.22em] text-violet-700 dark:text-violet-300">
         Fleet accounts
       </p>

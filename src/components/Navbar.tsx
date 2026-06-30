@@ -252,10 +252,10 @@ export default function Navbar() {
                       ? "border-violet-300 shadow-[0_0_0_4px_rgba(139,92,246,0.18),0_0_28px_rgba(139,92,246,0.45)]"
                       : "border-zinc-200 dark:border-white/10"
                   }`}
-                  aria-label={`Open profile menu for ${account.name}`}
+                  aria-label={`Open fleet setup menu for ${account.name}`}
                   aria-expanded={accountMenuOpen}
                   aria-haspopup="menu"
-                  title={account.name}
+                  title="Fleet setup"
                 >
                   {account.imageUrl ? (
                     // eslint-disable-next-line @next/next/no-img-element
@@ -282,16 +282,16 @@ export default function Navbar() {
                       active pilot, and keep each pilot&apos;s scores separate.
                     </p>
                     <div className="mt-4 flex gap-2">
-                      <button
-                        type="button"
+                      <Link
+                        href="/account?tour=fleet"
                         onClick={() => {
-                          setAccountMenuOpen(true);
+                          setAccountMenuOpen(false);
                           dismissFleetSetupNudge();
                         }}
                         className="rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600"
                       >
                         Show me
-                      </button>
+                      </Link>
                       <button
                         type="button"
                         onClick={dismissFleetSetupNudge}
