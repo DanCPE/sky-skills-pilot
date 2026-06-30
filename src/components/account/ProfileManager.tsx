@@ -17,23 +17,27 @@ export default function ProfileManager({
   const router = useRouter();
   const searchParams = useSearchParams();
   const sectionRef = useRef<HTMLElement | null>(null);
+  const slotsRef = useRef<HTMLDivElement | null>(null);
   const [callSign, setCallSign] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
   const canCreate = profiles.length < maxProfiles;
   const remainingProfiles = Math.max(0, maxProfiles - profiles.length);
-  const isFleetTourActive = searchParams.get("tour") === "fleet";
+  const tourStep = searchParams.get("tour");
+  const isFleetTourActive = tourStep === "fleet";
+  const isSlotsTourActive = tourStep === "slots";
 
   useEffect(() => {
-    if (!isFleetTourActive) return;
+    if (!isFleetTourActive && !isSlotsTourActive) return;
 
     window.requestAnimationFrame(() => {
-      sectionRef.current?.scrollIntoView({
+      const target = isSlotsTourActive ? slotsRef.current : sectionRef.current;
+      target?.scrollIntoView({
         behavior: "smooth",
         block: "center",
       });
     });
-  }, [isFleetTourActive]);
+  }, [isFleetTourActive, isSlotsTourActive]);
 
   async function createProfile() {
     setError(null);
@@ -99,8 +103,16 @@ export default function ProfileManager({
     router.refresh();
   }
 
-  function finishFleetTour() {
+  function closeFleetTour() {
     router.replace("/account", { scroll: false });
+  }
+
+  function showSlotsTour() {
+    router.replace("/account?tour=slots", { scroll: false });
+  }
+
+  function showDashboardTour() {
+    router.push("/dashboard?tour=profiles");
   }
 
   return (
@@ -114,6 +126,14 @@ export default function ProfileManager({
     >
       {isFleetTourActive ? (
         <div className="absolute -top-4 right-4 z-10 w-72 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+          <button
+            type="button"
+            onClick={closeFleetTour}
+            aria-label="Close tutorial"
+            className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
+          >
+            <span aria-hidden="true">x</span>
+          </button>
           <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
             Fleet setup
           </p>
@@ -126,10 +146,10 @@ export default function ProfileManager({
           </p>
           <button
             type="button"
-            onClick={finishFleetTour}
+            onClick={showSlotsTour}
             className="mt-4 rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600"
           >
-            Got it
+            Next
           </button>
         </div>
       ) : null}
@@ -151,7 +171,43 @@ export default function ProfileManager({
             {maxProfiles === 1 ? "profile" : "profiles"} used.
           </p>
         </div>
-        <div className="rounded-xl bg-zinc-50 p-3 dark:bg-white/5">
+        <div
+          ref={slotsRef}
+          className={`relative rounded-xl bg-zinc-50 p-3 transition dark:bg-white/5 ${
+            isSlotsTourActive
+              ? "shadow-[0_0_0_4px_rgba(139,92,246,0.16),0_18px_45px_rgba(76,29,149,0.16)]"
+              : ""
+          }`}
+        >
+          {isSlotsTourActive ? (
+            <div className="absolute right-0 top-full z-10 mt-3 w-72 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+              <button
+                type="button"
+                onClick={closeFleetTour}
+                aria-label="Close tutorial"
+                className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
+              >
+                <span aria-hidden="true">x</span>
+              </button>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
+                Available slots
+              </p>
+              <p className="mt-2 font-bold text-zinc-950 dark:text-zinc-50">
+                Your package controls how many pilots fit in this fleet.
+              </p>
+              <p className="mt-2 leading-6 text-zinc-600 dark:text-zinc-300">
+                Each slot can hold a separate pilot profile. Upgrade to add more
+                profiles when this fleet is full.
+              </p>
+              <button
+                type="button"
+                onClick={showDashboardTour}
+                className="mt-4 rounded-xl bg-violet-700 px-3 py-2 text-xs font-bold text-white transition hover:bg-violet-600"
+              >
+                Next
+              </button>
+            </div>
+          ) : null}
           <p className="font-bold text-zinc-950 dark:text-zinc-100">
             Available slots
           </p>

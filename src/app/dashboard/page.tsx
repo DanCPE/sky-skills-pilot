@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentAccountUser } from "@/lib/account/auth";
+import DashboardProfileTour from "@/components/account/DashboardProfileTour";
 import {
   getAccountOverview,
   getLeaderboardContext,
@@ -614,7 +615,7 @@ export default async function DashboardPage() {
           </p>
         </header>
 
-        <section className="mb-8 flex flex-col gap-4 rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950 sm:flex-row sm:items-center sm:justify-between">
+        <DashboardProfileTour>
           <div className="flex items-center gap-4">
             <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full bg-violet-700 text-xl font-bold text-white">
               {overview.user.imageUrl ? (
@@ -644,7 +645,7 @@ export default async function DashboardPage() {
           >
             Account settings
           </Link>
-        </section>
+        </DashboardProfileTour>
 
         <section className="grid gap-8 lg:grid-cols-[minmax(0,2fr)_minmax(320px,0.95fr)]">
           <HexRadar points={overview.radar} />

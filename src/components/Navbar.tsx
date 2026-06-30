@@ -271,6 +271,14 @@ export default function Navbar() {
                 {showFleetSetupNudge && !accountMenuOpen ? (
                   <div className="absolute right-0 top-14 z-50 w-72 rounded-2xl border border-violet-200 bg-white p-4 text-sm shadow-[0_18px_45px_rgba(76,29,149,0.18)] dark:border-violet-400/20 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
                     <div className="absolute -top-2 right-4 h-4 w-4 rotate-45 border-l border-t border-violet-200 bg-white dark:border-violet-400/20 dark:bg-zinc-950" />
+                    <button
+                      type="button"
+                      onClick={dismissFleetSetupNudge}
+                      aria-label="Close tutorial"
+                      className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-100 hover:text-zinc-700 dark:hover:bg-white/10 dark:hover:text-zinc-100"
+                    >
+                      <span aria-hidden="true">x</span>
+                    </button>
                     <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
                       Fleet setup
                     </p>
