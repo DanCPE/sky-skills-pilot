@@ -3857,6 +3857,7 @@ export async function getAdminBillingOverview() {
           latest_slip.personal_files_sent_at,
           latest_slip.slip2go_trans_ref,
           pkg.title,
+          pkg.price_cents,
           pkg.duration_months
         ORDER BY u.created_at DESC;
       `,
