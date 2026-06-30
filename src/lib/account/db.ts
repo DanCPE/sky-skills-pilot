@@ -3927,6 +3927,7 @@ export interface LeaderboardContextEntry {
   imageUrl: string | null;
   rank: number;
   dashboardAverage: number;
+  radar: RadarPoint[];
   isCurrentUser: boolean;
 }
 
@@ -3985,6 +3986,7 @@ export async function getLeaderboardContext(
     call_sign: string;
     actual_platform_rank: number;
     dashboard_average: number;
+    radar_rows: unknown;
     is_current_user: boolean;
   }>(
     `
@@ -4036,9 +4038,22 @@ export async function getLeaderboardContext(
         ap.call_sign,
         rp.actual_platform_rank,
         rp.dashboard_average,
+        COALESCE(radar.rows, '[]'::jsonb) AS radar_rows,
         (rp.profile_id = $1) AS is_current_user
       FROM ranked_profiles rp
       JOIN account_profiles ap ON ap.id = rp.profile_id
+      LEFT JOIN LATERAL (
+        SELECT jsonb_agg(
+          jsonb_build_object(
+            'skill_domain', da.skill_domain,
+            'value', ROUND(da.value)::int,
+            'attempts', da.attempts
+          )
+          ORDER BY da.skill_domain
+        ) AS rows
+        FROM domain_avgs da
+        WHERE da.profile_id = rp.profile_id
+      ) radar ON TRUE
       WHERE
         rp.actual_platform_rank <= 3
         OR rp.actual_platform_rank BETWEEN
@@ -4051,12 +4066,44 @@ export async function getLeaderboardContext(
 
   return result.rows.map((row) => {
     const displayName = row.call_sign?.trim() || "Pilot";
+    const radarRows = asRows(row.radar_rows);
+    const radarByDomain = new Map(
+      radarRows.map((radarRow) => [
+        String(radarRow.skill_domain),
+        {
+          slug: String(radarRow.skill_domain),
+          label:
+            accountSkillDomains.find(
+              (domain) => domain.slug === String(radarRow.skill_domain),
+            )?.label ?? String(radarRow.skill_domain),
+          value: Math.round(Number(radarRow.value ?? 0)),
+          attempts: Number(radarRow.attempts ?? 0),
+          rank: null,
+          rankedProfiles: 0,
+        },
+      ]),
+    );
+    const radar = accountSkillDomains.map((domain) => {
+      const point = radarByDomain.get(domain.slug);
+      return (
+        point ?? {
+          slug: domain.slug,
+          label: domain.label,
+          value: 0,
+          attempts: 0,
+          rank: null,
+          rankedProfiles: 0,
+        }
+      );
+    });
+
     return {
       profileId: row.profile_id,
       displayName,
       imageUrl: null,
       rank: Number(row.actual_platform_rank),
       dashboardAverage: Math.round(Number(row.dashboard_average)),
+      radar,
       isCurrentUser: Boolean(row.is_current_user),
     };
   });

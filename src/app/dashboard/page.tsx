@@ -189,6 +189,104 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
   );
 }
 
+function MiniHexRadar({ points }: { points: RadarPoint[] }) {
+  const center = 80;
+  const maxRadius = 54;
+  const safePoints = points.length > 0 ? points : [];
+  const angleStep = safePoints.length > 0 ? (Math.PI * 2) / safePoints.length : 0;
+  const chartPoints = safePoints.map((point, index) => {
+    const angle = -Math.PI / 2 + index * angleStep;
+    const value = Number.isFinite(point.value) ? point.value : 0;
+    const radius = (value / 100) * maxRadius;
+    return {
+      ...point,
+      value,
+      shortLabel: domainShortLabels[point.slug] ?? point.label,
+      x: center + Math.cos(angle) * radius,
+      y: center + Math.sin(angle) * radius,
+      axisX: center + Math.cos(angle) * maxRadius,
+      axisY: center + Math.sin(angle) * maxRadius,
+    };
+  });
+  const polygon = chartPoints.map((point) => `${point.x},${point.y}`).join(" ");
+  const outer = chartPoints
+    .map((point) => `${point.axisX},${point.axisY}`)
+    .join(" ");
+
+  return (
+    <div>
+      <svg viewBox="0 0 160 160" className="mx-auto h-36 w-36">
+        {[0.5, 1].map((scale) => (
+          <polygon
+            key={scale}
+            points={chartPoints
+              .map((_, index) => {
+                const angle = -Math.PI / 2 + index * angleStep;
+                return `${center + Math.cos(angle) * maxRadius * scale},${
+                  center + Math.sin(angle) * maxRadius * scale
+                }`;
+              })
+              .join(" ")}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1"
+            className="text-zinc-200 dark:text-zinc-800"
+          />
+        ))}
+        <polygon
+          points={outer}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="1.2"
+          className="text-zinc-300 dark:text-zinc-700"
+        />
+        {chartPoints.map((point) => (
+          <line
+            key={point.slug}
+            x1={center}
+            y1={center}
+            x2={point.axisX}
+            y2={point.axisY}
+            stroke="currentColor"
+            strokeWidth="1"
+            className="text-zinc-100 dark:text-zinc-800"
+          />
+        ))}
+        <polygon
+          points={polygon}
+          fill="rgb(124 58 237 / 0.18)"
+          stroke="rgb(124 58 237)"
+          strokeWidth="2"
+          strokeLinejoin="round"
+        />
+        <polygon
+          points={polygon}
+          fill="none"
+          stroke="rgb(250 204 21)"
+          strokeWidth="1"
+          strokeLinejoin="round"
+          opacity="0.75"
+        />
+      </svg>
+      <div className="grid grid-cols-2 gap-1">
+        {points.map((point) => (
+          <div
+            key={point.slug}
+            className="flex items-center justify-between gap-2 rounded-lg bg-zinc-50 px-2 py-1 text-[10px] dark:bg-white/5"
+          >
+            <span className="truncate font-bold text-zinc-500 dark:text-zinc-400">
+              {domainShortLabels[point.slug] ?? point.label}
+            </span>
+            <span className="font-black text-violet-700 dark:text-violet-300">
+              {point.value}%
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function RankingCard({
   rank,
   rankedProfiles,
@@ -350,7 +448,7 @@ function GlobalRankingCard({
 
   const Row = ({ entry }: { entry: LeaderboardContextEntry }) => (
     <div
-      className={`flex items-center gap-3 rounded-xl px-3 py-2 transition-colors ${
+      className={`group relative flex items-center gap-3 rounded-xl px-3 py-2 transition-colors ${
         entry.isCurrentUser
           ? "bg-violet-50 ring-1 ring-violet-200 dark:bg-violet-500/10 dark:ring-violet-500/30"
           : "hover:bg-zinc-50 dark:hover:bg-white/5"
@@ -384,6 +482,25 @@ function GlobalRankingCard({
       <span className={`shrink-0 text-sm font-bold ${entry.isCurrentUser ? "text-violet-700 dark:text-violet-300" : "text-zinc-500 dark:text-zinc-400"}`}>
         {entry.dashboardAverage}%
       </span>
+
+      {entry.rank <= 3 ? (
+        <div className="pointer-events-none absolute right-3 top-full z-20 mt-2 w-72 translate-y-1 rounded-2xl border border-zinc-200 bg-white p-4 opacity-0 shadow-[0_18px_45px_rgba(15,23,42,0.16)] transition group-hover:pointer-events-auto group-hover:translate-y-0 group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:translate-y-0 group-focus-within:opacity-100 dark:border-white/10 dark:bg-zinc-950 dark:shadow-[0_18px_45px_rgba(0,0,0,0.55)]">
+          <div className="mb-2 flex items-center justify-between gap-3">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.18em] text-violet-700 dark:text-violet-300">
+                Rank #{entry.rank}
+              </p>
+              <p className="mt-1 truncate text-sm font-bold text-zinc-950 dark:text-zinc-50">
+                {entry.displayName}
+              </p>
+            </div>
+            <span className="rounded-full bg-violet-100 px-2.5 py-1 text-xs font-black text-violet-700 dark:bg-violet-500/15 dark:text-violet-200">
+              {entry.dashboardAverage}%
+            </span>
+          </div>
+          <MiniHexRadar points={entry.radar} />
+        </div>
+      ) : null}
     </div>
   );
 
