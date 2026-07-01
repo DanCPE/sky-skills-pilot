@@ -863,6 +863,22 @@ function visibleSignature(cube: BoxFoldingCube, view: BoxFoldingView) {
     .join("|");
 }
 
+function visibleImageSignature(cube: BoxFoldingCube, view: BoxFoldingView) {
+  return view.visibleFaces
+    .map((face) => `${face}:${cube.faces[face]}`)
+    .join("|");
+}
+
+function canShowVisibleImageSignature(
+  cube: BoxFoldingCube,
+  view: BoxFoldingView,
+  targetSignature: string,
+) {
+  return getAllOrientations(cube).some(
+    (orientation) => visibleImageSignature(orientation, view) === targetSignature,
+  );
+}
+
 function generateStrategyCandidates(
   strategyName: StrategyName,
   cube: BoxFoldingCube,
@@ -1179,6 +1195,10 @@ function createUnfoldingQuestion(
     canonicalCube,
     BOX_FOLDING_CHOICE_VIEW,
   );
+  const questionViewImageSignature = visibleImageSignature(
+    canonicalCube,
+    BOX_FOLDING_CHOICE_VIEW,
+  );
   const correctOption = {
     id: crypto.randomUUID(),
     label: "",
@@ -1240,7 +1260,21 @@ function createUnfoldingQuestion(
         wrongFoldResult.cube,
         BOX_FOLDING_CHOICE_VIEW,
       );
+      const candidateViewImageSignature = visibleImageSignature(
+        wrongFoldResult.cube,
+        BOX_FOLDING_CHOICE_VIEW,
+      );
       if (candidateViewSignature === questionViewSignature) continue;
+      if (candidateViewImageSignature === questionViewImageSignature) continue;
+      if (
+        canShowVisibleImageSignature(
+          wrongFoldResult.cube,
+          BOX_FOLDING_CHOICE_VIEW,
+          questionViewImageSignature,
+        )
+      ) {
+        continue;
+      }
     } else if (canonicalRotationSignatures.has(stateTuple(wrongFoldResult.cube))) {
       continue;
     }
