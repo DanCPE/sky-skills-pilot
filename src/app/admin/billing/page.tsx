@@ -230,22 +230,57 @@ export default function AdminBillingPage() {
     setError(null);
 
     try {
+      console.log("[admin-billing-debug] patch request", { key, body });
       const response = await fetch("/api/admin/billing", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const json = (await response.json().catch(() => null)) as
-        | { overview?: AdminBillingResponse; error?: string }
+        | {
+            overview?: AdminBillingResponse;
+            subscription?: unknown;
+            error?: string;
+          }
         | null;
 
       if (!response.ok) {
         throw new Error(json?.error ?? "Failed to update billing config.");
       }
 
-      if (json?.overview) setData(json.overview);
+      if (json?.overview) {
+        const fleetId =
+          typeof body.fleetId === "string" ? body.fleetId : undefined;
+        const updatedFleet = fleetId
+          ? json.overview.fleets.find((fleet) => fleet.fleetId === fleetId)
+          : undefined;
+        console.log("[admin-billing-debug] patch response", {
+          key,
+          status: response.status,
+          subscription: json.subscription,
+          updatedFleet: updatedFleet
+            ? {
+                fleetId: updatedFleet.fleetId,
+                email: updatedFleet.email,
+                subscriptionStatus: updatedFleet.subscriptionStatus,
+                latestPackageKey: updatedFleet.latestPackageKey,
+                currentPeriodEnd: updatedFleet.currentPeriodEnd,
+                provider: updatedFleet.provider,
+              }
+            : null,
+        });
+        setData(json.overview);
+      }
       return true;
     } catch (patchError) {
+      console.error("[admin-billing-debug] patch failed", {
+        key,
+        body,
+        error:
+          patchError instanceof Error
+            ? patchError.message
+            : String(patchError),
+      });
       setError(
         patchError instanceof Error
           ? patchError.message
@@ -1766,6 +1801,15 @@ export default function AdminBillingPage() {
                           disabled={pendingKey !== null}
                           onChange={(event) => {
                             const packageKey = event.target.value;
+                            console.log("[admin-billing-debug] package select", {
+                              fleetId: fleet.fleetId,
+                              email: fleet.email,
+                              previousValue: selectedPackageKey,
+                              nextValue: packageKey,
+                              currentStatus: fleet.subscriptionStatus,
+                              currentPackage: fleet.latestPackageKey,
+                              currentPeriodEnd: fleet.currentPeriodEnd,
+                            });
                             if (packageKey === "__paid_without_package") return;
 
                             void patchBilling(

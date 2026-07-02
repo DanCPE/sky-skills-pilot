@@ -82,6 +82,13 @@ export async function PATCH(request: Request) {
     }
 
     if (body.type === "fleet") {
+      console.log("[admin-billing-debug] api fleet request", {
+        fleetId: body.fleetId ?? null,
+        email: body.email ?? null,
+        status: body.status ?? null,
+        packageKey: body.packageKey ?? null,
+      });
+
       if (!body.status || !subscriptionStatuses.has(body.status)) {
         return NextResponse.json(
           { error: "Invalid subscription status." },
@@ -102,10 +109,38 @@ export async function PATCH(request: Request) {
         status: body.status,
         packageKey: body.packageKey,
       });
+      const overview = await getAdminBillingOverview();
+      const updatedFleet = overview.fleets.find((fleet) =>
+        body.fleetId
+          ? fleet.fleetId === body.fleetId
+          : body.email
+            ? fleet.email.toLowerCase() === body.email.toLowerCase()
+            : false,
+      );
+
+      console.log("[admin-billing-debug] api fleet response", {
+        subscription: subscription
+          ? {
+              status: subscription.status,
+              currentPeriodEnd: subscription.currentPeriodEnd,
+              provider: subscription.provider,
+            }
+          : null,
+        overviewFleet: updatedFleet
+          ? {
+              fleetId: updatedFleet.fleetId,
+              email: updatedFleet.email,
+              subscriptionStatus: updatedFleet.subscriptionStatus,
+              latestPackageKey: updatedFleet.latestPackageKey,
+              currentPeriodEnd: updatedFleet.currentPeriodEnd,
+              provider: updatedFleet.provider,
+            }
+          : null,
+      });
 
       return NextResponse.json({
         subscription,
-        overview: await getAdminBillingOverview(),
+        overview,
       });
     }
 
