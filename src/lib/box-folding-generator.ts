@@ -61,7 +61,6 @@ const FACE_NAMES: BoxFoldingFaceName[] = [
 
 const IMAGE_SETS = {
   icons: [
-    "/images/box-folding/icons/internet_1342057.png",
     "/images/box-folding/icons/startup-business_17593140.png",
     "/images/box-folding/icons/beer_2451585.png",
     "/images/box-folding/icons/spider_1123882.png",
@@ -69,7 +68,6 @@ const IMAGE_SETS = {
     "/images/box-folding/icons/medical-kit_2400690.png",
     "/images/box-folding/icons/sex_6450061.png",
     "/images/box-folding/icons/random_3472377.png",
-    "/images/box-folding/icons/dog_15477700.png",
     "/images/box-folding/icons/addiction_11288939.png",
   ],
   directional: [
