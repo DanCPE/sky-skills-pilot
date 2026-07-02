@@ -3949,14 +3949,32 @@ export async function getAdminBillingOverview() {
           COALESCE(s.status, 'not_started') AS subscription_status,
           s.provider,
           s.current_period_end,
-          COALESCE(s.plan_key, latest_slip.plan_key) AS latest_package_key,
+          CASE
+            WHEN s.id IS NOT NULL THEN s.plan_key
+            ELSE latest_slip.plan_key
+          END AS latest_package_key,
           pkg.title AS latest_package_title,
-          COALESCE(latest_slip.amount_cents, pkg.price_cents) AS latest_package_amount_cents,
-          latest_slip.promotion_code AS latest_promotion_code,
-          latest_slip.personal_files_sent_at AS latest_personal_files_sent_at,
+          CASE
+            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN pkg.price_cents
+            ELSE latest_slip.amount_cents
+          END AS latest_package_amount_cents,
+          CASE
+            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN NULL
+            ELSE latest_slip.promotion_code
+          END AS latest_promotion_code,
+          CASE
+            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN NULL
+            ELSE latest_slip.personal_files_sent_at
+          END AS latest_personal_files_sent_at,
           pkg.duration_months AS latest_package_duration_months,
-          latest_slip.id AS latest_slip_id,
-          latest_slip.slip2go_trans_ref AS latest_slip2go_trans_ref,
+          CASE
+            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN NULL
+            ELSE latest_slip.id
+          END AS latest_slip_id,
+          CASE
+            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN NULL
+            ELSE latest_slip.slip2go_trans_ref
+          END AS latest_slip2go_trans_ref,
           COUNT(DISTINCT p.id)::int AS profile_count,
           COUNT(DISTINCT sess.id)::int AS active_session_count
         FROM account_users u
@@ -3976,7 +3994,10 @@ export async function getAdminBillingOverview() {
           LIMIT 1
         ) latest_slip ON TRUE
         LEFT JOIN account_subscription_packages pkg
-          ON pkg.key = COALESCE(s.plan_key, latest_slip.plan_key)
+          ON pkg.key = CASE
+            WHEN s.id IS NOT NULL THEN s.plan_key
+            ELSE latest_slip.plan_key
+          END
         LEFT JOIN account_profiles p
           ON p.user_id = u.id
         LEFT JOIN account_sessions sess
@@ -3984,9 +4005,11 @@ export async function getAdminBillingOverview() {
          AND sess.expires_at > NOW()
         GROUP BY
           u.id,
+          s.id,
           s.status,
           s.provider,
           s.plan_key,
+          s.provider_subscription_id,
           s.current_period_end,
           latest_slip.plan_key,
           latest_slip.id,
