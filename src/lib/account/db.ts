@@ -2790,7 +2790,6 @@ export async function setFleetManualSubscription(input: {
   const fleetId = String(userResult.rows[0].id);
   let packageKey = input.packageKey?.trim() || null;
   let packageDurationMonths: number | null = null;
-  let currentPeriodEndExpression = "NULL";
 
   if (input.status === "active" || input.status === "trialing") {
     if (!packageKey) {
@@ -2812,11 +2811,6 @@ export async function setFleetManualSubscription(input: {
     }
 
     packageDurationMonths = Number(packageResult.rows[0].duration_months ?? 1);
-    currentPeriodEndExpression = `
-      NOW() + make_interval(
-        months => GREATEST(1, COALESCE($4::int, 1))
-      )
-    `;
   } else {
     packageKey = null;
   }
@@ -2859,7 +2853,20 @@ export async function setFleetManualSubscription(input: {
           current_period_end,
           updated_at
         )
-        VALUES ($1, 'manual', $2, $3, ${currentPeriodEndExpression}, NOW())
+        VALUES (
+          $1,
+          'manual',
+          $2,
+          $3,
+          CASE
+            WHEN $3::text IN ('active', 'trialing') THEN
+              NOW() + make_interval(
+                months => GREATEST(1, COALESCE($4::int, 1))
+              )
+            ELSE NULL
+          END,
+          NOW()
+        )
         RETURNING *;
       `,
       [fleetId, packageKey, input.status, packageDurationMonths],
