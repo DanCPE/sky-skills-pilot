@@ -2815,23 +2815,12 @@ export async function setFleetManualSubscription(input: {
     packageKey = null;
   }
 
-  accountDebug("manual subscription request normalized", {
-    fleetId,
-    email: input.email,
-    requestedStatus: input.status,
-    requestedPackageKey: input.packageKey ?? null,
-    normalizedPackageKey: packageKey,
-    packageDurationMonths,
-  });
-
   const client = await getPool().connect();
   let subscriptionRow: Record<string, unknown>;
-  let canceledCount = 0;
-  let latestRow: Record<string, unknown> | null = null;
 
   try {
     await client.query("BEGIN");
-    const cancelResult = await client.query(
+    await client.query(
       `
         UPDATE account_subscriptions
         SET status = 'canceled',
@@ -2841,7 +2830,6 @@ export async function setFleetManualSubscription(input: {
       `,
       [fleetId],
     );
-    canceledCount = cancelResult.rowCount ?? 0;
 
     const result = await client.query(
       `
@@ -2872,17 +2860,6 @@ export async function setFleetManualSubscription(input: {
       [fleetId, packageKey, input.status, packageDurationMonths],
     );
     subscriptionRow = result.rows[0];
-    const latestResult = await client.query(
-      `
-        SELECT id, provider, plan_key, status, current_period_end, created_at, updated_at
-        FROM account_subscriptions
-        WHERE user_id = $1
-        ORDER BY created_at DESC, updated_at DESC, id DESC
-        LIMIT 1;
-      `,
-      [fleetId],
-    );
-    latestRow = latestResult.rows[0] ?? null;
     await client.query("COMMIT");
   } catch (error) {
     await client.query("ROLLBACK");
@@ -2896,23 +2873,6 @@ export async function setFleetManualSubscription(input: {
     email: input.email,
     status: input.status,
     packageKey,
-    canceledCount,
-    inserted: {
-      id: subscriptionRow.id,
-      provider: subscriptionRow.provider,
-      planKey: subscriptionRow.plan_key,
-      status: subscriptionRow.status,
-      currentPeriodEnd: subscriptionRow.current_period_end,
-    },
-    latest: latestRow
-      ? {
-          id: latestRow.id,
-          provider: latestRow.provider,
-          planKey: latestRow.plan_key,
-          status: latestRow.status,
-          currentPeriodEnd: latestRow.current_period_end,
-        }
-      : null,
   });
 
   return mapSubscription(subscriptionRow);

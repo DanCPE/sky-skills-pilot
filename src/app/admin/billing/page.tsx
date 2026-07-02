@@ -144,8 +144,9 @@ export default function AdminBillingPage() {
   const [data, setData] = useState<AdminBillingResponse | null>(null);
   const [query, setQuery] = useState("");
   const [slipReferenceQuery, setSlipReferenceQuery] = useState("");
-  const [newEmail, setNewEmail] = useState("");
-  const [newPackageKey, setNewPackageKey] = useState("");
+  const [selectedPackageFilters, setSelectedPackageFilters] = useState<
+    Set<string>
+  >(new Set());
   const [isLoading, setIsLoading] = useState(true);
   const [pendingKey, setPendingKey] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -201,7 +202,7 @@ export default function AdminBillingPage() {
 
   useEffect(() => {
     setFleetPage(1);
-  }, [query]);
+  }, [query, selectedPackageFilters]);
 
   useEffect(() => {
     setSlipPage(1);
@@ -210,77 +211,62 @@ export default function AdminBillingPage() {
   const filteredFleets = useMemo(() => {
     const fleets = data?.fleets ?? [];
     const normalizedQuery = query.trim().toLowerCase();
-    if (!normalizedQuery) return fleets;
 
     return fleets.filter(
-      (fleet) =>
-        fleet.email.toLowerCase().includes(normalizedQuery) ||
-        fleet.name.toLowerCase().includes(normalizedQuery),
+      (fleet) => {
+        const matchesQuery =
+          !normalizedQuery ||
+          fleet.email.toLowerCase().includes(normalizedQuery) ||
+          fleet.name.toLowerCase().includes(normalizedQuery);
+        const packageFilterKey = fleet.latestPackageKey ?? "__free";
+        const matchesPackage =
+          selectedPackageFilters.size === 0 ||
+          selectedPackageFilters.has(packageFilterKey);
+
+        return matchesQuery && matchesPackage;
+      },
     );
-  }, [data, query]);
+  }, [data, query, selectedPackageFilters]);
 
   const assignablePackages = useMemo(
     () => (data?.subscriptionPackages ?? []).filter((pkg) => pkg.isActive),
     [data],
   );
-  const selectedNewPackageKey = newPackageKey || assignablePackages[0]?.key || "";
+  const packageFilterOptions = data?.subscriptionPackages ?? [];
+
+  function togglePackageFilter(packageKey: string) {
+    setSelectedPackageFilters((current) => {
+      const next = new Set(current);
+      if (next.has(packageKey)) {
+        next.delete(packageKey);
+      } else {
+        next.add(packageKey);
+      }
+      return next;
+    });
+  }
 
   async function patchBilling(body: Record<string, unknown>, key: string) {
     setPendingKey(key);
     setError(null);
 
     try {
-      console.log("[admin-billing-debug] patch request", { key, body });
       const response = await fetch("/api/admin/billing", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
       });
       const json = (await response.json().catch(() => null)) as
-        | {
-            overview?: AdminBillingResponse;
-            subscription?: unknown;
-            error?: string;
-          }
+        | { overview?: AdminBillingResponse; error?: string }
         | null;
 
       if (!response.ok) {
         throw new Error(json?.error ?? "Failed to update billing config.");
       }
 
-      if (json?.overview) {
-        const fleetId =
-          typeof body.fleetId === "string" ? body.fleetId : undefined;
-        const updatedFleet = fleetId
-          ? json.overview.fleets.find((fleet) => fleet.fleetId === fleetId)
-          : undefined;
-        console.log("[admin-billing-debug] patch response", {
-          key,
-          status: response.status,
-          subscription: json.subscription,
-          updatedFleet: updatedFleet
-            ? {
-                fleetId: updatedFleet.fleetId,
-                email: updatedFleet.email,
-                subscriptionStatus: updatedFleet.subscriptionStatus,
-                latestPackageKey: updatedFleet.latestPackageKey,
-                currentPeriodEnd: updatedFleet.currentPeriodEnd,
-                provider: updatedFleet.provider,
-              }
-            : null,
-        });
-        setData(json.overview);
-      }
+      if (json?.overview) setData(json.overview);
       return true;
     } catch (patchError) {
-      console.error("[admin-billing-debug] patch failed", {
-        key,
-        body,
-        error:
-          patchError instanceof Error
-            ? patchError.message
-            : String(patchError),
-      });
       setError(
         patchError instanceof Error
           ? patchError.message
@@ -290,22 +276,6 @@ export default function AdminBillingPage() {
     } finally {
       setPendingKey(null);
     }
-  }
-
-  async function markEmailPaid() {
-    const email = newEmail.trim();
-    if (!email || !selectedNewPackageKey) return;
-
-    await patchBilling(
-      {
-        type: "fleet",
-        email,
-        status: "active",
-        packageKey: selectedNewPackageKey,
-      },
-      `email:${email}`,
-    );
-    setNewEmail("");
   }
 
   const rulesBySlug = new Map(
@@ -1581,55 +1551,46 @@ export default function AdminBillingPage() {
         </section>
 
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
-          <div className="flex flex-col gap-3 border-b border-zinc-200 px-5 py-4 dark:border-white/10 lg:flex-row lg:items-center lg:justify-between">
+          <div className="flex flex-col gap-4 border-b border-zinc-200 px-5 py-4 dark:border-white/10 lg:flex-row lg:items-start lg:justify-between">
             <div>
               <h2 className="text-lg font-bold">Manual Paid Fleets</h2>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                Assign subscription packages to registered email addresses.
+                Find registered fleets and assign packages from each row.
                 Package fleets can access every quiz regardless of lock settings.
               </p>
             </div>
-            <div className="flex flex-col gap-2 sm:flex-row">
+            <div className="flex w-full flex-col gap-3 lg:max-w-2xl">
               <input
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
-                placeholder="Search email"
+                placeholder="Search email or fleet name"
                 className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
               />
-              <input
-                value={newEmail}
-                onChange={(event) => setNewEmail(event.target.value)}
-                placeholder="email@domain.com"
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 dark:border-white/10 dark:bg-black"
-              />
-              <select
-                value={selectedNewPackageKey}
-                onChange={(event) => setNewPackageKey(event.target.value)}
-                disabled={assignablePackages.length === 0 || pendingKey !== null}
-                className="rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm outline-none focus:border-violet-500 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-black"
-              >
-                {assignablePackages.length === 0 ? (
-                  <option value="">No active packages</option>
-                ) : (
-                  assignablePackages.map((pkg) => (
-                    <option key={pkg.key} value={pkg.key}>
-                      {pkg.title}
-                    </option>
-                  ))
-                )}
-              </select>
-              <button
-                type="button"
-                onClick={() => void markEmailPaid()}
-                disabled={
-                  !newEmail.trim() ||
-                  !selectedNewPackageKey ||
-                  pendingKey !== null
-                }
-                className="rounded-xl bg-zinc-950 px-4 py-2 text-sm font-bold text-white transition hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300 disabled:text-zinc-500 dark:bg-white dark:text-zinc-950 dark:hover:bg-zinc-200"
-              >
-                Assign Package
-              </button>
+              <div className="flex flex-wrap gap-2">
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:text-zinc-200 dark:hover:border-violet-400 dark:hover:text-violet-200">
+                  <input
+                    type="checkbox"
+                    checked={selectedPackageFilters.has("__free")}
+                    onChange={() => togglePackageFilter("__free")}
+                    className="h-4 w-4 rounded border-zinc-300 text-violet-700 focus:ring-violet-500"
+                  />
+                  Free
+                </label>
+                {packageFilterOptions.map((pkg) => (
+                  <label
+                    key={pkg.key}
+                    className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:text-zinc-200 dark:hover:border-violet-400 dark:hover:text-violet-200"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={selectedPackageFilters.has(pkg.key)}
+                      onChange={() => togglePackageFilter(pkg.key)}
+                      className="h-4 w-4 rounded border-zinc-300 text-violet-700 focus:ring-violet-500"
+                    />
+                    {pkg.title}
+                  </label>
+                ))}
+              </div>
             </div>
           </div>
           <div className="overflow-x-auto">
@@ -1653,8 +1614,8 @@ export default function AdminBillingPage() {
                       colSpan={8}
                       className="border-t border-zinc-100 px-4 py-6 text-center text-zinc-500 dark:border-white/10 dark:text-zinc-400"
                     >
-                      {query.trim()
-                        ? "No fleets match this email."
+                      {query.trim() || selectedPackageFilters.size > 0
+                        ? "No fleets match the current filters."
                         : "No registered fleets yet."}
                     </td>
                   </tr>
@@ -1673,6 +1634,9 @@ export default function AdminBillingPage() {
                         : isPaid
                           ? "__paid_without_package"
                           : "";
+                    const selectedPackageIsAssignable = assignablePackages.some(
+                      (pkg) => pkg.key === selectedPackageKey,
+                    );
                     return (
                       <tr
                         key={fleet.fleetId}
@@ -1801,15 +1765,6 @@ export default function AdminBillingPage() {
                           disabled={pendingKey !== null}
                           onChange={(event) => {
                             const packageKey = event.target.value;
-                            console.log("[admin-billing-debug] package select", {
-                              fleetId: fleet.fleetId,
-                              email: fleet.email,
-                              previousValue: selectedPackageKey,
-                              nextValue: packageKey,
-                              currentStatus: fleet.subscriptionStatus,
-                              currentPackage: fleet.latestPackageKey,
-                              currentPeriodEnd: fleet.currentPeriodEnd,
-                            });
                             if (packageKey === "__paid_without_package") return;
 
                             void patchBilling(
@@ -1832,6 +1787,15 @@ export default function AdminBillingPage() {
                           {selectedPackageKey === "__paid_without_package" ? (
                             <option value="__paid_without_package">
                               Paid - no package
+                            </option>
+                          ) : null}
+                          {selectedPackageKey &&
+                          selectedPackageKey !== "__paid_without_package" &&
+                          !selectedPackageIsAssignable ? (
+                            <option value={selectedPackageKey}>
+                              {fleet.latestPackageTitle ??
+                                fleet.latestPackageKey}{" "}
+                              (inactive)
                             </option>
                           ) : null}
                           {assignablePackages.map((pkg) => (
