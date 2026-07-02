@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import SharedResultsScreen from "@/components/shared/ResultsScreen";
 import type { NumberSeriesQuestion } from "@/types";
 
@@ -42,10 +42,20 @@ export default function ResultsScreen({
     });
   };
 
+  const answersByQuestionId = useMemo(() => {
+    return new Map(answers.map((answer) => [answer.questionId, answer]));
+  }, [answers]);
+
+  const orderedAnswers = useMemo(() => {
+    return questions.map((question) => answersByQuestionId.get(question.id)).filter(
+      (answer): answer is QuizAnswer => answer !== undefined,
+    );
+  }, [answersByQuestionId, questions]);
+
   return (
     <SharedResultsScreen
       totalCount={questions.length}
-      answers={answers}
+      answers={orderedAnswers}
       timeTaken={timeTaken}
       onRestart={onRestart}
       restartLabel="Try Again"
@@ -61,7 +71,7 @@ export default function ResultsScreen({
       </div>
       <div className="space-y-4">
         {questions.map((question, index) => {
-          const answer = answers[index];
+          const answer = answersByQuestionId.get(question.id);
           const isCorrect = answer?.isCorrect ?? false;
           const isExpanded = expandedQuestions.has(question.id);
 
