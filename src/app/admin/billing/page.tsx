@@ -1781,7 +1781,9 @@ export default function AdminBillingPage() {
                           className="min-w-44 rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-black dark:hover:border-violet-400 dark:hover:text-violet-200"
                         >
                           <option value="">
-                            {pendingKey === key ? "Saving..." : "Free"}
+                            {pendingKey === key
+                              ? "Saving..."
+                              : "Free (remove package)"}
                           </option>
                           {selectedPackageKey === "__paid_without_package" ? (
                             <option value="__paid_without_package">
