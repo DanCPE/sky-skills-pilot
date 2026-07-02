@@ -1443,12 +1443,35 @@ export async function switchSessionProfile(input: {
   const startedAt = Date.now();
 
   const profileResult = await pool.query(
-    "SELECT id FROM account_profiles WHERE id = $1 AND user_id = $2 LIMIT 1;",
+    `
+      WITH ordered_profiles AS (
+        SELECT
+          id,
+          ROW_NUMBER() OVER (
+            ORDER BY is_default DESC, created_at ASC, id ASC
+          )::int AS slot_number
+        FROM account_profiles
+        WHERE user_id = $2
+      )
+      SELECT id, slot_number
+      FROM ordered_profiles
+      WHERE id = $1
+      LIMIT 1;
+    `,
     [input.profileId, input.fleetId],
   );
 
   if (profileResult.rowCount === 0) {
     throw new Error("Profile not found in this fleet.");
+  }
+
+  const maxProfiles = await getFleetProfileLimit(input.fleetId);
+  const selectedProfileSlot = Number(profileResult.rows[0].slot_number ?? 0);
+
+  if (selectedProfileSlot > maxProfiles) {
+    throw new Error(
+      `This profile is outside the current package limit of ${maxProfiles} ${maxProfiles === 1 ? "profile" : "profiles"}.`,
+    );
   }
 
   const switchResult = await pool.query(
@@ -2798,21 +2821,45 @@ export async function setFleetManualSubscription(input: {
     packageKey = null;
   }
 
-  const result = await getPool().query(
-    `
-      INSERT INTO account_subscriptions (
-        user_id,
-        provider,
-        plan_key,
-        status,
-        current_period_end,
-        updated_at
-      )
-      VALUES ($1, 'manual', $2, $3, ${currentPeriodEndExpression}, NOW())
-      RETURNING *;
-    `,
-    [fleetId, packageKey, input.status, packageDurationMonths],
-  );
+  const client = await getPool().connect();
+  let subscriptionRow: Record<string, unknown>;
+
+  try {
+    await client.query("BEGIN");
+    await client.query(
+      `
+        UPDATE account_subscriptions
+        SET status = 'canceled',
+            updated_at = NOW()
+        WHERE user_id = $1
+          AND status IN ('active', 'trialing', 'past_due');
+      `,
+      [fleetId],
+    );
+
+    const result = await client.query(
+      `
+        INSERT INTO account_subscriptions (
+          user_id,
+          provider,
+          plan_key,
+          status,
+          current_period_end,
+          updated_at
+        )
+        VALUES ($1, 'manual', $2, $3, ${currentPeriodEndExpression}, NOW())
+        RETURNING *;
+      `,
+      [fleetId, packageKey, input.status, packageDurationMonths],
+    );
+    subscriptionRow = result.rows[0];
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
 
   accountDebug("manual subscription updated", {
     fleetId,
@@ -2821,7 +2868,7 @@ export async function setFleetManualSubscription(input: {
     packageKey,
   });
 
-  return mapSubscription(result.rows[0]);
+  return mapSubscription(subscriptionRow);
 }
 
 export async function createManualPaymentSlip(input: {
