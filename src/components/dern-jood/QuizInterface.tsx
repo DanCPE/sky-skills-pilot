@@ -33,6 +33,8 @@ interface QuizInterfaceProps {
   onRestart: () => void;
 }
 
+const VOICE_INPUT_ENABLED = false;
+
 interface VoiceRecognitionAlternative {
   transcript: string;
   confidence: number;
@@ -386,6 +388,8 @@ export default function QuizInterface({
       .replaceAll("-", " minus ");
 
   const scheduleAutoMic = useCallback(() => {
+    if (!VOICE_INPUT_ENABLED) return;
+
     if (
       !autoMicEnabledRef.current ||
       !quizStartedRef.current ||
@@ -587,6 +591,7 @@ export default function QuizInterface({
   };
 
   const startVoiceRecognition = useCallback(async (cancelSpeech = false) => {
+    if (!VOICE_INPUT_ENABLED) return;
     if (
       !quizStarted ||
       quizComplete ||
@@ -1175,41 +1180,43 @@ export default function QuizInterface({
               >
                 Answer
               </button>
-              <button
-                type="button"
-                onClick={() => {
-                  if (autoMicEnabled) {
-                    autoMicEnabledRef.current = false;
-                    setAutoMicEnabled(false);
-                    stopVoiceRecognition();
-                    setVoiceInputStatus("Mic auto off");
-                    return;
-                  }
+              {VOICE_INPUT_ENABLED && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (autoMicEnabled) {
+                      autoMicEnabledRef.current = false;
+                      setAutoMicEnabled(false);
+                      stopVoiceRecognition();
+                      setVoiceInputStatus("Mic auto off");
+                      return;
+                    }
 
-                  autoMicEnabledRef.current = true;
-                  setAutoMicEnabled(true);
-                  setVoiceInputStatus("Mic auto on");
-                  if (
-                    !speechEnabled ||
-                    typeof window === "undefined" ||
-                    !window.speechSynthesis?.speaking
-                  ) {
-                    void startVoiceRecognition(true);
-                  }
-                }}
-                disabled={!quizStarted || quizPaused}
-                className={`min-h-12 rounded-xl px-6 text-lg font-bold shadow-lg transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white disabled:shadow-none ${
-                  autoMicEnabled
-                    ? "bg-red-600 text-white shadow-red-600/20 hover:bg-red-500"
-                    : "bg-zinc-900 text-white shadow-zinc-900/10 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-                }`}
-              >
-                {autoMicEnabled
-                  ? isListening
-                    ? "Mic Listening"
-                    : "Mic Auto On"
-                  : "Mic Answer"}
-              </button>
+                    autoMicEnabledRef.current = true;
+                    setAutoMicEnabled(true);
+                    setVoiceInputStatus("Mic auto on");
+                    if (
+                      !speechEnabled ||
+                      typeof window === "undefined" ||
+                      !window.speechSynthesis?.speaking
+                    ) {
+                      void startVoiceRecognition(true);
+                    }
+                  }}
+                  disabled={!quizStarted || quizPaused}
+                  className={`min-h-12 rounded-xl px-6 text-lg font-bold shadow-lg transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white disabled:shadow-none ${
+                    autoMicEnabled
+                      ? "bg-red-600 text-white shadow-red-600/20 hover:bg-red-500"
+                      : "bg-zinc-900 text-white shadow-zinc-900/10 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  }`}
+                >
+                  {autoMicEnabled
+                    ? isListening
+                      ? "Mic Listening"
+                      : "Mic Auto On"
+                    : "Mic Answer"}
+                </button>
+              )}
               <button
                 type="button"
                 onClick={quizPaused ? resumeQuiz : stopForPositionCheck}
@@ -1225,7 +1232,8 @@ export default function QuizInterface({
             </form>
 
             <p className="mt-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              {speechStatus} · {voiceInputStatus}
+              {speechStatus}
+              {VOICE_INPUT_ENABLED ? ` · ${voiceInputStatus}` : ""}
             </p>
 
             <PaperTracker

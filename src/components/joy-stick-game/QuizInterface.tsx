@@ -23,6 +23,7 @@ const BASE_PLAYER_SPEED = 2.2;
 const MAX_PLAYER_SPEED = 11.5;
 const PLAYER_ACCELERATION = 0.34;
 const PLAYER_BRAKE_DECELERATION = 0.13;
+const VOICE_INPUT_ENABLED = false;
 
 type TargetColor = "red" | "green";
 
@@ -381,6 +382,8 @@ export default function QuizInterface({
   }, []);
 
   const scheduleAutoMic = useCallback(() => {
+    if (!VOICE_INPUT_ENABLED) return;
+
     if (
       !autoMicEnabledRef.current ||
       !quizStartedRef.current ||
@@ -547,6 +550,7 @@ export default function QuizInterface({
   };
 
   const startVoiceRecognition = useCallback(async (cancelSpeech = false) => {
+    if (!VOICE_INPUT_ENABLED) return;
     if (!quizStarted || quizComplete || !currentQuestion || isListening) return;
     if (typeof window === "undefined") return;
 
@@ -1321,40 +1325,42 @@ export default function QuizInterface({
               >
                 Repeat
               </button>
-              <button
-                onClick={() => {
-                  if (autoMicEnabled) {
-                    autoMicEnabledRef.current = false;
-                    setAutoMicEnabled(false);
-                    stopVoiceRecognition();
-                    setVoiceInputStatus("Mic auto off");
-                    return;
-                  }
+              {VOICE_INPUT_ENABLED && (
+                <button
+                  onClick={() => {
+                    if (autoMicEnabled) {
+                      autoMicEnabledRef.current = false;
+                      setAutoMicEnabled(false);
+                      stopVoiceRecognition();
+                      setVoiceInputStatus("Mic auto off");
+                      return;
+                    }
 
-                  autoMicEnabledRef.current = true;
-                  setAutoMicEnabled(true);
-                  setVoiceInputStatus("Mic auto on");
-                  if (
-                    !speechEnabled ||
-                    typeof window === "undefined" ||
-                    !window.speechSynthesis?.speaking
-                  ) {
-                    void startVoiceRecognition(true);
-                  }
-                }}
-                disabled={!quizStarted}
-                className={`rounded-lg px-3 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white ${
-                  autoMicEnabled
-                    ? "bg-red-600 text-white hover:bg-red-500"
-                    : "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-                }`}
-              >
-                {autoMicEnabled
-                  ? isListening
-                    ? "Mic Listening"
-                    : "Mic Auto On"
-                  : "Mic Answer"}
-              </button>
+                    autoMicEnabledRef.current = true;
+                    setAutoMicEnabled(true);
+                    setVoiceInputStatus("Mic auto on");
+                    if (
+                      !speechEnabled ||
+                      typeof window === "undefined" ||
+                      !window.speechSynthesis?.speaking
+                    ) {
+                      void startVoiceRecognition(true);
+                    }
+                  }}
+                  disabled={!quizStarted}
+                  className={`rounded-lg px-3 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white ${
+                    autoMicEnabled
+                      ? "bg-red-600 text-white hover:bg-red-500"
+                      : "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
+                  }`}
+                >
+                  {autoMicEnabled
+                    ? isListening
+                      ? "Mic Listening"
+                      : "Mic Auto On"
+                    : "Mic Answer"}
+                </button>
+              )}
             </div>
 
             <div className="mb-5 h-3 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/10">
@@ -1463,7 +1469,9 @@ export default function QuizInterface({
             </form>
 
             <p className="mt-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              {speechStatus} · {voiceInputStatus} · W starts, S stops, A/D rotate, Space captures.
+              {speechStatus}
+              {VOICE_INPUT_ENABLED ? ` · ${voiceInputStatus}` : ""} · W starts,
+              S stops, A/D rotate, Space captures.
             </p>
           </aside>
         </div>
