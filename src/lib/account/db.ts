@@ -2167,7 +2167,7 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
           END AS skill_domain,
           percentage::float AS percentage,
           GREATEST(
-            COALESCE(question_count, $4)::float,
+            COALESCE(question_count, max_score, $4)::float,
             1
           ) AS question_weight
         FROM account_score_history
@@ -2451,7 +2451,7 @@ export async function getAdminAccountFleets(): Promise<
             END AS normalized_skill_domain,
             percentage::float AS percentage,
             GREATEST(
-              COALESCE(question_count, $3)::float,
+              COALESCE(question_count, max_score, $3)::float,
               1
             ) AS question_weight
           FROM account_score_history
@@ -4222,7 +4222,7 @@ export async function getLeaderboardContext(
           END AS skill_domain,
           percentage::float AS percentage,
           GREATEST(
-            COALESCE(question_count, $4)::float,
+            COALESCE(question_count, max_score, $4)::float,
             1
           ) AS question_weight
         FROM account_score_history
@@ -4370,7 +4370,7 @@ export async function getProfileRank(profileId: string): Promise<number | null> 
           END AS skill_domain,
           percentage::float AS percentage,
           GREATEST(
-            COALESCE(question_count, $4)::float,
+            COALESCE(question_count, max_score, $4)::float,
             1
           ) AS question_weight
         FROM account_score_history
