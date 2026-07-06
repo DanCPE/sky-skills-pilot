@@ -2161,7 +2161,8 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
         SELECT
           profile_id,
           CASE
-            WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+            WHEN topic_slug = 'multitasking-assessment' THEN 'multitasking'
+            WHEN skill_domain = 'multitasking' THEN NULL
             WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
             ELSE skill_domain
           END AS skill_domain,
@@ -2186,6 +2187,7 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
           COUNT(*)::int AS attempts,
           SUM(question_weight)::float AS question_volume
         FROM normalized_scores
+        WHERE skill_domain IS NOT NULL
         GROUP BY profile_id, skill_domain
       ),
       ranked_domains AS (
@@ -2445,7 +2447,8 @@ export async function getAdminAccountFleets(): Promise<
           SELECT
             profile_id,
             CASE
-              WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+              WHEN topic_slug = 'multitasking-assessment' THEN 'multitasking'
+              WHEN skill_domain = 'multitasking' THEN NULL
               WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
               ELSE skill_domain
             END AS normalized_skill_domain,
@@ -2457,6 +2460,7 @@ export async function getAdminAccountFleets(): Promise<
           FROM account_score_history
           WHERE profile_id IS NOT NULL
         ) normalized_scores
+        WHERE normalized_skill_domain IS NOT NULL
         GROUP BY profile_id, normalized_skill_domain;
       `,
       [
@@ -4216,7 +4220,8 @@ export async function getLeaderboardContext(
         SELECT
           profile_id,
           CASE
-            WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+            WHEN topic_slug = 'multitasking-assessment' THEN 'multitasking'
+            WHEN skill_domain = 'multitasking' THEN NULL
             WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
             ELSE skill_domain
           END AS skill_domain,
@@ -4241,6 +4246,7 @@ export async function getLeaderboardContext(
           COUNT(*)::int AS attempts,
           SUM(question_weight)::float AS question_volume
         FROM normalized_scores
+        WHERE skill_domain IS NOT NULL
         GROUP BY profile_id, skill_domain
       ),
       profile_avgs AS (
@@ -4364,7 +4370,8 @@ export async function getProfileRank(profileId: string): Promise<number | null> 
         SELECT
           profile_id,
           CASE
-            WHEN topic_slug = 'dern-jood' THEN 'multitasking'
+            WHEN topic_slug = 'multitasking-assessment' THEN 'multitasking'
+            WHEN skill_domain = 'multitasking' THEN NULL
             WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
             ELSE skill_domain
           END AS skill_domain,
@@ -4389,6 +4396,7 @@ export async function getProfileRank(profileId: string): Promise<number | null> 
           COUNT(*)::int AS attempts,
           SUM(question_weight)::float AS question_volume
         FROM normalized_scores
+        WHERE skill_domain IS NOT NULL
         GROUP BY profile_id, skill_domain
       ),
       profile_avgs AS (

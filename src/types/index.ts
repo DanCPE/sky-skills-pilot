@@ -177,6 +177,72 @@ export interface JoyStickGameQuizResponse {
   bpm?: number;
 }
 
+// Multitasking Assessment Battery specific types
+export type MultitaskingAssessmentMode = "core" | "full";
+export type MultitaskingAssessmentDifficulty = "easy" | "medium" | "hard";
+
+export interface MultitaskingAssessmentConfig {
+  mode: "learn" | "real";
+  difficulty: MultitaskingAssessmentDifficulty;
+  sessionLengthSeconds: number;
+  assessmentMode: MultitaskingAssessmentMode;
+  ownId: string;
+}
+
+export interface MultitaskingAssessmentScoreBreakdown {
+  systemMonitoring: number;
+  gridSelection: number;
+  signalDetection: number;
+  resourceManagement?: number;
+}
+
+export interface MultitaskingAssessmentRawMetrics {
+  systemMonitoring: {
+    faults: number;
+    acknowledgements: number;
+    misses: number;
+    attempts: number;
+    wrongCorrections: number;
+    gaugeOutOfBandSeconds: number;
+  };
+  gridSelection: {
+    hits: number;
+    misses: number;
+    falseAlarms: number;
+    wrongCellClicks: number;
+    distractorClicks: number;
+    signals: number;
+  };
+  signalDetection: {
+    hits: number;
+    misses: number;
+    falseAlarms: number;
+    distractors: number;
+    signals: number;
+  };
+  resourceManagement?: {
+    questions: number;
+    correct: number;
+    incorrect: number;
+    unanswered: number;
+    answered: number;
+  };
+}
+
+export interface MultitaskingAssessmentResult {
+  compositeScore: number;
+  breakdown: MultitaskingAssessmentScoreBreakdown;
+  rawMetrics: MultitaskingAssessmentRawMetrics;
+  durationSeconds: number;
+  enabledSubtasks: string[];
+  eventLog: Array<{
+    elapsedSeconds: number;
+    task: string;
+    message: string;
+    kind: "hit" | "miss" | "fault" | "info";
+  }>;
+}
+
 // Missing Operator specific types
 export interface MissingOperatorQuestion extends Question {
   id: string;

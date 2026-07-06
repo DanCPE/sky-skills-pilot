@@ -113,6 +113,16 @@ export const topics: Topic[] = [
     coverImageDark: "/images/icons/SkyQuests/joy dark.png",
   },
   {
+    slug: "multitasking-assessment",
+    icon: "▦",
+    title: "Multitasking Assessment",
+    description: "Run a cockpit-style multitasking battery with monitoring, tracking, communications, and resource control.",
+    category: "multitasking",
+    isLocked: false,
+    coverImage: "/images/icons/SkyQuests/joy.png",
+    coverImageDark: "/images/icons/SkyQuests/joy dark.png",
+  },
+  {
     slug: "aircraft-rotation",
     icon: "✈️",
     title: "Aircraft Rotation",
