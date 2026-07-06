@@ -34,6 +34,10 @@ const CONFIG_CACHE_MS = 60 * 1000;
 // Subscription packages and quiz access rules are admin-managed and change
 // rarely; admin writes clear the cache explicitly, so a longer TTL is safe.
 const PACKAGES_CACHE_MS = 5 * 60 * 1000;
+const SCORE_BASELINE_PERCENT = 60;
+const SCORE_BASELINE_QUESTIONS = 50;
+const LEGACY_SCORE_QUESTION_WEIGHT = 10;
+const COVERAGE_SCORE_FLOOR = 0.85;
 
 export interface AccountUser {
   id: string;
@@ -502,6 +506,17 @@ export function rankScore(percentage: number) {
   if (percentage >= 60) return "Cadet";
   if (percentage >= 40) return "Trainee";
   return "Ground School";
+}
+
+function applyCoverageMultiplier(score: number, coveredSkillCount: number) {
+  const coverageRatio = Math.min(
+    coveredSkillCount / Math.max(accountSkillDomains.length, 1),
+    1,
+  );
+  return Math.round(
+    score *
+      (COVERAGE_SCORE_FLOOR + (1 - COVERAGE_SCORE_FLOOR) * coverageRatio),
+  );
 }
 
 export async function ensureAccountSchema() {
@@ -2150,7 +2165,11 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
             WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
             ELSE skill_domain
           END AS skill_domain,
-          percentage
+          percentage::float AS percentage,
+          GREATEST(
+            COALESCE(question_count, $4)::float,
+            1
+          ) AS question_weight
         FROM account_score_history
         WHERE profile_id IS NOT NULL
       ),
@@ -2158,8 +2177,14 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
         SELECT
           profile_id,
           skill_domain,
-          AVG(percentage)::float AS value,
-          COUNT(*)::int AS attempts
+          (
+            (
+              SUM(percentage * question_weight) / NULLIF(SUM(question_weight), 0)
+            ) * SUM(question_weight)
+            + ($2::float * $3::float)
+          ) / (SUM(question_weight) + $3::float) AS value,
+          COUNT(*)::int AS attempts,
+          SUM(question_weight)::float AS question_volume
         FROM normalized_scores
         GROUP BY profile_id, skill_domain
       ),
@@ -2171,7 +2196,7 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
           attempts,
           RANK() OVER (
             PARTITION BY skill_domain
-            ORDER BY value DESC, attempts DESC, profile_id ASC
+            ORDER BY value DESC, question_volume DESC, profile_id ASC
           )::int AS domain_rank,
           COUNT(*) OVER (PARTITION BY skill_domain)::int AS ranked_profiles
         FROM domain_avgs
@@ -2187,8 +2212,15 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
       profile_avgs AS (
         SELECT
           profile_id,
-          ROUND(AVG(value))::int AS dashboard_average,
-          SUM(attempts)::int AS total_attempts
+          ROUND(
+            AVG(value)
+            * (
+              $5::float
+              + ((1 - $5::float) * LEAST(COUNT(*)::float / $6::float, 1))
+            )
+          )::int AS dashboard_average,
+          SUM(attempts)::int AS total_attempts,
+          SUM(question_volume)::float AS total_question_volume
         FROM domain_avgs
         GROUP BY profile_id
       ),
@@ -2198,7 +2230,7 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
           dashboard_average,
           total_attempts,
           RANK() OVER (
-            ORDER BY dashboard_average DESC, total_attempts DESC, profile_id ASC
+            ORDER BY dashboard_average DESC, total_question_volume DESC, profile_id ASC
           )::int AS actual_platform_rank,
           COUNT(*) OVER ()::int AS ranked_profiles
         FROM profile_avgs
@@ -2261,7 +2293,14 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
       LEFT JOIN latest_subscription ON TRUE
       LEFT JOIN active_package ON TRUE;
     `,
-    [profileId],
+    [
+      profileId,
+      SCORE_BASELINE_PERCENT,
+      SCORE_BASELINE_QUESTIONS,
+      LEGACY_SCORE_QUESTION_WEIGHT,
+      COVERAGE_SCORE_FLOOR,
+      accountSkillDomains.length,
+    ],
   );
 
   if (result.rowCount === 0) {
@@ -2395,7 +2434,12 @@ export async function getAdminAccountFleets(): Promise<
         SELECT
           profile_id,
           normalized_skill_domain AS skill_domain,
-          AVG(percentage)::float AS value,
+          (
+            (
+              SUM(percentage * question_weight) / NULLIF(SUM(question_weight), 0)
+            ) * SUM(question_weight)
+            + ($1::float * $2::float)
+          ) / (SUM(question_weight) + $2::float) AS value,
           COUNT(*)::int AS attempts
         FROM (
           SELECT
@@ -2405,12 +2449,21 @@ export async function getAdminAccountFleets(): Promise<
               WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
               ELSE skill_domain
             END AS normalized_skill_domain,
-            percentage
+            percentage::float AS percentage,
+            GREATEST(
+              COALESCE(question_count, $3)::float,
+              1
+            ) AS question_weight
           FROM account_score_history
           WHERE profile_id IS NOT NULL
         ) normalized_scores
         GROUP BY profile_id, normalized_skill_domain;
       `,
+      [
+        SCORE_BASELINE_PERCENT,
+        SCORE_BASELINE_QUESTIONS,
+        LEGACY_SCORE_QUESTION_WEIGHT,
+      ],
     ),
   ]);
 
@@ -2451,9 +2504,10 @@ export async function getAdminAccountFleets(): Promise<
     const activeRadar = profileRadar.filter((point) => point.attempts > 0);
     const dashboardAverage =
       activeRadar.length > 0
-        ? Math.round(
+        ? applyCoverageMultiplier(
             activeRadar.reduce((total, point) => total + point.value, 0) /
               activeRadar.length,
+            activeRadar.length,
           )
         : null;
     const totalAttempts = activeRadar.reduce(
@@ -4166,7 +4220,11 @@ export async function getLeaderboardContext(
             WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
             ELSE skill_domain
           END AS skill_domain,
-          percentage
+          percentage::float AS percentage,
+          GREATEST(
+            COALESCE(question_count, $4)::float,
+            1
+          ) AS question_weight
         FROM account_score_history
         WHERE profile_id IS NOT NULL
       ),
@@ -4174,16 +4232,29 @@ export async function getLeaderboardContext(
         SELECT
           profile_id,
           skill_domain,
-          AVG(percentage)::float AS value,
-          COUNT(*)::int AS attempts
+          (
+            (
+              SUM(percentage * question_weight) / NULLIF(SUM(question_weight), 0)
+            ) * SUM(question_weight)
+            + ($2::float * $3::float)
+          ) / (SUM(question_weight) + $3::float) AS value,
+          COUNT(*)::int AS attempts,
+          SUM(question_weight)::float AS question_volume
         FROM normalized_scores
         GROUP BY profile_id, skill_domain
       ),
       profile_avgs AS (
         SELECT
           profile_id,
-          ROUND(AVG(value))::int AS dashboard_average,
-          SUM(attempts)::int AS total_attempts
+          ROUND(
+            AVG(value)
+            * (
+              $5::float
+              + ((1 - $5::float) * LEAST(COUNT(*)::float / $6::float, 1))
+            )
+          )::int AS dashboard_average,
+          SUM(attempts)::int AS total_attempts,
+          SUM(question_volume)::float AS total_question_volume
         FROM domain_avgs
         GROUP BY profile_id
       ),
@@ -4192,7 +4263,7 @@ export async function getLeaderboardContext(
           profile_id,
           dashboard_average,
           RANK() OVER (
-            ORDER BY dashboard_average DESC, total_attempts DESC, profile_id ASC
+            ORDER BY dashboard_average DESC, total_question_volume DESC, profile_id ASC
           )::int AS actual_platform_rank
         FROM profile_avgs
       ),
@@ -4229,7 +4300,14 @@ export async function getLeaderboardContext(
           AND (SELECT r FROM user_rank) + 2
       ORDER BY rp.actual_platform_rank
     `,
-    [profileId],
+    [
+      profileId,
+      SCORE_BASELINE_PERCENT,
+      SCORE_BASELINE_QUESTIONS,
+      LEGACY_SCORE_QUESTION_WEIGHT,
+      COVERAGE_SCORE_FLOOR,
+      accountSkillDomains.length,
+    ],
   );
 
   return result.rows.map((row) => {
@@ -4290,7 +4368,11 @@ export async function getProfileRank(profileId: string): Promise<number | null> 
             WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
             ELSE skill_domain
           END AS skill_domain,
-          percentage
+          percentage::float AS percentage,
+          GREATEST(
+            COALESCE(question_count, $4)::float,
+            1
+          ) AS question_weight
         FROM account_score_history
         WHERE profile_id IS NOT NULL
       ),
@@ -4298,16 +4380,29 @@ export async function getProfileRank(profileId: string): Promise<number | null> 
         SELECT
           profile_id,
           skill_domain,
-          AVG(percentage)::float AS value,
-          COUNT(*)::int AS attempts
+          (
+            (
+              SUM(percentage * question_weight) / NULLIF(SUM(question_weight), 0)
+            ) * SUM(question_weight)
+            + ($2::float * $3::float)
+          ) / (SUM(question_weight) + $3::float) AS value,
+          COUNT(*)::int AS attempts,
+          SUM(question_weight)::float AS question_volume
         FROM normalized_scores
         GROUP BY profile_id, skill_domain
       ),
       profile_avgs AS (
         SELECT
           profile_id,
-          ROUND(AVG(value))::int AS dashboard_average,
-          SUM(attempts)::int AS total_attempts
+          ROUND(
+            AVG(value)
+            * (
+              $5::float
+              + ((1 - $5::float) * LEAST(COUNT(*)::float / $6::float, 1))
+            )
+          )::int AS dashboard_average,
+          SUM(attempts)::int AS total_attempts,
+          SUM(question_volume)::float AS total_question_volume
         FROM domain_avgs
         GROUP BY profile_id
       ),
@@ -4315,13 +4410,20 @@ export async function getProfileRank(profileId: string): Promise<number | null> 
         SELECT
           profile_id,
           RANK() OVER (
-            ORDER BY dashboard_average DESC, total_attempts DESC, profile_id ASC
+            ORDER BY dashboard_average DESC, total_question_volume DESC, profile_id ASC
           )::int AS actual_platform_rank
         FROM profile_avgs
       )
       SELECT actual_platform_rank FROM ranked_profiles WHERE profile_id = $1 LIMIT 1
     `,
-    [profileId],
+    [
+      profileId,
+      SCORE_BASELINE_PERCENT,
+      SCORE_BASELINE_QUESTIONS,
+      LEGACY_SCORE_QUESTION_WEIGHT,
+      COVERAGE_SCORE_FLOOR,
+      accountSkillDomains.length,
+    ],
   );
   return result.rows[0]?.actual_platform_rank ?? null;
 }

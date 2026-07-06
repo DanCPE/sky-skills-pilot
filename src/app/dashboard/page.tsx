@@ -77,7 +77,7 @@ function HexRadar({ points }: { points: RadarPoint[] }) {
           Skill Distribution
         </p>
         <span className="rounded-full bg-violet-100 px-3 py-1 text-xs font-bold text-violet-700 dark:bg-violet-500/15 dark:text-violet-200">
-          Last 30 Days
+          Confidence Adjusted
         </span>
       </div>
 
@@ -321,7 +321,7 @@ function RankingCard({
       </p>
       <p className="mt-2 text-sm text-violet-100">
         {attempts > 0
-          ? `${profilesAhead} of ${rankedProfiles} ranked profiles are ahead. Average score is ${safeAverage}%.`
+          ? `${profilesAhead} of ${rankedProfiles} ranked profiles are ahead. Strength score is ${safeAverage}%.`
           : "Finish a real-mode quiz to enter the ranking."}
       </p>
       <div className="mt-8 flex h-20 items-end gap-2">
@@ -364,7 +364,7 @@ function PriorityCard({ weakest }: { weakest: RadarPoint }) {
               {weakest.value || 0}%
             </p>
             <p className="text-[10px] font-bold uppercase text-zinc-400">
-              Average
+              Strength
             </p>
           </div>
         </div>
