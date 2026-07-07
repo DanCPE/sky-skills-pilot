@@ -15,14 +15,13 @@ interface ModeSelectionProps {
 export default function ModeSelection({ onStart }: ModeSelectionProps) {
   const [assessmentMode, setAssessmentMode] =
     useState<MultitaskingAssessmentMode>("full");
-  const [ownId, setOwnId] = useState("SKY-7");
 
   return (
     <SharedModeSelection<
       MultitaskingAssessmentConfig,
       MultitaskingAssessmentDifficulty
     >
-      subtitle="A timed MATB-style run with concurrent gauge monitoring, coordinate selection, signal detection, and optional math questions."
+      subtitle="A timed MATB-style run with gauge monitoring, coordinate selection, signal detection, voice response, and optional math questions."
       topicSlug="multitasking-assessment"
       defaultQuestionCount={4}
       sliderLabel="Session Length"
@@ -35,7 +34,7 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
         `${value} minute${value === 1 ? "" : "s"} of continuous tasking`
       }
       timePerQuestion={60}
-      difficultyOptions={["medium", "easy", "hard"]}
+      showDifficulty={false}
       learnDescription="Run a shorter practice session with the same task panels and score breakdown."
       realDescription={(_count, time) =>
         `A recorded assessment run. ${time}. Only this quest now contributes to the multitasking dashboard score.`
@@ -74,7 +73,14 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
               </div>
               <div className="rounded-xl bg-zinc-50 p-3 dark:bg-white/5">
                 <span className="font-bold text-zinc-900 dark:text-white">
-                  4. Fill math boxes.
+                  4. Answer voice prompts.
+                </span>{" "}
+                The quiz speaks random arithmetic aloud, gives you a short
+                thinking gap, then listens. Say the numeric answer clearly.
+              </div>
+              <div className="rounded-xl bg-zinc-50 p-3 dark:bg-white/5">
+                <span className="font-bold text-zinc-900 dark:text-white">
+                  5. Fill math boxes.
                 </span>{" "}
                 In Full 5, all mixed questions are visible at once: 3-digit
                 add/subtract plus 2-digit multiply and clean division. Fill
@@ -83,63 +89,40 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
             </div>
           </div>
 
-          <div className="mb-8 grid gap-4 md:grid-cols-2">
-            <div className="rounded-2xl border-2 border-zinc-200 bg-white p-5 dark:border-white/10 dark:bg-black/40">
-              <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
-                Task Set
-              </label>
-              <div className="mt-3 grid grid-cols-2 gap-2">
-                {(["core", "full"] as const).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    disabled={isLoading}
-                    onClick={() => setAssessmentMode(mode)}
-                    className={`rounded-xl border px-3 py-3 text-sm font-bold capitalize transition ${
-                      assessmentMode === mode
-                        ? "border-brand-purple bg-violet-50 text-brand-purple dark:border-brand-gold dark:bg-brand-gold/10 dark:text-brand-gold"
-                        : "border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/10"
-                    }`}
-                  >
-                    {mode === "core" ? "Core 3" : "Full 5"}
-                  </button>
-                ))}
-              </div>
-              <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                Core uses monitoring, grid selection, and signal detection. Full
-                adds untimed math questions.
-              </p>
+          <div className="mb-8 rounded-2xl border-2 border-zinc-200 bg-white p-5 dark:border-white/10 dark:bg-black/40">
+            <label className="text-sm font-bold text-zinc-700 dark:text-zinc-200">
+              Task Set
+            </label>
+            <div className="mt-3 grid grid-cols-2 gap-2">
+              {(["core", "full"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  disabled={isLoading}
+                  onClick={() => setAssessmentMode(mode)}
+                  className={`rounded-xl border px-3 py-3 text-sm font-bold capitalize transition ${
+                    assessmentMode === mode
+                      ? "border-brand-purple bg-violet-50 text-brand-purple dark:border-brand-gold dark:bg-brand-gold/10 dark:text-brand-gold"
+                      : "border-zinc-200 text-zinc-600 hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/10"
+                  }`}
+                >
+                  {mode === "core" ? "Core 3" : "Full 5"}
+                </button>
+              ))}
             </div>
-
-            <div className="rounded-2xl border-2 border-zinc-200 bg-white p-5 dark:border-white/10 dark:bg-black/40">
-              <label
-                htmlFor="matb-own-id"
-                className="text-sm font-bold text-zinc-700 dark:text-zinc-200"
-              >
-                Communications ID
-              </label>
-              <input
-                id="matb-own-id"
-                value={ownId}
-                disabled={isLoading}
-                maxLength={12}
-                onChange={(event) => setOwnId(event.target.value.toUpperCase())}
-                className="mt-3 w-full rounded-xl border border-zinc-200 bg-white px-4 py-3 text-sm font-bold uppercase text-zinc-900 outline-none transition focus:border-brand-purple dark:border-white/10 dark:bg-white/5 dark:text-white"
-              />
-              <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-                This label is kept with the attempt settings, but the live task
-                now uses signal lights and grid coordinates.
-              </p>
-            </div>
+            <p className="mt-3 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              Core uses monitoring, grid selection, signal detection, and voice
+              response. Full adds untimed math questions.
+            </p>
           </div>
         </>
       )}
-      onFetch={async (mode, difficulty, sessionLengthMinutes) => ({
+      onFetch={async (mode, _difficulty, sessionLengthMinutes) => ({
         mode,
-        difficulty,
+        difficulty: "medium",
         sessionLengthSeconds: sessionLengthMinutes * 60,
         assessmentMode,
-        ownId: ownId.trim() || "SKY-7",
+        ownId: "MATB",
       })}
       onStart={onStart}
     />

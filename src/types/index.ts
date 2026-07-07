@@ -193,6 +193,7 @@ export interface MultitaskingAssessmentScoreBreakdown {
   systemMonitoring: number;
   gridSelection: number;
   signalDetection: number;
+  voiceResponse?: number;
   resourceManagement?: number;
 }
 
@@ -219,6 +220,13 @@ export interface MultitaskingAssessmentRawMetrics {
     falseAlarms: number;
     distractors: number;
     signals: number;
+  };
+  voiceResponse?: {
+    questions: number;
+    correct: number;
+    incorrect: number;
+    missed: number;
+    unsupported: boolean;
   };
   resourceManagement?: {
     questions: number;

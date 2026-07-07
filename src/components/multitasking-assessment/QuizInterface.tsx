@@ -12,6 +12,46 @@ import type {
 type EventKind = "hit" | "miss" | "fault" | "info";
 type AssessmentEvent = MultitaskingAssessmentResult["eventLog"][number];
 type Direction = "up" | "down";
+type VoiceStatus =
+  | "idle"
+  | "speaking"
+  | "thinking"
+  | "listening"
+  | "correct"
+  | "missed"
+  | "unsupported";
+
+interface MatbVoiceRecognitionEvent extends Event {
+  results: SpeechRecognitionResultList;
+}
+
+interface MatbVoiceRecognitionErrorEvent extends Event {
+  error?: string;
+}
+
+interface MatbVoiceRecognition {
+  lang: string;
+  continuous: boolean;
+  interimResults: boolean;
+  maxAlternatives: number;
+  onstart: (() => void) | null;
+  onresult: ((event: MatbVoiceRecognitionEvent) => void) | null;
+  onerror: ((event: MatbVoiceRecognitionErrorEvent) => void) | null;
+  onend: (() => void) | null;
+  start: () => void;
+  stop: () => void;
+  abort: () => void;
+}
+
+interface MatbVoiceRecognitionConstructor {
+  new (): MatbVoiceRecognition;
+}
+
+type NavigatorWithUserAgentData = Navigator & {
+  userAgentData?: {
+    brands?: Array<{ brand: string; version: string }>;
+  };
+};
 
 interface QuizInterfaceProps {
   config: MultitaskingAssessmentConfig;
@@ -33,6 +73,30 @@ interface MathQuestion {
   answer: number;
   difficulty: "easy" | "medium" | "hard";
 }
+
+interface VoiceQuestion {
+  prompt: string;
+  answer: number;
+}
+
+const digitWords: Record<string, number> = {
+  zero: 0,
+  oh: 0,
+  one: 1,
+  won: 1,
+  two: 2,
+  to: 2,
+  too: 2,
+  three: 3,
+  four: 4,
+  for: 4,
+  five: 5,
+  six: 6,
+  seven: 7,
+  eight: 8,
+  ate: 8,
+  nine: 9,
+};
 
 interface ActiveSignal {
   lightIndex: number;
@@ -161,6 +225,119 @@ function makeMathQuestionSet() {
   );
 }
 
+function makeVoiceQuestion(): VoiceQuestion {
+  const questionType = Math.random();
+  if (questionType < 0.38) {
+    const length = Math.random() > 0.5 ? 4 : 3;
+    const digits = Array.from({ length }, (_, index) =>
+      index === 0
+        ? Math.floor(1 + Math.random() * 9)
+        : Math.floor(Math.random() * 10),
+    );
+    return {
+      prompt: `Read back ${digits.join(" ")}`,
+      answer: Number(digits.join("")),
+    };
+  }
+  if (questionType < 0.62) {
+    const a = Math.floor(2 + Math.random() * 8);
+    const b = Math.floor(2 + Math.random() * 8);
+    return {
+      prompt: `${a} times ${b}`,
+      answer: a * b,
+    };
+  }
+  const a = Math.floor(11 + Math.random() * 39);
+  const b = Math.floor(2 + Math.random() * 18);
+  const operator = Math.random() > 0.5 ? "+" : "-";
+  return {
+    prompt: `${a} ${operator === "+" ? "plus" : "minus"} ${b}`,
+    answer: operator === "+" ? a + b : a - b,
+  };
+}
+
+function parseSpokenNumber(transcript: string) {
+  const normalized = transcript.toLowerCase().replace(/[^a-z0-9-\s]/g, " ");
+  const numeric = normalized.match(/-?\d+/);
+  if (numeric) return Number(numeric[0]);
+
+  const tokens = normalized.split(/\s+/).filter(Boolean);
+  const digitTokens = tokens
+    .map((token) => digitWords[token])
+    .filter((value): value is number => value !== undefined);
+  if (digitTokens.length >= 3 && digitTokens.length === tokens.length) {
+    return Number(digitTokens.join(""));
+  }
+
+  const words: Record<string, number> = {
+    ...digitWords,
+    ten: 10,
+    eleven: 11,
+    twelve: 12,
+    thirteen: 13,
+    fourteen: 14,
+    fifteen: 15,
+    sixteen: 16,
+    seventeen: 17,
+    eighteen: 18,
+    nineteen: 19,
+    twenty: 20,
+    thirty: 30,
+    forty: 40,
+    fifty: 50,
+    sixty: 60,
+    seventy: 70,
+    eighty: 80,
+    ninety: 90,
+  };
+  let total = 0;
+  let matched = false;
+  let sign = 1;
+  for (const token of tokens) {
+    if (token === "negative" || token === "minus") {
+      sign = -1;
+      continue;
+    }
+    if (words[token] !== undefined) {
+      total += words[token];
+      matched = true;
+    }
+  }
+  return matched ? total * sign : null;
+}
+
+function getVoiceRecognitionBrowserWarning() {
+  if (typeof navigator === "undefined") return null;
+  const userAgent = navigator.userAgent;
+  const brands = (navigator as NavigatorWithUserAgentData).userAgentData?.brands;
+  const vendor = navigator.vendor;
+  const isEdge = /\bEdg\//.test(userAgent);
+  const isOpera = /\b(OPR|Opera)\//.test(userAgent);
+  const isSafari =
+    vendor === "Apple Computer, Inc." &&
+    /\bSafari\//.test(userAgent) &&
+    !/\b(Chrome|CriOS|Chromium|Edg|OPR|Opera|Arc)\//.test(userAgent);
+  const hasGoogleChromeBrand =
+    brands?.some((brand) => brand.brand === "Google Chrome") ?? false;
+  const isGoogleChrome = brands
+    ? hasGoogleChromeBrand && !isEdge && !isOpera
+    : /\bChrome\//.test(userAgent) &&
+      vendor === "Google Inc." &&
+      !isEdge &&
+      !isOpera &&
+      !/\bArc\//.test(userAgent);
+
+  if (isEdge) {
+    return "Voice input needs Google Chrome. Microsoft Edge exposes speech recognition but fails with a network error because it does not use Google's speech backend.";
+  }
+
+  if (!isGoogleChrome && !isSafari) {
+    return "Voice input is supported only in Google Chrome or Safari. Please open this quest in Chrome or Safari; Edge, Arc, and other Chromium browsers may expose speech recognition but fail before returning text.";
+  }
+
+  return null;
+}
+
 function randomGridPosition() {
   const row = rows[Math.floor(Math.random() * rows.length)];
   const column = columns[Math.floor(Math.random() * columns.length)];
@@ -188,6 +365,8 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   const [started, setStarted] = useState(false);
   const [complete, setComplete] = useState(false);
   const [elapsed, setElapsed] = useState(0);
+  const [countdown, setCountdown] = useState<number | null>(null);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
   const [finalResult, setFinalResult] =
     useState<MultitaskingAssessmentResult | null>(null);
   const [systemGauge, setSystemGauge] = useState(60);
@@ -195,10 +374,19 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   const [clickedCells, setClickedCells] = useState<Set<string>>(() => new Set());
   const [mathQuestions, setMathQuestions] = useState<MathQuestion[]>([]);
   const [mathAnswers, setMathAnswers] = useState<Record<string, string>>({});
+  const [voiceQuestion, setVoiceQuestion] = useState<VoiceQuestion | null>(null);
+  const [voiceStatus, setVoiceStatus] = useState<VoiceStatus>("idle");
+  const [voiceAnswerText, setVoiceAnswerText] = useState("");
 
   const startedAtRef = useRef(0);
   const animationRef = useRef<number | null>(null);
   const lastFrameRef = useRef<number | null>(null);
+  const voiceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const recognitionRef = useRef<MatbVoiceRecognition | null>(null);
+  const queueVoiceQuestionRef = useRef<() => void>(() => {});
+  const startListeningRef = useRef<() => void>(() => {});
+  const stopListeningRef = useRef<() => void>(() => {});
+  const voiceKeyHeldRef = useRef(false);
   const gaugeDirectionRef = useRef<1 | -1>(1);
   const gaugePlanRef = useRef(makeGaugePlan(0, settings.gaugeSpeed));
   const nextSignalAtRef = useRef(0);
@@ -207,6 +395,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   const clickedCellsRef = useRef<Set<string>>(new Set());
   const mathQuestionsRef = useRef<MathQuestion[]>([]);
   const mathAnswersRef = useRef<Record<string, string>>({});
+  const voiceQuestionRef = useRef<VoiceQuestion | null>(null);
   const metricsRef = useRef({
     systemFaults: 0,
     systemAcknowledgements: 0,
@@ -225,7 +414,20 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
     mathCorrect: 0,
     mathIncorrect: 0,
     mathAnswered: 0,
+    voiceQuestions: 0,
+    voiceCorrect: 0,
+    voiceIncorrect: 0,
+    voiceMissed: 0,
+    voiceUnsupported: false,
   });
+
+  const logVoiceDebug = useCallback((message: string, data?: unknown) => {
+    if (data === undefined) {
+      console.debug("[MATB voice]", message);
+    } else {
+      console.debug("[MATB voice]", message, data);
+    }
+  }, []);
 
   useEffect(() => {
     activeSignalRef.current = activeSignal;
@@ -243,6 +445,10 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
     mathAnswersRef.current = mathAnswers;
   }, [mathAnswers]);
 
+  useEffect(() => {
+    voiceQuestionRef.current = voiceQuestion;
+  }, [voiceQuestion]);
+
   const pushEvent = useCallback(
     (task: string, messageText: string, kind: EventKind) => {
       const elapsedSeconds = startedAtRef.current
@@ -258,6 +464,337 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
     },
     [],
   );
+
+  const clearVoiceTimer = useCallback(() => {
+    if (voiceTimerRef.current) {
+      logVoiceDebug("clear pending voice timer");
+      clearTimeout(voiceTimerRef.current);
+      voiceTimerRef.current = null;
+    }
+  }, [logVoiceDebug]);
+
+  const stopVoiceRecognition = useCallback(() => {
+    if (recognitionRef.current) {
+      logVoiceDebug("abort active recognition");
+      recognitionRef.current.abort();
+    }
+    recognitionRef.current = null;
+  }, [logVoiceDebug]);
+
+  const queueVoiceQuestion = useCallback(() => {
+    logVoiceDebug("queue voice question requested");
+    if (typeof window === "undefined") {
+      logVoiceDebug("window unavailable");
+      return;
+    }
+    clearVoiceTimer();
+    stopVoiceRecognition();
+
+    const speechWindow = window as Window & {
+      SpeechRecognition?: MatbVoiceRecognitionConstructor;
+      webkitSpeechRecognition?: MatbVoiceRecognitionConstructor;
+    };
+    const Recognition = (speechWindow.SpeechRecognition ??
+      speechWindow.webkitSpeechRecognition) as
+      | MatbVoiceRecognitionConstructor
+      | undefined;
+    const browserWarning = getVoiceRecognitionBrowserWarning();
+    logVoiceDebug("voice support check", {
+      hasSpeechSynthesis: Boolean(window.speechSynthesis),
+      hasRecognition: Boolean(Recognition),
+      browserWarning,
+      protocol: window.location.protocol,
+      host: window.location.host,
+    });
+    if (browserWarning) {
+      metricsRef.current.voiceUnsupported = true;
+      setVoiceEnabled(false);
+      setVoiceStatus("unsupported");
+      setVoiceQuestion(null);
+      setVoiceAnswerText(browserWarning);
+      logVoiceDebug("voice browser unsupported", { browserWarning });
+      return;
+    }
+    if (!Recognition || !window.speechSynthesis) {
+      metricsRef.current.voiceUnsupported = true;
+      setVoiceEnabled(false);
+      setVoiceStatus("unsupported");
+      setVoiceAnswerText("Voice input is unavailable in this browser.");
+      logVoiceDebug("voice unsupported");
+      return;
+    }
+
+    const question = makeVoiceQuestion();
+    voiceQuestionRef.current = question;
+    metricsRef.current.voiceQuestions += 1;
+    setVoiceQuestion(question);
+    setVoiceAnswerText("");
+    setVoiceStatus("speaking");
+    logVoiceDebug("created voice question", question);
+
+    const utterance = new SpeechSynthesisUtterance(question.prompt);
+    utterance.lang = "en-US";
+    utterance.rate = 0.92;
+
+    const startListening = async () => {
+      logVoiceDebug("startListening called");
+      if (recognitionRef.current) return;
+      clearVoiceTimer();
+      stopVoiceRecognition();
+      const recognition = new Recognition();
+      let latestTranscript = "";
+      let completed = false;
+
+      const scheduleNextVoiceQuestion = (delayMs: number) => {
+        voiceTimerRef.current = setTimeout(
+          () => queueVoiceQuestionRef.current(),
+          delayMs,
+        );
+      };
+
+      const finishVoiceAttempt = (transcript: string, source: string) => {
+        if (completed) return;
+        completed = true;
+        clearVoiceTimer();
+        const value = parseSpokenNumber(transcript);
+        setVoiceAnswerText(value === null ? transcript : String(value));
+        recognitionRef.current = null;
+        try {
+          recognition.abort();
+        } catch {
+          // Recognition can already be ended after push-to-talk release.
+        }
+        if (value === question.answer) {
+          metricsRef.current.voiceCorrect += 1;
+          setVoiceStatus("correct");
+          pushEvent("Voice", `${question.prompt} answered correctly`, "hit");
+        } else {
+          metricsRef.current.voiceIncorrect += 1;
+          setVoiceStatus("missed");
+          pushEvent(
+            "Voice",
+            `${question.prompt} heard "${transcript}" via ${source}`,
+            "miss",
+          );
+        }
+        scheduleNextVoiceQuestion(1200);
+      };
+
+      const missVoiceAttempt = (messageText: string, delayMs = 1200) => {
+        if (completed) return;
+        completed = true;
+        clearVoiceTimer();
+        recognitionRef.current = null;
+        metricsRef.current.voiceMissed += 1;
+        setVoiceStatus("missed");
+        setVoiceAnswerText(messageText);
+        pushEvent("Voice", `${question.prompt} ${messageText}`, "miss");
+        scheduleNextVoiceQuestion(delayMs);
+      };
+
+      recognition.lang = "en-US";
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.maxAlternatives = 3;
+      recognition.onstart = () => {
+        logVoiceDebug("recognition onstart");
+      };
+      recognition.onresult = (event) => {
+        const transcript =
+          event.results[event.results.length - 1]?.[0]?.transcript ?? "";
+        const value = parseSpokenNumber(transcript);
+        const isFinal = Boolean(event.results[event.results.length - 1]?.isFinal);
+        latestTranscript = transcript;
+        logVoiceDebug("recognition result", {
+          transcript,
+          value,
+          isFinal,
+          resultCount: event.results.length,
+        });
+        setVoiceAnswerText(value === null ? transcript : String(value));
+        if (!isFinal) return;
+        finishVoiceAttempt(transcript, "final result");
+      };
+      recognition.onerror = (event) => {
+        if (completed) return;
+        logVoiceDebug("recognition error", event.error ?? "unknown");
+        clearVoiceTimer();
+        recognitionRef.current = null;
+        completed = true;
+        if (event.error === "network") {
+          metricsRef.current.voiceUnsupported = true;
+          setVoiceEnabled(false);
+          setVoiceStatus("unsupported");
+          setVoiceAnswerText(
+            "Voice recognition failed with a network error. Use Chrome or Safari, or switch this task to server-side speech-to-text.",
+          );
+          pushEvent("Voice", "Voice recognition network error", "miss");
+          return;
+        }
+        metricsRef.current.voiceMissed += 1;
+        setVoiceStatus("missed");
+        setVoiceAnswerText("No voice captured");
+        pushEvent("Voice", `${question.prompt} not captured`, "miss");
+        scheduleNextVoiceQuestion(1200);
+      };
+      recognition.onend = () => {
+        logVoiceDebug("recognition onend", {
+          stillCurrent: recognitionRef.current === recognition,
+        });
+        if (!completed) {
+          if (latestTranscript.trim()) {
+            finishVoiceAttempt(latestTranscript, "release");
+          } else {
+            missVoiceAttempt("not captured");
+          }
+          return;
+        }
+        if (recognitionRef.current === recognition) {
+          recognitionRef.current = null;
+        }
+      };
+      recognitionRef.current = recognition;
+      setVoiceStatus("listening");
+      try {
+        if (navigator.mediaDevices?.getUserMedia) {
+          logVoiceDebug("request mic permission");
+          const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true,
+          });
+          logVoiceDebug("mic permission granted");
+          stream.getTracks().forEach((track) => track.stop());
+        } else {
+          logVoiceDebug("getUserMedia unavailable");
+        }
+        logVoiceDebug("cancel speech before recognition.start");
+        window.speechSynthesis?.cancel();
+        logVoiceDebug("calling recognition.start");
+        recognition.start();
+        voiceTimerRef.current = setTimeout(() => {
+          logVoiceDebug("recognition timeout");
+          missVoiceAttempt("timed out", 900);
+          recognition.abort();
+        }, 7000);
+      } catch (error) {
+        logVoiceDebug("mic permission or recognition.start failed", error);
+        missVoiceAttempt("Mic could not start");
+      }
+    };
+
+    startListeningRef.current = () => {
+      void startListening();
+    };
+    stopListeningRef.current = () => {
+      const recognition = recognitionRef.current;
+      if (!recognition) return;
+      logVoiceDebug("push-to-talk released");
+      try {
+        recognition.stop();
+      } catch {
+        recognition.abort();
+        recognitionRef.current = null;
+      }
+    };
+
+    const scheduleListening = () => {
+      logVoiceDebug("schedule listening after speech");
+      setVoiceStatus("thinking");
+      const waitForSpeechToFinish = () => {
+        logVoiceDebug("speech quiet check", {
+          speaking: window.speechSynthesis.speaking,
+          pending: window.speechSynthesis.pending,
+        });
+        if (window.speechSynthesis.speaking || window.speechSynthesis.pending) {
+          voiceTimerRef.current = setTimeout(waitForSpeechToFinish, 250);
+          return;
+        }
+        logVoiceDebug("speech quiet, waiting for B hold");
+        setVoiceStatus("thinking");
+      };
+      waitForSpeechToFinish();
+    };
+
+    let speechSettled = false;
+    const settleSpeech = (source: string) => {
+      if (speechSettled) return;
+      speechSettled = true;
+      logVoiceDebug(`speech settled by ${source}`);
+      clearVoiceTimer();
+      scheduleListening();
+    };
+
+    utterance.onstart = () => {
+      logVoiceDebug("speech utterance onstart", question.prompt);
+    };
+    utterance.onend = () => {
+      logVoiceDebug("speech utterance onend");
+      settleSpeech("onend");
+    };
+    utterance.onerror = (event) => {
+      logVoiceDebug("speech utterance error", event);
+      settleSpeech("onerror");
+    };
+
+    logVoiceDebug("speechSynthesis.cancel before speak");
+    window.speechSynthesis.cancel();
+    logVoiceDebug("speechSynthesis.resume before speak");
+    window.speechSynthesis.resume();
+    logVoiceDebug("speechSynthesis.speak", question.prompt);
+    window.speechSynthesis.speak(utterance);
+    const speechWatchdogDelay = Math.max(
+      2500,
+      question.prompt.length * 110 + 1200,
+    );
+    voiceTimerRef.current = setTimeout(() => {
+      logVoiceDebug("speech watchdog fired", {
+        speaking: window.speechSynthesis.speaking,
+        pending: window.speechSynthesis.pending,
+      });
+      settleSpeech("watchdog");
+    }, speechWatchdogDelay);
+  }, [clearVoiceTimer, logVoiceDebug, pushEvent, stopVoiceRecognition]);
+
+  useEffect(() => {
+    queueVoiceQuestionRef.current = queueVoiceQuestion;
+  }, [queueVoiceQuestion]);
+
+  useEffect(() => {
+    if (!started || complete || countdown !== null) return;
+
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "b" || event.repeat) return;
+      if (voiceKeyHeldRef.current) return;
+      voiceKeyHeldRef.current = true;
+      if (voiceStatus !== "thinking" || !voiceQuestionRef.current) {
+        return;
+      }
+      event.preventDefault();
+      startListeningRef.current();
+    };
+
+    const handleKeyUp = (event: KeyboardEvent) => {
+      if (event.key.toLowerCase() !== "b") return;
+      voiceKeyHeldRef.current = false;
+      event.preventDefault();
+      stopListeningRef.current();
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    window.addEventListener("keyup", handleKeyUp);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("keyup", handleKeyUp);
+      voiceKeyHeldRef.current = false;
+    };
+  }, [complete, countdown, started, voiceStatus]);
+
+  useEffect(() => {
+    return () => {
+      clearVoiceTimer();
+      stopVoiceRecognition();
+      window.speechSynthesis?.cancel();
+    };
+  }, [clearVoiceTimer, stopVoiceRecognition]);
 
   const finishAssessment = useCallback(() => {
     if (finalResult) return;
@@ -306,6 +843,12 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
         metrics.gridDistractorClicks * 16 +
         metrics.gridFalseAlarms * 8,
     );
+    const voiceScore =
+      metrics.voiceQuestions > 0
+        ? Math.round((metrics.voiceCorrect / metrics.voiceQuestions) * 100)
+        : metrics.voiceUnsupported
+          ? 0
+          : 100;
     const unansweredMath = Math.max(
       0,
       metrics.mathQuestions - metrics.mathAnswered,
@@ -316,9 +859,13 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
         : hasMathTask
           ? 0
           : 100;
-    const scores = hasMathTask
-      ? [systemScore, gridScore, signalScore, mathScore]
-      : [systemScore, gridScore, signalScore];
+    const scores = [
+      systemScore,
+      gridScore,
+      signalScore,
+      ...(voiceEnabled ? [voiceScore] : []),
+      ...(hasMathTask ? [mathScore] : []),
+    ];
 
     setFinalResult({
       compositeScore: Math.round(
@@ -328,6 +875,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
         systemMonitoring: systemScore,
         gridSelection: gridScore,
         signalDetection: signalScore,
+        ...(voiceEnabled ? { voiceResponse: voiceScore } : {}),
         ...(hasMathTask ? { resourceManagement: mathScore } : {}),
       },
       rawMetrics: {
@@ -354,6 +902,17 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
           distractors: metrics.gridDistractors,
           signals: metrics.gridSignals,
         },
+        ...(voiceEnabled
+          ? {
+              voiceResponse: {
+                questions: metrics.voiceQuestions,
+                correct: metrics.voiceCorrect,
+                incorrect: metrics.voiceIncorrect,
+                missed: metrics.voiceMissed,
+                unsupported: metrics.voiceUnsupported,
+              },
+            }
+          : {}),
         ...(hasMathTask
           ? {
               resourceManagement: {
@@ -367,24 +926,33 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
           : {}),
       },
       durationSeconds,
-      enabledSubtasks: hasMathTask
-        ? [
-            "system-monitoring",
-            "grid-selection",
-            "signal-detection",
-            "math-questions",
-            "scheduling",
-          ]
-        : ["system-monitoring", "grid-selection", "signal-detection"],
+      enabledSubtasks: [
+        "system-monitoring",
+        "grid-selection",
+        "signal-detection",
+        ...(voiceEnabled ? ["voice-response"] : []),
+        ...(hasMathTask ? ["math-questions"] : []),
+      ],
       eventLog: allEventsRef.current.slice().reverse(),
     });
     setComplete(true);
     setStarted(false);
+    clearVoiceTimer();
+    stopVoiceRecognition();
+    window.speechSynthesis?.cancel();
     if (animationRef.current !== null) {
       cancelAnimationFrame(animationRef.current);
       animationRef.current = null;
     }
-  }, [config.sessionLengthSeconds, elapsed, finalResult, hasMathTask]);
+  }, [
+    clearVoiceTimer,
+    config.sessionLengthSeconds,
+    elapsed,
+    finalResult,
+    hasMathTask,
+    stopVoiceRecognition,
+    voiceEnabled,
+  ]);
 
   useRecordRealModeScore({
     completed: Boolean(finalResult),
@@ -408,7 +976,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
       : undefined,
   });
 
-  const start = () => {
+  const beginAssessment = useCallback(() => {
     const now = performance.now();
     startedAtRef.current = now;
     lastFrameRef.current = null;
@@ -424,12 +992,47 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
       mathQuestionsRef.current = questions;
       mathAnswersRef.current = {};
     }
-    setStarted(true);
     pushEvent("Session", "Assessment started", "info");
+    if (voiceEnabled) {
+      queueVoiceQuestion();
+    }
+  }, [
+    hasMathTask,
+    pushEvent,
+    queueVoiceQuestion,
+    settings.gaugeSpeed,
+    settings.signalEveryMs,
+    voiceEnabled,
+  ]);
+
+  const startCountdown = () => {
+    const voiceWarning = getVoiceRecognitionBrowserWarning();
+    setVoiceEnabled(!voiceWarning);
+    if (voiceWarning) {
+      metricsRef.current.voiceUnsupported = true;
+      setVoiceStatus("unsupported");
+      setVoiceQuestion(null);
+      setVoiceAnswerText(voiceWarning);
+    }
+    setStarted(true);
+    setCountdown(3);
   };
 
   useEffect(() => {
-    if (!started || complete) return;
+    if (countdown === null) return;
+    const timer = setTimeout(() => {
+      if (countdown <= 1) {
+        setCountdown(null);
+        beginAssessment();
+        return;
+      }
+      setCountdown(countdown - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [beginAssessment, countdown]);
+
+  useEffect(() => {
+    if (!started || complete || countdown !== null) return;
 
     const tick = (now: number) => {
       const last = lastFrameRef.current ?? now;
@@ -528,6 +1131,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   }, [
     complete,
     config.sessionLengthSeconds,
+    countdown,
     finishAssessment,
     pushEvent,
     settings,
@@ -590,6 +1194,9 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
       ["System Monitoring", finalResult.breakdown.systemMonitoring],
       ["Grid Selection", finalResult.breakdown.gridSelection],
       ["Signal Detection", finalResult.breakdown.signalDetection],
+      ...(finalResult.breakdown.voiceResponse !== undefined
+        ? [["Voice Response", finalResult.breakdown.voiceResponse] as const]
+        : []),
       ...(finalResult.breakdown.resourceManagement !== undefined
         ? [["Math Questions", finalResult.breakdown.resourceManagement] as const]
         : []),
@@ -653,7 +1260,8 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
           <p className="mt-3 text-sm leading-6 text-zinc-600 dark:text-zinc-300">
             Keep the gauge inside the green band, respond only to green signal
             coordinates on the grid, ignore red-coordinate distractions, and
-            fill math answer boxes before the timer ends.
+            answer spoken voice prompts while filling math boxes before the
+            timer ends.
           </p>
           <div className="mt-6 rounded-2xl border border-violet-100 bg-violet-50 p-5 text-left dark:border-brand-gold/20 dark:bg-brand-gold/10">
             <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
@@ -687,19 +1295,22 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
                 clean division. There is no Submit button; typed answers are
                 scored automatically when the session timer ends.
               </div>
+              <div>
+                <span className="font-bold">Voice Response:</span> a random
+                arithmetic question is spoken aloud. When the status says
+                Think, hold the B key, say the numeric answer clearly, then
+                release B to submit that voice attempt.
+              </div>
             </div>
           </div>
-          <div className="mt-6 grid gap-3 text-sm text-zinc-600 dark:text-zinc-300 sm:grid-cols-2">
+          <div className="mt-6 grid gap-3 text-sm text-zinc-600 dark:text-zinc-300 sm:grid-cols-1">
             <div className="rounded-xl bg-zinc-50 p-4 dark:bg-white/5">
               Mode: <span className="font-bold capitalize">{config.assessmentMode}</span>
-            </div>
-            <div className="rounded-xl bg-zinc-50 p-4 capitalize dark:bg-white/5">
-              Difficulty: <span className="font-bold">{config.difficulty}</span>
             </div>
           </div>
           <div className="mt-8 flex gap-3">
             <button
-              onClick={start}
+              onClick={startCountdown}
               className="rounded-xl bg-violet-700 px-6 py-3 text-sm font-bold text-white transition hover:bg-violet-600"
             >
               Start Assessment
@@ -717,7 +1328,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   }
 
   const systemCard = (
-    <section className="rounded-2xl border-2 border-zinc-200 bg-white p-4 dark:border-white/5 dark:bg-black/40">
+    <section className="rounded-xl border-2 border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-black/40">
       <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
         System Monitoring
       </h3>
@@ -725,60 +1336,100 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
         Click ▲ only when the red marker is above the green band. Click ▼ only
         when the red marker is below the green band.
       </p>
-      <div className="mt-5 flex flex-col items-center gap-3">
-        <button
-          onClick={() => handleSystemCorrection("up")}
-          className="flex h-12 w-16 items-center justify-center rounded-xl border border-zinc-200 text-2xl font-black text-zinc-500 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/10"
-          aria-label="Upper correction"
-        >
-          ▲
-        </button>
-        <div className="w-full rounded-xl border border-zinc-200 p-4 dark:border-white/10">
-          <div className="flex justify-between text-xs font-bold text-zinc-500 dark:text-zinc-400">
-            <span>LOW</span>
-            <span>{Math.round(systemGauge)}</span>
-            <span>HIGH</span>
-          </div>
-          <div className="relative mt-4 h-5 overflow-hidden rounded-full bg-zinc-200 dark:bg-white/10">
-            <div className="absolute left-[50%] top-0 h-full w-[20%] bg-emerald-400/45" />
-            <div
-              className={`absolute top-0 h-full w-3 rounded-full ${
-                systemState === "safe"
-                  ? "bg-violet-700 dark:bg-brand-gold"
-                  : "bg-rose-500"
-              }`}
-              style={{ left: `${systemGauge}%` }}
-            />
-          </div>
+      <div className="mt-3 flex items-center justify-center gap-5">
+        <div className="flex h-40 flex-col items-center justify-between text-xs font-bold text-zinc-500 dark:text-zinc-400">
+          <span>HIGH</span>
+          <span className="text-zinc-700 dark:text-zinc-200">
+            {Math.round(systemGauge)}
+          </span>
+          <span>LOW</span>
         </div>
-        <button
-          onClick={() => handleSystemCorrection("down")}
-          className="flex h-12 w-16 items-center justify-center rounded-xl border border-zinc-200 text-2xl font-black text-zinc-500 transition hover:bg-zinc-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/10"
-          aria-label="Lower correction"
-        >
-          ▼
-        </button>
+        <div className="relative h-40 w-10 bg-zinc-200 dark:bg-white/10">
+          <div className="absolute bottom-[50%] left-0 h-[20%] w-full bg-emerald-400/45" />
+          <div
+            className={`absolute left-1/2 h-3 w-9 -translate-x-1/2 ${
+              systemState === "safe"
+                ? "bg-violet-700 dark:bg-brand-gold"
+                : "bg-rose-500"
+            }`}
+            style={{ bottom: `calc(${systemGauge}% - 0.5rem)` }}
+          />
+        </div>
+        <div className="flex h-40 flex-col items-center justify-between">
+          <button
+            onClick={() => handleSystemCorrection("up")}
+            className="text-4xl font-black leading-none text-zinc-500 transition hover:text-rose-500 dark:text-zinc-300 dark:hover:text-rose-300"
+            aria-label="Upper correction"
+          >
+            ▲
+          </button>
+          <button
+            onClick={() => handleSystemCorrection("down")}
+            className="text-4xl font-black leading-none text-zinc-500 transition hover:text-rose-500 dark:text-zinc-300 dark:hover:text-rose-300"
+            aria-label="Lower correction"
+          >
+            ▼
+          </button>
+        </div>
       </div>
     </section>
   );
 
+  const voiceCard = (
+    <section className="rounded-xl border-2 border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-black/40">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em] text-zinc-500 dark:text-zinc-400">
+        Voice Response
+      </p>
+      <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+        Hold B while speaking. Release B to submit.
+      </p>
+      <p className="mt-2 text-xl font-black text-zinc-950 dark:text-white">
+        {voiceQuestion?.prompt ?? "Voice prompt loading"}
+      </p>
+      <input
+        readOnly
+        value={voiceAnswerText}
+        placeholder={
+          voiceStatus === "listening"
+            ? "Listening while B is held"
+            : voiceStatus === "unsupported"
+              ? "Use Chrome or Safari"
+              : "Waiting for voice answer"
+        }
+        className="mt-2 w-full rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-sm font-bold text-zinc-950 outline-none dark:border-white/10 dark:bg-black dark:text-white"
+      />
+    </section>
+  );
+
+  const voiceUnavailableCard = (
+    <section className="rounded-xl border-2 border-amber-200 bg-amber-50 p-3 text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
+      <p className="text-[11px] font-bold uppercase tracking-[0.16em]">
+        Voice Response Off
+      </p>
+      <p className="mt-1 text-xs leading-5">
+        Voice input is scored only in Chrome or Safari. This browser will skip
+        the voice section and exclude it from your score.
+      </p>
+    </section>
+  );
+
   const mathCard = hasMathTask ? (
-    <section className="rounded-2xl border-2 border-zinc-200 bg-white p-4 dark:border-white/5 dark:bg-black/40">
+    <section className="rounded-xl border-2 border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-black/40">
       <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
         Math Questions
       </h3>
-      <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+      <p className="mt-1 text-xs leading-4 text-zinc-500 dark:text-zinc-400">
         Fill any boxes you want. Answers are scored automatically when the
         session timer ends.
       </p>
-      <div className="mt-4 max-h-[34rem] space-y-2 overflow-auto pr-1">
+      <div className="mt-3 space-y-1.5">
         {mathQuestions.map((question) => (
           <div
             key={question.id}
-            className="rounded-xl bg-zinc-50 p-3 dark:bg-white/5"
+            className="rounded-lg bg-zinc-50 p-1.5 dark:bg-white/5"
           >
-            <div className="flex items-center gap-3">
-              <span className="w-24 flex-1 text-base font-black text-zinc-950 dark:text-white">
+            <div className="flex items-center gap-2">
+              <span className="w-20 flex-1 text-sm font-black text-zinc-950 dark:text-white">
                 {question.a} {question.operator} {question.b}
               </span>
               <input
@@ -794,7 +1445,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
                     return next;
                   })
                 }
-                className="min-w-0 flex-1 rounded-xl border border-zinc-200 bg-white px-3 py-2 text-sm font-bold text-zinc-950 outline-none focus:border-violet-700 dark:border-white/10 dark:bg-black dark:text-white"
+                className="min-w-0 flex-1 rounded-lg border border-zinc-200 bg-white px-2 py-1 text-sm font-bold text-zinc-950 outline-none focus:border-violet-700 dark:border-white/10 dark:bg-black dark:text-white"
                 placeholder="Answer"
               />
             </div>
@@ -805,84 +1456,100 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   ) : null;
 
   return (
-    <div className="min-h-screen bg-[#F1F5F9] dark:bg-transparent">
-      <div className="mx-auto flex w-full max-w-[1200px] flex-col gap-4 p-4 pb-8 pt-10 sm:p-6 sm:pt-12">
-        <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border-2 border-zinc-200 bg-white px-6 py-4 dark:border-white/5 dark:bg-black/40 dark:backdrop-blur-md">
+    <div className="h-screen overflow-hidden bg-[#F1F5F9] dark:bg-transparent">
+      {countdown !== null ? (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/10 backdrop-blur-[1px]">
+          <div className="flex h-36 w-36 items-center justify-center rounded-full border-4 border-white/80 bg-violet-700 text-7xl font-black text-white shadow-2xl shadow-violet-900/30 dark:border-brand-gold/70 dark:bg-black">
+            {countdown}
+          </div>
+        </div>
+      ) : null}
+      <div className="mx-auto flex h-full w-full max-w-[1280px] flex-col gap-3 p-3">
+        <div className="flex items-center justify-between gap-3 rounded-xl border-2 border-zinc-200 bg-white px-4 py-2 dark:border-white/5 dark:bg-black/40 dark:backdrop-blur-md">
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-violet-700 dark:text-brand-gold">
               Live Assessment
             </p>
-            <h2 className="mt-1 text-3xl font-bold tracking-tight text-zinc-950 dark:text-white">
+            <h2 className="mt-0.5 text-xl font-bold tracking-tight text-zinc-950 dark:text-white">
               Multitasking Assessment
             </h2>
-            <p className="mt-1 text-xs font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
+            <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
               {config.assessmentMode === "full" ? "Full 5" : "Core 3"}
             </p>
           </div>
           <div className="flex items-center gap-4">
-            <Timer
-              compact
-              timeLimit={config.sessionLengthSeconds}
-              onTimeUp={finishAssessment}
-            />
+            {countdown === null ? (
+              <Timer
+                compact
+                timeLimit={config.sessionLengthSeconds}
+                onTimeUp={finishAssessment}
+              />
+            ) : (
+              <div className="rounded-xl bg-zinc-100 px-3 py-2 text-sm font-black text-zinc-700 dark:bg-white/10 dark:text-zinc-200">
+                {formatClock(config.sessionLengthSeconds)}
+              </div>
+            )}
             <QuizFooterNav onExit={finishAssessment} />
           </div>
         </div>
 
-        <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(420px,1.35fr)_minmax(300px,0.95fr)]">
-          <div className="space-y-4">{mathCard ?? systemCard}</div>
+        <div className="grid min-h-0 flex-1 gap-3 lg:grid-cols-[minmax(250px,0.85fr)_minmax(360px,1.15fr)_minmax(260px,0.8fr)]">
+          <div className="min-h-0">{mathCard ?? systemCard}</div>
 
-          <section className="rounded-2xl border-2 border-zinc-200 bg-white p-4 dark:border-white/5 dark:bg-black/40">
-            <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
-              Coordinate Grid
-            </h3>
-            <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
-              Use row letters and column numbers to find the green signal
-              coordinate. Clicked cells turn green. Extra clicks count against you.
-            </p>
-            <div className="mt-4 grid grid-cols-[1.5rem_repeat(10,minmax(0,1fr))] gap-1 text-center text-xs font-bold">
-              <div />
-              {columns.map((column) => (
-                <div key={column} className="text-zinc-500 dark:text-zinc-400">
-                  {column}
-                </div>
-              ))}
-              {rows.map((row) => (
-                <Fragment key={row}>
-                  <div className="flex items-center justify-center text-zinc-500 dark:text-zinc-400">
-                    {row}
+          <div className="flex min-h-0 flex-col gap-3">
+            <section className="rounded-xl border-2 border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-black/40">
+              <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
+                Coordinate Grid
+              </h3>
+              <p className="mt-1 text-xs leading-4 text-zinc-500 dark:text-zinc-400">
+                Click only the green signal coordinate. Clicked cells turn green.
+              </p>
+              <div className="mx-auto mt-2 grid max-w-[390px] grid-cols-[1.25rem_repeat(10,minmax(0,1fr))] gap-0.5 text-center text-[11px] font-bold">
+                <div />
+                {columns.map((column) => (
+                  <div key={column} className="text-zinc-500 dark:text-zinc-400">
+                    {column}
                   </div>
-                  {columns.map((column) => {
-                    const position = `${row}-${column}`;
-                    const wasClicked = clickedCells.has(position);
-                    return (
-                      <button
-                        key={position}
-                        onClick={() => handleGridClick(position)}
-                        aria-label={position}
-                        className={`aspect-square rounded border transition ${
-                          wasClicked
-                            ? "border-emerald-300 bg-emerald-500 dark:border-emerald-300 dark:bg-emerald-500"
-                            : "border-zinc-200 bg-zinc-50 hover:border-violet-500 hover:bg-violet-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-brand-gold/10"
-                        }`}
-                      />
-                    );
-                  })}
-                </Fragment>
-              ))}
-            </div>
-          </section>
+                ))}
+                {rows.map((row) => (
+                  <Fragment key={row}>
+                    <div className="flex items-center justify-center text-zinc-500 dark:text-zinc-400">
+                      {row}
+                    </div>
+                    {columns.map((column) => {
+                      const position = `${row}-${column}`;
+                      const wasClicked = clickedCells.has(position);
+                      return (
+                        <button
+                          key={position}
+                          onClick={() => handleGridClick(position)}
+                          aria-label={position}
+                          className={`aspect-square rounded-sm border transition ${
+                            wasClicked
+                              ? "border-emerald-300 bg-emerald-500 dark:border-emerald-300 dark:bg-emerald-500"
+                              : "border-zinc-200 bg-zinc-50 hover:border-violet-500 hover:bg-violet-50 dark:border-white/10 dark:bg-white/5 dark:hover:bg-brand-gold/10"
+                          }`}
+                        />
+                      );
+                    })}
+                  </Fragment>
+                ))}
+              </div>
+            </section>
+
+            {voiceEnabled ? voiceCard : voiceUnavailableCard}
+          </div>
 
           <section className="space-y-4">
-            <div className="rounded-2xl border-2 border-zinc-200 bg-white p-4 dark:border-white/5 dark:bg-black/40">
+            <div className="rounded-xl border-2 border-zinc-200 bg-white p-3 dark:border-white/5 dark:bg-black/40">
               <h3 className="text-sm font-bold text-zinc-950 dark:text-white">
                 Signal Lights
               </h3>
-              <p className="mt-1 text-xs leading-5 text-zinc-500 dark:text-zinc-400">
+              <p className="mt-1 text-xs leading-4 text-zinc-500 dark:text-zinc-400">
                 Green dot with coordinate means click that grid cell. Red dot
                 with coordinate is a fake cue; do nothing.
               </p>
-              <div className="mt-4 grid grid-cols-3 gap-3">
+              <div className="mt-3 grid grid-cols-3 gap-2">
                 {[0, 1, 2].map((index) => {
                   const isActive = activeSignal?.lightIndex === index;
                   return (
