@@ -23,7 +23,13 @@ const BASE_PLAYER_SPEED = 2.2;
 const MAX_PLAYER_SPEED = 11.5;
 const PLAYER_ACCELERATION = 0.34;
 const PLAYER_BRAKE_DECELERATION = 0.13;
-const VOICE_INPUT_ENABLED = false;
+const VOICE_INPUT_ENABLED = true;
+
+type NavigatorWithUserAgentData = Navigator & {
+  userAgentData?: {
+    brands?: Array<{ brand: string; version: string }>;
+  };
+};
 
 type TargetColor = "red" | "green";
 
@@ -105,6 +111,34 @@ declare global {
     SpeechRecognition?: VoiceRecognitionConstructor;
     webkitSpeechRecognition?: VoiceRecognitionConstructor;
   }
+}
+
+function getVoiceRecognitionBrowserWarning() {
+  if (typeof navigator === "undefined") return null;
+  const userAgent = navigator.userAgent;
+  const brands = (navigator as NavigatorWithUserAgentData).userAgentData?.brands;
+  const vendor = navigator.vendor;
+  const isEdge = /\bEdg\//.test(userAgent);
+  const isOpera = /\b(OPR|Opera)\//.test(userAgent);
+  const isSafari =
+    vendor === "Apple Computer, Inc." &&
+    /\bSafari\//.test(userAgent) &&
+    !/\b(Chrome|CriOS|Chromium|Edg|OPR|Opera|Arc)\//.test(userAgent);
+  const hasGoogleChromeBrand =
+    brands?.some((brand) => brand.brand === "Google Chrome") ?? false;
+  const isGoogleChrome = brands
+    ? hasGoogleChromeBrand && !isEdge && !isOpera
+    : /\bChrome\//.test(userAgent) &&
+      vendor === "Google Inc." &&
+      !isEdge &&
+      !isOpera &&
+      !/\bArc\//.test(userAgent);
+
+  if (!isGoogleChrome && !isSafari) {
+    return "Voice input is available only in Chrome or Safari. Use one of those browsers to answer by holding B.";
+  }
+
+  return null;
 }
 
 interface QuizInterfaceProps {
@@ -309,6 +343,7 @@ export default function QuizInterface({
     questions[0]?.timeLimitSeconds ?? 0,
   );
   const [quizStarted, setQuizStarted] = useState(false);
+  const [startCountdown, setStartCountdown] = useState<number | null>(null);
   const [quizComplete, setQuizComplete] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
@@ -316,6 +351,10 @@ export default function QuizInterface({
   const [isListening, setIsListening] = useState(false);
   const [autoMicEnabled, setAutoMicEnabled] = useState(false);
   const [voiceInputStatus, setVoiceInputStatus] = useState("Mic ready");
+  const [voiceBrowserWarning, setVoiceBrowserWarning] = useState<string | null>(
+    null,
+  );
+  const [voiceInputAvailable, setVoiceInputAvailable] = useState(true);
   const [showQuestionPopup, setShowQuestionPopup] = useState(true);
   const [obstacleSpeed, setObstacleSpeed] = useState(2.4);
   const [obstacleCount, setObstacleCount] = useState(4);
@@ -350,6 +389,7 @@ export default function QuizInterface({
   const startVoiceRecognitionRef = useRef<((cancelSpeech?: boolean) => void) | null>(
     null,
   );
+  const voiceKeyHeldRef = useRef(false);
   const voiceSubmitTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pendingVoiceTranscriptRef = useRef("");
   const sensitivityRef = useRef(sensitivity);
@@ -550,7 +590,7 @@ export default function QuizInterface({
   };
 
   const startVoiceRecognition = useCallback(async (cancelSpeech = false) => {
-    if (!VOICE_INPUT_ENABLED) return;
+    if (!VOICE_INPUT_ENABLED || !voiceInputAvailable) return;
     if (!quizStarted || quizComplete || !currentQuestion || isListening) return;
     if (typeof window === "undefined") return;
 
@@ -723,9 +763,10 @@ export default function QuizInterface({
     quizComplete,
     quizStarted,
     speakQuestion,
+    voiceInputAvailable,
   ]);
 
-  const startQuiz = async () => {
+  const beginQuiz = useCallback(async () => {
     if (quizStarted || !currentQuestion) return;
     quizStartTimeRef.current = Date.now();
     questionStartedAtRef.current = Date.now();
@@ -733,18 +774,39 @@ export default function QuizInterface({
     setQuizStarted(true);
     if (speechEnabled) speakQuestion(true);
     await enableAudio();
+  }, [
+    currentQuestion,
+    enableAudio,
+    quizStarted,
+    speakQuestion,
+    speechEnabled,
+  ]);
+
+  const startQuiz = () => {
+    if (quizStarted || !currentQuestion || startCountdown !== null) return;
+    const warning = getVoiceRecognitionBrowserWarning();
+    setVoiceBrowserWarning(warning);
+    setVoiceInputAvailable(!warning);
+    if (warning) {
+      autoMicEnabledRef.current = false;
+      setAutoMicEnabled(false);
+      setVoiceInputStatus("Voice input off");
+    }
+    setStartCountdown(3);
   };
 
-  const stopVoiceRecognition = () => {
-    if (voiceSubmitTimerRef.current) {
-      clearTimeout(voiceSubmitTimerRef.current);
-      voiceSubmitTimerRef.current = null;
-    }
-    recognitionRef.current?.abort();
-    recognitionRef.current = null;
-    setIsListening(false);
-    setVoiceInputStatus(autoMicEnabledRef.current ? "Mic auto paused" : "Mic ready");
-  };
+  useEffect(() => {
+    if (startCountdown === null) return;
+    const timer = setTimeout(() => {
+      if (startCountdown <= 1) {
+        setStartCountdown(null);
+        void beginQuiz();
+        return;
+      }
+      setStartCountdown(startCountdown - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [beginQuiz, startCountdown]);
 
   useEffect(() => {
     sensitivityRef.current = sensitivity;
@@ -817,8 +879,22 @@ export default function QuizInterface({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       const key = event.key.toLowerCase();
-      if (["w", "a", "s", "d", " "].includes(key)) {
+      if (["w", "a", "s", "d", " ", "b"].includes(key)) {
         event.preventDefault();
+      }
+      if (
+        key === "b" &&
+        VOICE_INPUT_ENABLED &&
+        voiceInputAvailable &&
+        quizStarted &&
+        !quizComplete &&
+        !event.repeat
+      ) {
+        if (!voiceKeyHeldRef.current) {
+          voiceKeyHeldRef.current = true;
+          startVoiceRecognitionRef.current?.(true);
+        }
+        return;
       }
       if (key === " ") {
         captureTarget();
@@ -838,7 +914,17 @@ export default function QuizInterface({
     };
 
     const handleKeyUp = (event: KeyboardEvent) => {
-      pressedKeysRef.current.delete(event.key.toLowerCase());
+      const key = event.key.toLowerCase();
+      if (key === "b") {
+        voiceKeyHeldRef.current = false;
+        try {
+          recognitionRef.current?.stop();
+        } catch {
+          recognitionRef.current?.abort();
+        }
+        return;
+      }
+      pressedKeysRef.current.delete(key);
     };
 
     window.addEventListener("keydown", handleKeyDown);
@@ -846,8 +932,9 @@ export default function QuizInterface({
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener("keyup", handleKeyUp);
+      voiceKeyHeldRef.current = false;
     };
-  }, [captureTarget]);
+  }, [captureTarget, quizComplete, quizStarted, voiceInputAvailable]);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1110,6 +1197,13 @@ export default function QuizInterface({
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#F1F5F9] dark:bg-transparent">
+      {startCountdown !== null ? (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/10 backdrop-blur-[1px]">
+          <div className="flex h-36 w-36 items-center justify-center rounded-full border-4 border-white/80 bg-brand-purple text-7xl font-black text-white shadow-2xl shadow-brand-purple/30 dark:border-brand-gold/70 dark:bg-black">
+            {startCountdown}
+          </div>
+        </div>
+      ) : null}
       <div className="mx-auto mb-10 w-full max-w-[1560px] flex-1 p-3 pt-8 sm:p-4 sm:pt-10">
         <div className="mb-4 flex flex-col gap-4 rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 dark:border-white/5 dark:bg-black/40 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1233,9 +1327,10 @@ export default function QuizInterface({
                     </div>
                     <button
                       onClick={startQuiz}
-                      className="rounded-xl bg-brand-purple px-10 py-4 text-lg font-bold text-white shadow-lg shadow-brand-purple/20 transition hover:opacity-90 active:scale-95"
+                      disabled={startCountdown !== null}
+                      className="rounded-xl bg-brand-purple px-10 py-4 text-lg font-bold text-white shadow-lg shadow-brand-purple/20 transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:bg-zinc-400"
                     >
-                      Start Flight
+                      {startCountdown === null ? "Start Flight" : "Get Ready"}
                     </button>
                   </div>
                 </div>
@@ -1325,43 +1420,18 @@ export default function QuizInterface({
               >
                 Repeat
               </button>
-              {VOICE_INPUT_ENABLED && (
-                <button
-                  onClick={() => {
-                    if (autoMicEnabled) {
-                      autoMicEnabledRef.current = false;
-                      setAutoMicEnabled(false);
-                      stopVoiceRecognition();
-                      setVoiceInputStatus("Mic auto off");
-                      return;
-                    }
-
-                    autoMicEnabledRef.current = true;
-                    setAutoMicEnabled(true);
-                    setVoiceInputStatus("Mic auto on");
-                    if (
-                      !speechEnabled ||
-                      typeof window === "undefined" ||
-                      !window.speechSynthesis?.speaking
-                    ) {
-                      void startVoiceRecognition(true);
-                    }
-                  }}
-                  disabled={!quizStarted}
-                  className={`rounded-lg px-3 py-2 text-sm font-bold transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white ${
-                    autoMicEnabled
-                      ? "bg-red-600 text-white hover:bg-red-500"
-                      : "bg-zinc-900 text-white hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-                  }`}
-                >
-                  {autoMicEnabled
-                    ? isListening
-                      ? "Mic Listening"
-                      : "Mic Auto On"
-                    : "Mic Answer"}
-                </button>
-              )}
+              {VOICE_INPUT_ENABLED && voiceInputAvailable ? (
+                <div className="rounded-lg bg-zinc-900 px-3 py-2 text-center text-sm font-bold text-white dark:bg-white dark:text-zinc-900">
+                  Hold B to answer
+                </div>
+              ) : null}
             </div>
+
+            {VOICE_INPUT_ENABLED && voiceBrowserWarning ? (
+              <div className="mb-4 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
+                {voiceBrowserWarning}
+              </div>
+            ) : null}
 
             <div className="mb-5 h-3 overflow-hidden rounded-full bg-zinc-100 dark:bg-white/10">
               <div
@@ -1470,7 +1540,12 @@ export default function QuizInterface({
 
             <p className="mt-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
               {speechStatus}
-              {VOICE_INPUT_ENABLED ? ` · ${voiceInputStatus}` : ""} · W starts,
+              {VOICE_INPUT_ENABLED && voiceInputAvailable
+                ? ` · ${voiceInputStatus}`
+                : ""}
+              {VOICE_INPUT_ENABLED && voiceInputAvailable
+                ? " · Hold B for voice"
+                : ""} · W starts,
               S stops, A/D rotate, Space captures.
             </p>
           </aside>

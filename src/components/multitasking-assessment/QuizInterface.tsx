@@ -139,14 +139,27 @@ function randomBetween([min, max]: [number, number]) {
   return min + Math.random() * (max - min);
 }
 
+function expectedGreenSignalsForRun(
+  settings: DifficultySettings,
+  durationSeconds: number,
+) {
+  const averageSignalMs = (settings.signalEveryMs[0] + settings.signalEveryMs[1]) / 2;
+  const expectedSignals = (durationSeconds * 1000) / averageSignalMs;
+  return Math.max(1, Math.floor(expectedSignals * 0.66));
+}
+
+function expectedSystemFaultsForRun(durationSeconds: number) {
+  return Math.max(1, Math.floor(durationSeconds / 10));
+}
+
+function expectedVoiceQuestionsForRun(durationSeconds: number) {
+  return Math.max(1, Math.floor(durationSeconds / 9));
+}
+
 function formatClock(seconds: number) {
   const minutes = Math.floor(seconds / 60);
   const remaining = Math.floor(seconds % 60);
   return `${minutes}:${remaining.toString().padStart(2, "0")}`;
-}
-
-function scoreFromPenalty(penalty: number) {
-  return Math.round(clamp(100 - penalty, 0, 100));
 }
 
 function makeMathQuestion(
@@ -362,6 +375,7 @@ function makeGaugePlan(now: number, baseSpeed: number) {
 export default function QuizInterface({ config, onRestart }: QuizInterfaceProps) {
   const settings = difficultySettings[config.difficulty];
   const hasMathTask = config.assessmentMode === "full";
+  const hasVoiceTask = config.assessmentMode !== "core2";
   const [started, setStarted] = useState(false);
   const [complete, setComplete] = useState(false);
   const [elapsed, setElapsed] = useState(0);
@@ -388,11 +402,13 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   const stopListeningRef = useRef<() => void>(() => {});
   const voiceKeyHeldRef = useRef(false);
   const gaugeDirectionRef = useRef<1 | -1>(1);
+  const systemFaultActiveRef = useRef(false);
   const gaugePlanRef = useRef(makeGaugePlan(0, settings.gaugeSpeed));
   const nextSignalAtRef = useRef(0);
   const activeSignalRef = useRef<ActiveSignal | null>(null);
   const allEventsRef = useRef<AssessmentEvent[]>([]);
   const clickedCellsRef = useRef<Set<string>>(new Set());
+  const requestedCellsRef = useRef<Set<string>>(new Set());
   const mathQuestionsRef = useRef<MathQuestion[]>([]);
   const mathAnswersRef = useRef<Record<string, string>>({});
   const voiceQuestionRef = useRef<VoiceQuestion | null>(null);
@@ -799,6 +815,15 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   const finishAssessment = useCallback(() => {
     if (finalResult) return;
     const metrics = metricsRef.current;
+    if (systemFaultActiveRef.current) {
+      metrics.systemMisses += 1;
+      systemFaultActiveRef.current = false;
+      pushEvent("System", "Active fault missed at finish", "miss");
+    }
+    if (activeSignalRef.current?.actionable) {
+      activeSignalRef.current = null;
+      setActiveSignal(null);
+    }
     if (hasMathTask) {
       let correct = 0;
       let incorrect = 0;
@@ -828,24 +853,53 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
           )
         : elapsed,
     );
-    const systemScore = scoreFromPenalty(
-      metrics.systemMisses * 18 + metrics.gaugeOutOfBandSeconds * 0.85,
+    const expectedSystemFaults = expectedSystemFaultsForRun(
+      config.sessionLengthSeconds,
     );
-    const signalTotal = Math.max(1, metrics.gridHits + metrics.gridMisses);
-    const gridScore = scoreFromPenalty(
-      (metrics.gridMisses / signalTotal) * 64 +
-        metrics.gridWrongCellClicks * 12 +
-        metrics.gridDistractorClicks * 14 +
-        metrics.gridFalseAlarms * 8,
+    const systemRequired = Math.max(metrics.systemFaults, expectedSystemFaults);
+    const systemScore = Math.round(
+      clamp(
+        (metrics.systemAcknowledgements / systemRequired) * 100 -
+          metrics.systemWrongCorrections * 12,
+        0,
+        100,
+      ),
     );
-    const signalScore = scoreFromPenalty(
-      (metrics.gridMisses / signalTotal) * 48 +
-        metrics.gridDistractorClicks * 16 +
-        metrics.gridFalseAlarms * 8,
+    const expectedGreenSignals = expectedGreenSignalsForRun(
+      settings,
+      config.sessionLengthSeconds,
+    );
+    const requestedCells = requestedCellsRef.current;
+    const clickedCellsSnapshot = clickedCellsRef.current;
+    let correctCells = 0;
+    let incorrectCells = 0;
+    for (const position of clickedCellsSnapshot) {
+      if (requestedCells.has(position)) {
+        correctCells += 1;
+      } else {
+        incorrectCells += 1;
+      }
+    }
+    const requiredCells = Math.max(requestedCells.size, expectedGreenSignals);
+    const missedCells = Math.max(0, requestedCells.size - correctCells);
+    metrics.gridHits = correctCells;
+    metrics.gridMisses = missedCells;
+    metrics.gridFalseAlarms = incorrectCells;
+    metrics.gridWrongCellClicks = incorrectCells;
+    metrics.gridDistractorClicks = 0;
+    const gridScore = Math.round(
+      clamp((correctCells / requiredCells) * 100 - incorrectCells * 10, 0, 100),
     );
     const voiceScore =
-      metrics.voiceQuestions > 0
-        ? Math.round((metrics.voiceCorrect / metrics.voiceQuestions) * 100)
+      hasVoiceTask && voiceEnabled
+        ? Math.round(
+            (metrics.voiceCorrect /
+              Math.max(
+                metrics.voiceQuestions,
+                expectedVoiceQuestionsForRun(config.sessionLengthSeconds),
+              )) *
+              100,
+          )
         : metrics.voiceUnsupported
           ? 0
           : 100;
@@ -862,8 +916,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
     const scores = [
       systemScore,
       gridScore,
-      signalScore,
-      ...(voiceEnabled ? [voiceScore] : []),
+      ...(hasVoiceTask && voiceEnabled ? [voiceScore] : []),
       ...(hasMathTask ? [mathScore] : []),
     ];
 
@@ -874,8 +927,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
       breakdown: {
         systemMonitoring: systemScore,
         gridSelection: gridScore,
-        signalDetection: signalScore,
-        ...(voiceEnabled ? { voiceResponse: voiceScore } : {}),
+        ...(hasVoiceTask && voiceEnabled ? { voiceResponse: voiceScore } : {}),
         ...(hasMathTask ? { resourceManagement: mathScore } : {}),
       },
       rawMetrics: {
@@ -894,15 +946,10 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
           wrongCellClicks: metrics.gridWrongCellClicks,
           distractorClicks: metrics.gridDistractorClicks,
           signals: metrics.gridSignals,
+          correctCells,
+          incorrectCells,
         },
-        signalDetection: {
-          hits: metrics.gridHits,
-          misses: metrics.gridMisses,
-          falseAlarms: metrics.gridFalseAlarms,
-          distractors: metrics.gridDistractors,
-          signals: metrics.gridSignals,
-        },
-        ...(voiceEnabled
+        ...(hasVoiceTask && voiceEnabled
           ? {
               voiceResponse: {
                 questions: metrics.voiceQuestions,
@@ -929,8 +976,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
       enabledSubtasks: [
         "system-monitoring",
         "grid-selection",
-        "signal-detection",
-        ...(voiceEnabled ? ["voice-response"] : []),
+        ...(hasVoiceTask && voiceEnabled ? ["voice-response"] : []),
         ...(hasMathTask ? ["math-questions"] : []),
       ],
       eventLog: allEventsRef.current.slice().reverse(),
@@ -950,6 +996,9 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
     elapsed,
     finalResult,
     hasMathTask,
+    hasVoiceTask,
+    pushEvent,
+    settings,
     stopVoiceRecognition,
     voiceEnabled,
   ]);
@@ -980,6 +1029,8 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
     const now = performance.now();
     startedAtRef.current = now;
     lastFrameRef.current = null;
+    systemFaultActiveRef.current = false;
+    requestedCellsRef.current = new Set();
     gaugePlanRef.current = makeGaugePlan(now, settings.gaugeSpeed);
     gaugeDirectionRef.current = gaugePlanRef.current.direction;
     nextSignalAtRef.current = now + randomBetween(settings.signalEveryMs);
@@ -993,11 +1044,12 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
       mathAnswersRef.current = {};
     }
     pushEvent("Session", "Assessment started", "info");
-    if (voiceEnabled) {
+    if (hasVoiceTask && voiceEnabled) {
       queueVoiceQuestion();
     }
   }, [
     hasMathTask,
+    hasVoiceTask,
     pushEvent,
     queueVoiceQuestion,
     settings.gaugeSpeed,
@@ -1006,7 +1058,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   ]);
 
   const startCountdown = () => {
-    const voiceWarning = getVoiceRecognitionBrowserWarning();
+    const voiceWarning = hasVoiceTask ? getVoiceRecognitionBrowserWarning() : null;
     setVoiceEnabled(!voiceWarning);
     if (voiceWarning) {
       metricsRef.current.voiceUnsupported = true;
@@ -1081,8 +1133,18 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
           plan.direction = 1;
           gaugeDirectionRef.current = plan.direction;
         }
-        if (gaugeState(nextValue) !== "safe") {
+        const nextState = gaugeState(nextValue);
+        if (nextState !== "safe") {
           metricsRef.current.gaugeOutOfBandSeconds += deltaSeconds;
+          if (!systemFaultActiveRef.current) {
+            systemFaultActiveRef.current = true;
+            metricsRef.current.systemFaults += 1;
+            pushEvent("System", `${nextState.toUpperCase()} fault appeared`, "fault");
+          }
+        } else if (systemFaultActiveRef.current) {
+          systemFaultActiveRef.current = false;
+          metricsRef.current.systemMisses += 1;
+          pushEvent("System", "Fault returned safe without correction", "miss");
         }
         return nextValue;
       });
@@ -1097,6 +1159,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
         };
         if (actionable) {
           metricsRef.current.gridSignals += 1;
+          requestedCellsRef.current.add(signal.position);
         } else {
           metricsRef.current.gridDistractors += 1;
         }
@@ -1112,10 +1175,6 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
       }
 
       if (activeSignalRef.current && now > activeSignalRef.current.expiresAt) {
-        if (activeSignalRef.current.actionable) {
-          metricsRef.current.gridMisses += 1;
-          pushEvent("Grid", `${activeSignalRef.current.position} missed`, "miss");
-        }
         setActiveSignal(null);
       }
 
@@ -1141,13 +1200,17 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
   const handleSystemCorrection = (direction: Direction) => {
     const state = gaugeState(systemGauge);
     if (state === "safe") return;
-    metricsRef.current.systemFaults += 1;
+    if (!systemFaultActiveRef.current) {
+      systemFaultActiveRef.current = true;
+      metricsRef.current.systemFaults += 1;
+    }
     metricsRef.current.systemAttempts += 1;
     const correct =
       (state === "high" && direction === "up") ||
       (state === "low" && direction === "down");
     if (correct) {
       metricsRef.current.systemAcknowledgements += 1;
+      systemFaultActiveRef.current = false;
       setSystemGauge(60);
       gaugeDirectionRef.current = state === "high" ? -1 : 1;
       pushEvent("System", `${direction.toUpperCase()} correction accepted`, "hit");
@@ -1163,28 +1226,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
     const nextClicked = new Set(clickedCellsRef.current).add(position);
     clickedCellsRef.current = nextClicked;
     setClickedCells(nextClicked);
-
-    const signal = activeSignalRef.current;
-    if (!signal) {
-      metricsRef.current.gridFalseAlarms += 1;
-      pushEvent("Grid", `${position} clicked with no active signal`, "miss");
-      return;
-    }
-    if (!signal.actionable) {
-      metricsRef.current.gridFalseAlarms += 1;
-      metricsRef.current.gridDistractorClicks += 1;
-      pushEvent("Grid", `${position} clicked during red distractor`, "miss");
-      return;
-    }
-    if (signal.position === position) {
-      metricsRef.current.gridHits += 1;
-      setActiveSignal(null);
-      pushEvent("Grid", `${position} selected`, "hit");
-    } else {
-      metricsRef.current.gridFalseAlarms += 1;
-      metricsRef.current.gridWrongCellClicks += 1;
-      pushEvent("Grid", `${position} selected instead of ${signal.position}`, "miss");
-    }
+    pushEvent("Grid", `${position} marked`, "info");
   };
 
   const systemState = gaugeState(systemGauge);
@@ -1193,7 +1235,6 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
     const breakdownRows = [
       ["System Monitoring", finalResult.breakdown.systemMonitoring],
       ["Grid Selection", finalResult.breakdown.gridSelection],
-      ["Signal Detection", finalResult.breakdown.signalDetection],
       ...(finalResult.breakdown.voiceResponse !== undefined
         ? [["Voice Response", finalResult.breakdown.voiceResponse] as const]
         : []),
@@ -1278,9 +1319,9 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
               <div>
                 <span className="font-bold">Grid Selection:</span> rows are A-J
                 and columns are 1-10. The cells are intentionally blank. Click
-                the cell named by the active signal, such as A-4. Clicked cells
-                stay green. The order does not matter. Missed green signals and
-                extra clicks reduce your grid score.
+                cells shown by green signal dots, such as A-4. Clicked cells
+                stay green. You can remember signals and click them later; only
+                correct versus incorrect cells affect the grid score.
               </div>
               <div>
                 <span className="font-bold">Signal Lights:</span> the three red
@@ -1289,7 +1330,7 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
                 stays red.
               </div>
               <div>
-                <span className="font-bold">Math Questions:</span> in Full 5,
+                <span className="font-bold">Math Questions:</span> in Full 4,
                 all mixed-difficulty questions are visible at once. Easy is
                 3-digit add/subtract; harder rows include 2-digit multiply and
                 clean division. There is no Submit button; typed answers are
@@ -1305,7 +1346,14 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
           </div>
           <div className="mt-6 grid gap-3 text-sm text-zinc-600 dark:text-zinc-300 sm:grid-cols-1">
             <div className="rounded-xl bg-zinc-50 p-4 dark:bg-white/5">
-              Mode: <span className="font-bold capitalize">{config.assessmentMode}</span>
+              Mode:{" "}
+              <span className="font-bold">
+                {config.assessmentMode === "core2"
+                  ? "2 Tasks"
+                  : config.assessmentMode === "core"
+                    ? "3 Tasks"
+                    : "4 Tasks"}
+              </span>
             </div>
           </div>
           <div className="mt-8 flex gap-3">
@@ -1474,7 +1522,11 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
               Multitasking Assessment
             </h2>
             <p className="mt-0.5 text-[11px] font-bold uppercase tracking-[0.18em] text-zinc-500 dark:text-zinc-400">
-              {config.assessmentMode === "full" ? "Full 5" : "Core 3"}
+              {config.assessmentMode === "core2"
+                ? "2 Tasks"
+                : config.assessmentMode === "core"
+                  ? "3 Tasks"
+                  : "4 Tasks"}
             </p>
           </div>
           <div className="flex items-center gap-4">
@@ -1537,7 +1589,11 @@ export default function QuizInterface({ config, onRestart }: QuizInterfaceProps)
               </div>
             </section>
 
-            {voiceEnabled ? voiceCard : voiceUnavailableCard}
+            {hasVoiceTask
+              ? voiceEnabled
+                ? voiceCard
+                : voiceUnavailableCard
+              : null}
           </div>
 
           <section className="space-y-4">

@@ -33,7 +33,13 @@ interface QuizInterfaceProps {
   onRestart: () => void;
 }
 
-const VOICE_INPUT_ENABLED = false;
+const VOICE_INPUT_ENABLED = true;
+
+type NavigatorWithUserAgentData = Navigator & {
+  userAgentData?: {
+    brands?: Array<{ brand: string; version: string }>;
+  };
+};
 
 interface VoiceRecognitionAlternative {
   transcript: string;
@@ -82,6 +88,34 @@ declare global {
     SpeechRecognition?: VoiceRecognitionConstructor;
     webkitSpeechRecognition?: VoiceRecognitionConstructor;
   }
+}
+
+function getVoiceRecognitionBrowserWarning() {
+  if (typeof navigator === "undefined") return null;
+  const userAgent = navigator.userAgent;
+  const brands = (navigator as NavigatorWithUserAgentData).userAgentData?.brands;
+  const vendor = navigator.vendor;
+  const isEdge = /\bEdg\//.test(userAgent);
+  const isOpera = /\b(OPR|Opera)\//.test(userAgent);
+  const isSafari =
+    vendor === "Apple Computer, Inc." &&
+    /\bSafari\//.test(userAgent) &&
+    !/\b(Chrome|CriOS|Chromium|Edg|OPR|Opera|Arc)\//.test(userAgent);
+  const hasGoogleChromeBrand =
+    brands?.some((brand) => brand.brand === "Google Chrome") ?? false;
+  const isGoogleChrome = brands
+    ? hasGoogleChromeBrand && !isEdge && !isOpera
+    : /\bChrome\//.test(userAgent) &&
+      vendor === "Google Inc." &&
+      !isEdge &&
+      !isOpera &&
+      !/\bArc\//.test(userAgent);
+
+  if (!isGoogleChrome && !isSafari) {
+    return "Voice input is available only in Chrome or Safari. Use one of those browsers to answer by holding B.";
+  }
+
+  return null;
 }
 
 function parseSpokenNumber(transcript: string): string | null {
@@ -230,6 +264,7 @@ export default function QuizInterface({
   );
   const [quizComplete, setQuizComplete] = useState(false);
   const [quizStarted, setQuizStarted] = useState(false);
+  const [startCountdown, setStartCountdown] = useState<number | null>(null);
   const [quizPaused, setQuizPaused] = useState(false);
   const [audioEnabled, setAudioEnabled] = useState(false);
   const [speechEnabled, setSpeechEnabled] = useState(true);
@@ -237,6 +272,10 @@ export default function QuizInterface({
   const [isListening, setIsListening] = useState(false);
   const [autoMicEnabled, setAutoMicEnabled] = useState(false);
   const [voiceInputStatus, setVoiceInputStatus] = useState("Mic ready");
+  const [voiceBrowserWarning, setVoiceBrowserWarning] = useState<string | null>(
+    null,
+  );
+  const [voiceInputAvailable, setVoiceInputAvailable] = useState(true);
   const [showQuestionPopup, setShowQuestionPopup] = useState(true);
   const [learnBpm, setLearnBpm] = useState(quizData.bpm ?? questions[0]?.bpm ?? 90);
   const [realBpm, setRealBpm] = useState(questions[0]?.bpm ?? 90);
@@ -369,14 +408,14 @@ export default function QuizInterface({
     oscillator.stop(audioContext.currentTime + 0.07);
   };
 
-  const enableAudio = async () => {
+  const enableAudio = useCallback(async () => {
     if (!audioContextRef.current) {
       audioContextRef.current = new AudioContext();
     }
 
     await audioContextRef.current.resume();
     setAudioEnabled(true);
-  };
+  }, []);
 
   const formatExpressionForSpeech = (expression: string) =>
     expression
@@ -462,7 +501,7 @@ export default function QuizInterface({
     return true;
   }, [currentQuestion, scheduleAutoMic, speechEnabled]);
 
-  const beginQuiz = async () => {
+  const beginQuiz = useCallback(async () => {
     if (quizStartTimeRef.current === null) {
       quizStartTimeRef.current = Date.now();
     }
@@ -477,27 +516,47 @@ export default function QuizInterface({
       speakQuestion(true);
     }
     await enableAudio();
-  };
+  }, [
+    currentQuestion.timeLimitSeconds,
+    enableAudio,
+    resetPaperStep,
+    speakQuestion,
+    speechEnabled,
+  ]);
   const startQuiz = () => {
-    if (quizStarted || tabletCountdown !== null) return;
+    if (quizStarted || tabletCountdown !== null || startCountdown !== null) return;
+    const warning = getVoiceRecognitionBrowserWarning();
+    setVoiceBrowserWarning(warning);
+    setVoiceInputAvailable(!warning);
+    if (warning) {
+      autoMicEnabledRef.current = false;
+      setAutoMicEnabled(false);
+      setVoiceInputStatus("Voice input off");
+    } else {
+      autoMicEnabledRef.current = true;
+      setAutoMicEnabled(true);
+      setVoiceInputStatus("Mic auto on");
+    }
     if (paperInteractionMode === "tablet") {
       setTabletCountdown(3);
       return;
     }
 
-    void beginQuiz();
+    setStartCountdown(3);
   };
 
-  const stopVoiceRecognition = () => {
-    if (voiceSubmitTimerRef.current) {
-      clearTimeout(voiceSubmitTimerRef.current);
-      voiceSubmitTimerRef.current = null;
-    }
-    recognitionRef.current?.abort();
-    recognitionRef.current = null;
-    setIsListening(false);
-    setVoiceInputStatus(autoMicEnabledRef.current ? "Mic auto paused" : "Mic ready");
-  };
+  useEffect(() => {
+    if (startCountdown === null) return;
+    const timer = setTimeout(() => {
+      if (startCountdown <= 1) {
+        setStartCountdown(null);
+        void beginQuiz();
+        return;
+      }
+      setStartCountdown(startCountdown - 1);
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [beginQuiz, startCountdown]);
 
   const stopForPositionCheck = () => {
     if (!quizStarted || quizComplete || quizPaused) return;
@@ -591,7 +650,7 @@ export default function QuizInterface({
   };
 
   const startVoiceRecognition = useCallback(async (cancelSpeech = false) => {
-    if (!VOICE_INPUT_ENABLED) return;
+    if (!VOICE_INPUT_ENABLED || !voiceInputAvailable) return;
     if (
       !quizStarted ||
       quizComplete ||
@@ -774,6 +833,7 @@ export default function QuizInterface({
     quizStarted,
     recordAnswer,
     speakQuestion,
+    voiceInputAvailable,
   ]);
 
   useEffect(() => {
@@ -1060,6 +1120,13 @@ export default function QuizInterface({
 
   return (
     <div className="flex min-h-screen w-full flex-col bg-[#F1F5F9] dark:bg-transparent">
+      {startCountdown !== null ? (
+        <div className="pointer-events-none fixed inset-0 z-50 flex items-center justify-center bg-zinc-950/10 backdrop-blur-[1px]">
+          <div className="flex h-36 w-36 items-center justify-center rounded-full border-4 border-white/80 bg-brand-purple text-7xl font-black text-white shadow-2xl shadow-brand-purple/30 dark:border-brand-gold/70 dark:bg-black">
+            {startCountdown}
+          </div>
+        </div>
+      ) : null}
       <div className="mx-auto mb-20 w-full max-w-[980px] flex-1 p-4 pt-12 sm:p-6 sm:pt-16">
         <div className="mb-4 flex flex-col gap-4 rounded-2xl border-2 border-zinc-200 bg-white px-5 py-4 dark:border-white/5 dark:bg-black/40 sm:flex-row sm:items-center sm:justify-between">
           <div>
@@ -1180,43 +1247,11 @@ export default function QuizInterface({
               >
                 Answer
               </button>
-              {VOICE_INPUT_ENABLED && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (autoMicEnabled) {
-                      autoMicEnabledRef.current = false;
-                      setAutoMicEnabled(false);
-                      stopVoiceRecognition();
-                      setVoiceInputStatus("Mic auto off");
-                      return;
-                    }
-
-                    autoMicEnabledRef.current = true;
-                    setAutoMicEnabled(true);
-                    setVoiceInputStatus("Mic auto on");
-                    if (
-                      !speechEnabled ||
-                      typeof window === "undefined" ||
-                      !window.speechSynthesis?.speaking
-                    ) {
-                      void startVoiceRecognition(true);
-                    }
-                  }}
-                  disabled={!quizStarted || quizPaused}
-                  className={`min-h-12 rounded-xl px-6 text-lg font-bold shadow-lg transition disabled:cursor-not-allowed disabled:bg-zinc-400 disabled:text-white disabled:shadow-none ${
-                    autoMicEnabled
-                      ? "bg-red-600 text-white shadow-red-600/20 hover:bg-red-500"
-                      : "bg-zinc-900 text-white shadow-zinc-900/10 hover:bg-zinc-800 dark:bg-white dark:text-zinc-900 dark:hover:bg-zinc-200"
-                  }`}
-                >
-                  {autoMicEnabled
-                    ? isListening
-                      ? "Mic Listening"
-                      : "Mic Auto On"
-                    : "Mic Answer"}
-                </button>
-              )}
+              {VOICE_INPUT_ENABLED && voiceInputAvailable ? (
+                <div className="flex min-h-12 items-center rounded-xl bg-zinc-900 px-4 text-sm font-bold text-white dark:bg-white dark:text-zinc-900">
+                  Auto voice input
+                </div>
+              ) : null}
               <button
                 type="button"
                 onClick={quizPaused ? resumeQuiz : stopForPositionCheck}
@@ -1231,9 +1266,20 @@ export default function QuizInterface({
               </button>
             </form>
 
+            {VOICE_INPUT_ENABLED && voiceBrowserWarning ? (
+              <div className="mt-3 rounded-xl border border-amber-300 bg-amber-50 p-3 text-sm font-bold text-amber-900 dark:border-amber-400/30 dark:bg-amber-950/30 dark:text-amber-200">
+                {voiceBrowserWarning}
+              </div>
+            ) : null}
+
             <p className="mt-3 text-center text-xs font-medium text-zinc-500 dark:text-zinc-400">
               {speechStatus}
-              {VOICE_INPUT_ENABLED ? ` · ${voiceInputStatus}` : ""}
+              {VOICE_INPUT_ENABLED && voiceInputAvailable
+                ? ` · ${voiceInputStatus}`
+                : ""}
+              {VOICE_INPUT_ENABLED && voiceInputAvailable
+                ? " · Voice listens automatically after each prompt"
+                : ""}
             </p>
 
             <PaperTracker
@@ -1278,10 +1324,12 @@ export default function QuizInterface({
                 </p>
                 <button
                   onClick={startQuiz}
-                  disabled={tabletCountdown !== null}
-                  className="rounded-xl bg-brand-purple px-10 py-4 text-lg font-bold text-white shadow-lg shadow-brand-purple/20 transition hover:opacity-90 active:scale-95"
+                  disabled={tabletCountdown !== null || startCountdown !== null}
+                  className="rounded-xl bg-brand-purple px-10 py-4 text-lg font-bold text-white shadow-lg shadow-brand-purple/20 transition hover:opacity-90 active:scale-95 disabled:cursor-not-allowed disabled:bg-zinc-400"
                 >
-                  {tabletCountdown !== null ? "Get Ready" : "Start"}
+                  {tabletCountdown !== null || startCountdown !== null
+                    ? "Get Ready"
+                    : "Start"}
                 </button>
               </div>
             )}

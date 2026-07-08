@@ -87,7 +87,7 @@ interface ModeSelectionProps<T, D extends string = BaseDifficulty> {
   realIcon?: React.ReactNode;
   difficultyOptions?: D[];
   showDifficulty?: boolean | ((selectedMode: Mode) => boolean);
-  showQuestionCount?: boolean;
+  showQuestionCount?: boolean | ((selectedMode: Mode) => boolean);
   childrenBeforeDifficulty?:
     | React.ReactNode
     | ((context: SharedModeSelectionRenderContext) => React.ReactNode);
@@ -145,6 +145,10 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
     typeof showDifficulty === "function"
       ? showDifficulty(selectedMode)
       : showDifficulty;
+  const shouldShowQuestionCount =
+    typeof showQuestionCount === "function"
+      ? showQuestionCount(selectedMode)
+      : showQuestionCount;
   const customContent =
     typeof childrenBeforeDifficulty === "function"
       ? childrenBeforeDifficulty({ selectedMode, isLoading, questionCount })
@@ -282,7 +286,7 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
         </div>
       )}
 
-      {showQuestionCount && (
+      {shouldShowQuestionCount && (
         <QuestionCountSlider
           value={questionCount}
           min={sliderMin}

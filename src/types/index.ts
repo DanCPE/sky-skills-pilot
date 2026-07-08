@@ -178,7 +178,7 @@ export interface JoyStickGameQuizResponse {
 }
 
 // Multitasking Assessment Battery specific types
-export type MultitaskingAssessmentMode = "core" | "full";
+export type MultitaskingAssessmentMode = "core2" | "core" | "full";
 export type MultitaskingAssessmentDifficulty = "easy" | "medium" | "hard";
 
 export interface MultitaskingAssessmentConfig {
@@ -192,7 +192,6 @@ export interface MultitaskingAssessmentConfig {
 export interface MultitaskingAssessmentScoreBreakdown {
   systemMonitoring: number;
   gridSelection: number;
-  signalDetection: number;
   voiceResponse?: number;
   resourceManagement?: number;
 }
@@ -213,13 +212,8 @@ export interface MultitaskingAssessmentRawMetrics {
     wrongCellClicks: number;
     distractorClicks: number;
     signals: number;
-  };
-  signalDetection: {
-    hits: number;
-    misses: number;
-    falseAlarms: number;
-    distractors: number;
-    signals: number;
+    correctCells: number;
+    incorrectCells: number;
   };
   voiceResponse?: {
     questions: number;
