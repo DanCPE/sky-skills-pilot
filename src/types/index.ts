@@ -5,6 +5,7 @@ export interface Topic {
   description: string;
   category: TopicCategory;
   isLocked?: boolean;
+  isNew?: boolean;
   coverImage?: string;
   coverImageDark?: string;
   coverBg?: string;

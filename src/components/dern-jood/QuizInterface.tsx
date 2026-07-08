@@ -11,7 +11,6 @@ import {
 import { useRouter } from "next/navigation";
 import TopicLayout from "@/components/TopicLayout";
 import ResultsScreen from "./ResultsScreen";
-import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type {
   DernJoodPaperColorFilter,
   DernJoodPaperPatternId,
@@ -1049,25 +1048,6 @@ export default function QuizInterface({
 
     return stopTabletCountdown;
   }, [tabletCountdown]);
-
-  const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
-  useRecordRealModeScore({
-    completed: quizComplete,
-    mode,
-    topicSlug: "dern-jood",
-    topicTitle: "Dern-Jood PRO MAX",
-    score: correctCount,
-    maxScore: questions.length,
-    questionCount: questions.length,
-    timeTakenSeconds: totalTimeTaken,
-    metadata: {
-      bpm: mode === "real" ? displayedBpm : learnBpm,
-      paperMode: paperInteractionMode,
-      shapeFilter: paperShapeFilter,
-      colorFilter: paperColorFilter,
-      wrongPositionCount,
-    },
-  });
 
   useEffect(() => {
     return () => {

@@ -84,6 +84,11 @@ export default function SkyQuestBrowser({
                   key={topic.slug}
                   className="group relative flex flex-col overflow-hidden rounded-2xl border border-zinc-200 bg-white transition-all hover:-translate-y-1 hover:shadow-xl dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md"
                 >
+                  {topic.isNew ? (
+                    <div className="absolute right-[-42px] top-5 z-20 w-40 rotate-45 bg-red-600 py-1 text-center text-[10px] font-black uppercase tracking-[0.18em] text-white shadow-lg shadow-red-950/20">
+                      New Quest
+                    </div>
+                  ) : null}
                   <div
                     className={`relative flex h-40 w-full items-center justify-center overflow-hidden ${
                       topic.coverBg ?? "bg-zinc-100/80 dark:bg-white/5"

@@ -17,55 +17,46 @@ export default function ModeSelection({ onStart }: ModeSelectionProps) {
     <SharedModeSelection<JoyStickGameQuizResponse, Difficulty>
       subtitle="Fly the hexagon with a joystick or WASD while answering mental math."
       topicSlug="joy-stick-game"
+      availableModes={["learn"]}
       defaultQuestionCount={20}
       learnDescription="Set difficulty, question rhythm, obstacle speed, obstacle count, and aircraft sensitivity."
-      realDescription={() =>
-        "Question difficulty is mixed while the flight task keeps running."
-      }
-      formatRealModeTime={() => "Mixed difficulty"}
-      showDifficulty={(selectedMode) => selectedMode !== "real"}
-      childrenBeforeDifficulty={({ selectedMode, isLoading }) =>
-        selectedMode !== "real" ? (
-          <div className="mb-8 rounded-2xl border-2 border-zinc-200 bg-white p-5 dark:border-white/10 dark:bg-black/40">
-            <div className="mb-3 flex items-center justify-between">
-              <label
-                htmlFor="joy-stick-bpm"
-                className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
-              >
-                Question BPM
-              </label>
-              <span className="text-lg font-bold text-zinc-900 dark:text-white">
-                {bpm}
-              </span>
-            </div>
-            <input
-              id="joy-stick-bpm"
-              type="range"
-              min={50}
-              max={180}
-              step={5}
-              value={bpm}
-              disabled={isLoading}
-              onChange={(event) => setBpm(Number(event.target.value))}
-              className="w-full accent-brand-purple disabled:opacity-50"
-            />
-            <div className="mt-2 flex justify-between text-xs font-medium text-zinc-500 dark:text-zinc-400">
-              <span>50</span>
-              <span>180</span>
-            </div>
+      childrenBeforeDifficulty={({ isLoading }) => (
+        <div className="mb-8 rounded-2xl border-2 border-zinc-200 bg-white p-5 dark:border-white/10 dark:bg-black/40">
+          <div className="mb-3 flex items-center justify-between">
+            <label
+              htmlFor="joy-stick-bpm"
+              className="text-sm font-medium text-zinc-700 dark:text-zinc-300"
+            >
+              Question BPM
+            </label>
+            <span className="text-lg font-bold text-zinc-900 dark:text-white">
+              {bpm}
+            </span>
           </div>
-        ) : null
-      }
+          <input
+            id="joy-stick-bpm"
+            type="range"
+            min={50}
+            max={180}
+            step={5}
+            value={bpm}
+            disabled={isLoading}
+            onChange={(event) => setBpm(Number(event.target.value))}
+            className="w-full accent-brand-purple disabled:opacity-50"
+          />
+          <div className="mt-2 flex justify-between text-xs font-medium text-zinc-500 dark:text-zinc-400">
+            <span>50</span>
+            <span>180</span>
+          </div>
+        </div>
+      )}
       onFetch={async (mode, difficulty, count) => {
         const params = new URLSearchParams({
           mode,
-          difficulty: mode === "real" ? "mixed" : difficulty,
+          difficulty,
           count: String(count),
+          bpm: String(bpm),
         });
-
-        if (mode === "learn") {
-          params.set("bpm", String(bpm));
-        }
 
         const response = await fetch(`/api/joy-stick-game/questions?${params}`);
         if (!response.ok) {

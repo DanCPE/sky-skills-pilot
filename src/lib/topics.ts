@@ -119,6 +119,7 @@ export const topics: Topic[] = [
     description: "Run a cockpit-style multitasking battery with monitoring, tracking, communications, and resource control.",
     category: "multitasking",
     isLocked: false,
+    isNew: true,
     coverImage: "/images/icons/SkyQuests/joy.png",
     coverImageDark: "/images/icons/SkyQuests/joy dark.png",
   },

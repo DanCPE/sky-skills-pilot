@@ -9,7 +9,6 @@ import {
   useState,
 } from "react";
 import TopicLayout from "@/components/TopicLayout";
-import { useRecordRealModeScore } from "@/lib/account/client-score-history";
 import type { JoyStickGameQuizResponse } from "@/types";
 import ResultsScreen from "./ResultsScreen";
 
@@ -1130,19 +1129,6 @@ export default function QuizInterface({
       void startVoiceRecognition(cancelSpeech);
     };
   }, [startVoiceRecognition]);
-
-  const correctCount = answers.filter((answerData) => answerData.isCorrect).length;
-  useRecordRealModeScore({
-    completed: quizComplete,
-    mode,
-    topicSlug: "joy-stick-game",
-    topicTitle: "Joy-Stick Game",
-    score: correctCount,
-    maxScore: questions.length,
-    questionCount: questions.length,
-    timeTakenSeconds: totalTimeTaken,
-    metadata: { targetCaptures, obstacleHits, obstacleSpeed, obstacleCount, sensitivity },
-  });
 
   useEffect(() => {
     return () => {

@@ -5,6 +5,7 @@ import QuestionCountSlider from "./QuestionCountSlider";
 import { trackClientEvent } from "@/lib/client-analytics";
 
 type Mode = "learn" | "real" | null;
+type SelectableMode = Exclude<Mode, null>;
 type BaseDifficulty = "easy" | "medium" | "hard" | "mixed";
 type SharedModeSelectionRenderContext = {
   selectedMode: Mode;
@@ -85,6 +86,7 @@ interface ModeSelectionProps<T, D extends string = BaseDifficulty> {
   realDescription?: (questionCount: number, timeDisplay: string) => string;
   learnIcon?: React.ReactNode;
   realIcon?: React.ReactNode;
+  availableModes?: SelectableMode[];
   difficultyOptions?: D[];
   showDifficulty?: boolean | ((selectedMode: Mode) => boolean);
   showQuestionCount?: boolean | ((selectedMode: Mode) => boolean);
@@ -119,6 +121,7 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
   realDescription,
   learnIcon,
   realIcon,
+  availableModes = ["learn", "real"],
   difficultyOptions,
   showDifficulty = true,
   showQuestionCount = true,
@@ -134,6 +137,8 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
   const [questionCount, setQuestionCount] = useState(defaultQuestionCount);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const showLearnMode = availableModes.includes("learn");
+  const showRealMode = availableModes.includes("real");
 
   const timeDisplay = formatRealModeTime
     ? formatRealModeTime(questionCount)
@@ -199,62 +204,73 @@ export default function ModeSelection<T, D extends string = BaseDifficulty>({
       </div>
 
       {/* Mode Cards */}
-      <div className="mb-8 grid gap-6 md:grid-cols-2">
+      <div
+        className={`mb-8 grid gap-6 ${
+          showLearnMode && showRealMode ? "md:grid-cols-2" : ""
+        }`}
+      >
         {/* Learn Mode */}
-        <button
-          onClick={() => setSelectedMode("learn")}
-          disabled={isLoading}
-          className={`rounded-2xl border-2 p-6 text-left transition-all ${
-            selectedMode === "learn"
-              ? "border-brand-purple bg-violet-50 dark:border-brand-purple dark:bg-brand-purple/20"
-              : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md dark:hover:border-white/20"
-          } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-        >
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-brand-purple">
-              {learnIcon ?? <LearnIcon />}
+        {showLearnMode ? (
+          <button
+            onClick={() => setSelectedMode("learn")}
+            disabled={isLoading}
+            className={`rounded-2xl border-2 p-6 text-left transition-all ${
+              selectedMode === "learn"
+                ? "border-brand-purple bg-violet-50 dark:border-brand-purple dark:bg-brand-purple/20"
+                : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md dark:hover:border-white/20"
+            } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+          >
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-brand-purple">
+                {learnIcon ?? <LearnIcon />}
+              </div>
+              <div>
+                <h3 className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                  Learn Mode
+                </h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  No time limit
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                Learn Mode
-              </h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                No time limit
-              </p>
-            </div>
-          </div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {learnDescription}
-          </p>
-        </button>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {learnDescription}
+            </p>
+          </button>
+        ) : null}
 
         {/* Real Mode */}
-        <button
-          onClick={() => setSelectedMode("real")}
-          disabled={isLoading}
-          className={`rounded-2xl border-2 p-6 text-left transition-all ${
-            selectedMode === "real"
-              ? "border-brand-purple bg-violet-50 dark:border-brand-purple dark:bg-brand-purple/20"
-              : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md dark:hover:border-white/20"
-          } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
-        >
-          <div className="mb-3 flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-brand-purple">
-              {realIcon ?? <RealIcon />}
+        {showRealMode ? (
+          <button
+            onClick={() => setSelectedMode("real")}
+            disabled={isLoading}
+            className={`rounded-2xl border-2 p-6 text-left transition-all ${
+              selectedMode === "real"
+                ? "border-brand-purple bg-violet-50 dark:border-brand-purple dark:bg-brand-purple/20"
+                : "border-zinc-200 bg-white hover:border-zinc-300 dark:border-white/10 dark:bg-black/40 dark:backdrop-blur-md dark:hover:border-white/20"
+            } ${isLoading ? "cursor-not-allowed opacity-50" : "cursor-pointer"}`}
+          >
+            <div className="mb-3 flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-violet-100 dark:bg-brand-purple">
+                {realIcon ?? <RealIcon />}
+              </div>
+              <div>
+                <h3 className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
+                  Real Mode
+                </h3>
+                <p className="text-sm text-zinc-500 dark:text-zinc-400">
+                  {timeDisplay}
+                </p>
+              </div>
             </div>
-            <div>
-              <h3 className=" text-lg font-bold text-zinc-900 dark:text-zinc-100">
-                Real Mode
-              </h3>
-              <p className="text-sm text-zinc-500 dark:text-zinc-400">
-                {timeDisplay}
-              </p>
-            </div>
-          </div>
-          <p className="text-sm text-zinc-600 dark:text-zinc-400">
-            {(realDescription ?? defaultRealDescription)(questionCount, timeDisplay)}
-          </p>
-        </button>
+            <p className="text-sm text-zinc-600 dark:text-zinc-400">
+              {(realDescription ?? defaultRealDescription)(
+                questionCount,
+                timeDisplay,
+              )}
+            </p>
+          </button>
+        ) : null}
       </div>
 
       {customContent}
