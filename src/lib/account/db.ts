@@ -113,6 +113,8 @@ export interface AccountSettingsOverview {
   user: AccountUser;
   profiles: AccountProfile[];
   maxProfiles: number;
+  activeSessionCount: number;
+  maxActiveSessions: number;
   subscription: {
     status: string;
     provider: string | null;
@@ -2036,6 +2038,12 @@ export async function getAccountSettingsOverview(
         ORDER BY s.created_at DESC, s.updated_at DESC, s.id DESC
         LIMIT 1
       ),
+      active_sessions AS (
+        SELECT COUNT(*)::int AS count
+        FROM account_sessions s
+        WHERE s.user_id = $1
+          AND s.expires_at > NOW()
+      ),
       active_package AS (
         SELECT COALESCE(sub.plan_key, slip.plan_key) AS plan_key
         FROM latest_subscription sub
@@ -2082,9 +2090,11 @@ export async function getAccountSettingsOverview(
         fleet_profiles.rows AS profiles,
         latest_subscription.row AS subscription,
         latest_payment_slip.row AS latest_payment_slip,
+        active_sessions.count AS active_session_count,
         active_package.plan_key AS active_package_key
       FROM fleet_profiles
       LEFT JOIN latest_subscription ON TRUE
+      LEFT JOIN active_sessions ON TRUE
       LEFT JOIN active_package ON TRUE
       LEFT JOIN latest_payment_slip ON TRUE;
     `,
@@ -2111,6 +2121,8 @@ export async function getAccountSettingsOverview(
     maxProfiles: getFleetMemberLimitForPackageKey(
       row.active_package_key ? String(row.active_package_key) : null,
     ),
+    activeSessionCount: Number(row.active_session_count ?? 0),
+    maxActiveSessions: MAX_ACTIVE_SESSIONS_PER_FLEET,
     subscription: mapSubscription(subscriptionRow),
     latestPaymentSlip: latestPaymentSlipRow
       ? mapManualPaymentSlip(latestPaymentSlipRow)

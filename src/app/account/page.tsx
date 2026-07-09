@@ -132,6 +132,8 @@ export default async function AccountPage() {
               profiles={overview.profiles}
               activeProfileId={overview.user.profileId}
               maxProfiles={overview.maxProfiles}
+              activeSessionCount={overview.activeSessionCount}
+              maxActiveSessions={overview.maxActiveSessions}
             />
           </div>
 
