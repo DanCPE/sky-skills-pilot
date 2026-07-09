@@ -70,6 +70,8 @@ function formatSessionDevice(userAgent: string | null) {
 }
 
 function sessionTitle(session: AccountSessionInfo) {
+  if (!session.userAgent) return "Legacy session";
+
   return `${formatSessionBrowser(session.userAgent)} on ${formatSessionDevice(
     session.userAgent,
   )}`;
@@ -264,7 +266,7 @@ export default async function AccountPage() {
                     Current signed-in browser sessions for this fleet.
                   </p>
                 </div>
-                <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                <span className="shrink-0 whitespace-nowrap rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
                   {overview.activeSessionCount} / {overview.maxActiveSessions}
                 </span>
               </div>
@@ -279,6 +281,12 @@ export default async function AccountPage() {
                       <p className="font-bold text-zinc-950 dark:text-zinc-100">
                         {sessionTitle(session)}
                       </p>
+                      {!session.userAgent ? (
+                        <p className="mt-1 text-xs text-amber-700 dark:text-amber-300">
+                          Browser details unavailable for sessions created before
+                          device tracking was added.
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-zinc-500 dark:text-zinc-400">
                         Profile: {session.profileName ?? "Unknown profile"}
                       </p>

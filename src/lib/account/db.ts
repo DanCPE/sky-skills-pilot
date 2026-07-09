@@ -1215,6 +1215,7 @@ export async function createSession(input: {
   fleetId: string;
   profileId: string;
   rawToken: string;
+  previousRawToken?: string | null;
   ipHash?: string;
   userAgent?: string | null;
 }) {
@@ -1227,6 +1228,11 @@ export async function createSession(input: {
   try {
     await client.query("BEGIN");
     await client.query("DELETE FROM account_sessions WHERE expires_at <= NOW();");
+    if (input.previousRawToken) {
+      await client.query("DELETE FROM account_sessions WHERE token_hash = $1;", [
+        hashSessionToken(input.previousRawToken),
+      ]);
+    }
 
     const insertResult = await client.query(
       `

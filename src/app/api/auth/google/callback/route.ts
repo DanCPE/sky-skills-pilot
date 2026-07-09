@@ -112,6 +112,7 @@ export async function GET(request: NextRequest) {
     name: profile.name,
     picture: profile.picture,
   });
+  const previousSessionToken = request.cookies.get(getSessionCookieName())?.value;
   const rawSessionToken = createRawSessionToken();
   const defaultProfile = await getDefaultProfileForFleet(user.fleetId);
   try {
@@ -119,6 +120,7 @@ export async function GET(request: NextRequest) {
       fleetId: user.fleetId,
       profileId: defaultProfile.id,
       rawToken: rawSessionToken,
+      previousRawToken: previousSessionToken,
       ipHash: hashSessionIp(getClientIp(request)),
       userAgent: request.headers.get("user-agent"),
     });
