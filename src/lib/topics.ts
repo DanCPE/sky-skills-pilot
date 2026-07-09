@@ -120,8 +120,8 @@ export const topics: Topic[] = [
     category: "multitasking",
     isLocked: false,
     isNew: true,
-    coverImage: "/images/icons/SkyQuests/joy.png",
-    coverImageDark: "/images/icons/SkyQuests/joy dark.png",
+    coverImage: "/images/icons/SkyQuests/multitask.png",
+    coverImageDark: "/images/icons/SkyQuests/multitask dark.png",
   },
   {
     slug: "aircraft-rotation",
