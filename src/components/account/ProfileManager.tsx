@@ -13,14 +13,10 @@ export default function ProfileManager({
   profiles,
   activeProfileId,
   maxProfiles,
-  activeSessionCount,
-  maxActiveSessions,
 }: {
   profiles: AccountProfile[];
   activeProfileId: string;
   maxProfiles: number;
-  activeSessionCount: number;
-  maxActiveSessions: number;
 }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -257,7 +253,7 @@ export default function ProfileManager({
         Switch the active pilot before practicing. Scores, rankings, and
         dashboard progress are saved to that profile only.
       </p>
-      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-3">
+      <div className="mt-4 grid gap-3 text-sm sm:grid-cols-2">
         <div className="rounded-xl bg-zinc-50 p-3 dark:bg-white/5">
           <p className="font-bold text-zinc-950 dark:text-zinc-100">
             Fleet slots
@@ -317,14 +313,6 @@ export default function ProfileManager({
               : `${remainingProfiles} ${
                   remainingProfiles === 1 ? "profile" : "profiles"
                 } remaining.`}
-          </p>
-        </div>
-        <div className="rounded-xl bg-zinc-50 p-3 dark:bg-white/5">
-          <p className="font-bold text-zinc-950 dark:text-zinc-100">
-            Active sessions
-          </p>
-          <p className="mt-1 text-zinc-500 dark:text-zinc-400">
-            {activeSessionCount} / {maxActiveSessions} sessions in use.
           </p>
         </div>
       </div>

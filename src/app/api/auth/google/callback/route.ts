@@ -120,6 +120,7 @@ export async function GET(request: NextRequest) {
       profileId: defaultProfile.id,
       rawToken: rawSessionToken,
       ipHash: hashSessionIp(getClientIp(request)),
+      userAgent: request.headers.get("user-agent"),
     });
   } catch (error) {
     return redirectWithError(

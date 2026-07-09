@@ -115,12 +115,22 @@ export interface AccountSettingsOverview {
   maxProfiles: number;
   activeSessionCount: number;
   maxActiveSessions: number;
+  activeSessions: AccountSessionInfo[];
   subscription: {
     status: string;
     provider: string | null;
     currentPeriodEnd: string | null;
   } | null;
   latestPaymentSlip: ManualPaymentSlip | null;
+}
+
+export interface AccountSessionInfo {
+  id: string;
+  profileId: string | null;
+  profileName: string | null;
+  userAgent: string | null;
+  createdAt: string;
+  expiresAt: string;
 }
 
 export type SubscriptionStatus =
@@ -439,6 +449,13 @@ async function canUseExistingAccountSchema(pool: Pool) {
           SELECT 1
           FROM information_schema.columns
           WHERE table_schema = 'public'
+            AND table_name = 'account_sessions'
+            AND column_name = 'user_agent'
+        ) AS has_session_user_agent,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
             AND table_name = 'account_subscription_packages'
             AND column_name = 'duration_months'
         ) AS has_package_duration,
@@ -502,6 +519,14 @@ async function ensureSubscriptionPlanKeyColumn() {
   subscriptionPlanKeyColumnReady = true;
 }
 
+async function ensureAccountSessionMetadataColumns() {
+  if (!hasAccountDatabase()) return;
+
+  await getPool().query(
+    "ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS user_agent TEXT;",
+  );
+}
+
 export function rankScore(percentage: number) {
   if (percentage >= 90) return "Captain";
   if (percentage >= 75) return "First Officer";
@@ -525,6 +550,7 @@ export async function ensureAccountSchema() {
   if (!hasAccountDatabase()) return;
   if (schemaReady) {
     await ensureSubscriptionPlanKeyColumn();
+    await ensureAccountSessionMetadataColumns();
     return;
   }
   if (schemaPromise) return schemaPromise;
@@ -571,6 +597,7 @@ export async function ensureAccountSchema() {
         user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
         active_profile_id UUID,
         ip_hash TEXT,
+        user_agent TEXT,
         token_hash TEXT NOT NULL UNIQUE,
         expires_at TIMESTAMPTZ NOT NULL,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -613,6 +640,7 @@ export async function ensureAccountSchema() {
 
       await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS active_profile_id UUID;");
       await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS ip_hash TEXT;");
+      await pool.query("ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS user_agent TEXT;");
       await pool.query("ALTER TABLE account_users ADD COLUMN IF NOT EXISTS is_mock BOOLEAN NOT NULL DEFAULT FALSE;");
       await pool.query("ALTER TABLE account_profiles ADD COLUMN IF NOT EXISTS is_mock BOOLEAN NOT NULL DEFAULT FALSE;");
       await pool.query("ALTER TABLE account_score_history ADD COLUMN IF NOT EXISTS profile_id UUID;");
@@ -1054,6 +1082,17 @@ function mapUser(row: Record<string, unknown>): AccountUser {
   };
 }
 
+function mapSessionInfo(row: Record<string, unknown>): AccountSessionInfo {
+  return {
+    id: String(row.id),
+    profileId: row.active_profile_id ? String(row.active_profile_id) : null,
+    profileName: row.call_sign ? String(row.call_sign) : null,
+    userAgent: row.user_agent ? String(row.user_agent) : null,
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    expiresAt: new Date(String(row.expires_at)).toISOString(),
+  };
+}
+
 function mapScore(row: Record<string, unknown>): ScoreHistoryEntry {
   return {
     id: String(row.id),
@@ -1177,6 +1216,7 @@ export async function createSession(input: {
   profileId: string;
   rawToken: string;
   ipHash?: string;
+  userAgent?: string | null;
 }) {
   await ensureAccountSchema();
   const pool = getPool();
@@ -1194,16 +1234,18 @@ export async function createSession(input: {
           user_id,
           active_profile_id,
           ip_hash,
+          user_agent,
           token_hash,
           expires_at
         )
-        VALUES ($1, $2, $3, $4, $5)
+        VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING id;
       `,
       [
         input.fleetId,
         input.profileId,
         input.ipHash ?? null,
+        input.userAgent?.slice(0, 500) ?? null,
         hashSessionToken(input.rawToken),
         expiresAt,
       ],
@@ -2039,8 +2081,26 @@ export async function getAccountSettingsOverview(
         LIMIT 1
       ),
       active_sessions AS (
-        SELECT COUNT(*)::int AS count
+        SELECT
+          COUNT(*)::int AS count,
+          COALESCE(
+            jsonb_agg(
+              jsonb_build_object(
+                'id', s.id,
+                'active_profile_id', s.active_profile_id,
+                'call_sign', p.call_sign,
+                'user_agent', s.user_agent,
+                'created_at', s.created_at,
+                'expires_at', s.expires_at
+              )
+              ORDER BY s.created_at DESC
+            ) FILTER (WHERE s.id IS NOT NULL),
+            '[]'::jsonb
+          ) AS rows
         FROM account_sessions s
+        LEFT JOIN account_profiles p
+          ON p.id = s.active_profile_id
+         AND p.user_id = s.user_id
         WHERE s.user_id = $1
           AND s.expires_at > NOW()
       ),
@@ -2091,6 +2151,7 @@ export async function getAccountSettingsOverview(
         latest_subscription.row AS subscription,
         latest_payment_slip.row AS latest_payment_slip,
         active_sessions.count AS active_session_count,
+        active_sessions.rows AS active_session_rows,
         active_package.plan_key AS active_package_key
       FROM fleet_profiles
       LEFT JOIN latest_subscription ON TRUE
@@ -2103,6 +2164,7 @@ export async function getAccountSettingsOverview(
 
   const row = result.rows[0] ?? {};
   const profiles = asRows(row.profiles);
+  const activeSessions = asRows(row.active_session_rows);
   const subscriptionRow = row.subscription as Record<string, unknown> | null;
   const latestPaymentSlipRow = row.latest_payment_slip as
     | Record<string, unknown>
@@ -2123,6 +2185,7 @@ export async function getAccountSettingsOverview(
     ),
     activeSessionCount: Number(row.active_session_count ?? 0),
     maxActiveSessions: MAX_ACTIVE_SESSIONS_PER_FLEET,
+    activeSessions: activeSessions.map(mapSessionInfo),
     subscription: mapSubscription(subscriptionRow),
     latestPaymentSlip: latestPaymentSlipRow
       ? mapManualPaymentSlip(latestPaymentSlipRow)

@@ -7,6 +7,7 @@ import { getCurrentAccountUser } from "@/lib/account/auth";
 import {
   getAccountSettingsOverview,
   hasAccountDatabase,
+  type AccountSessionInfo,
 } from "@/lib/account/db";
 
 export const dynamic = "force-dynamic";
@@ -34,6 +35,44 @@ function formatAmount(value: number) {
 function formatDate(value: string | null) {
   if (!value) return "-";
   return new Date(value).toLocaleString();
+}
+
+function formatSessionBrowser(userAgent: string | null) {
+  if (!userAgent) return "Unknown browser";
+  if (userAgent.includes("Edg/")) return "Microsoft Edge";
+  if (userAgent.includes("Firefox/")) return "Firefox";
+  if (userAgent.includes("CriOS/")) return "Chrome iOS";
+  if (userAgent.includes("Chrome/")) return "Chrome";
+  if (userAgent.includes("Safari/")) return "Safari";
+  return "Unknown browser";
+}
+
+function formatSessionDevice(userAgent: string | null) {
+  if (!userAgent) return "Unknown device";
+
+  const os = userAgent.includes("Windows")
+    ? "Windows"
+    : userAgent.includes("Mac OS X")
+      ? "macOS"
+      : userAgent.includes("Android")
+        ? "Android"
+        : userAgent.includes("iPhone") || userAgent.includes("iPad")
+          ? "iOS"
+          : "Unknown OS";
+
+  const device = userAgent.includes("iPad")
+    ? "Tablet"
+    : userAgent.includes("Mobi") || userAgent.includes("iPhone")
+      ? "Mobile"
+      : "Desktop";
+
+  return `${device} - ${os}`;
+}
+
+function sessionTitle(session: AccountSessionInfo) {
+  return `${formatSessionBrowser(session.userAgent)} on ${formatSessionDevice(
+    session.userAgent,
+  )}`;
 }
 
 export default async function AccountPage() {
@@ -132,8 +171,6 @@ export default async function AccountPage() {
               profiles={overview.profiles}
               activeProfileId={overview.user.profileId}
               maxProfiles={overview.maxProfiles}
-              activeSessionCount={overview.activeSessionCount}
-              maxActiveSessions={overview.maxActiveSessions}
             />
           </div>
 
@@ -218,6 +255,50 @@ export default async function AccountPage() {
               >
                 {isPaid ? "View subscription packages" : "Choose subscription"}
               </Link>
+            </section>
+            <section className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-bold">Active sessions</h2>
+                  <p className="mt-2 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
+                    Current signed-in browser sessions for this fleet.
+                  </p>
+                </div>
+                <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-bold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                  {overview.activeSessionCount} / {overview.maxActiveSessions}
+                </span>
+              </div>
+
+              <div className="mt-5 space-y-3">
+                {overview.activeSessions.length > 0 ? (
+                  overview.activeSessions.map((session) => (
+                    <div
+                      key={session.id}
+                      className="rounded-xl bg-zinc-50 p-4 text-sm dark:bg-white/5"
+                    >
+                      <p className="font-bold text-zinc-950 dark:text-zinc-100">
+                        {sessionTitle(session)}
+                      </p>
+                      <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+                        Profile: {session.profileName ?? "Unknown profile"}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                        Signed in {formatDate(session.createdAt)}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-400 dark:text-zinc-500">
+                        Expires {formatDate(session.expiresAt)}
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="rounded-xl bg-zinc-50 p-4 text-sm dark:bg-white/5">
+                    <p className="font-bold">No active sessions found</p>
+                    <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+                      Sign in again to create a fresh session record.
+                    </p>
+                  </div>
+                )}
+              </div>
             </section>
           </aside>
         </div>
