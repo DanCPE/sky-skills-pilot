@@ -25,6 +25,7 @@ function statusClass(status: string) {
 }
 
 const MAX_CREATE_EVENT_TOTAL_BYTES = 120 * 1024 * 1024;
+const VERCEL_FUNCTION_BODY_LIMIT_BYTES = 4.5 * 1024 * 1024;
 
 function debugClient(message: string, meta?: Record<string, unknown>) {
   console.log(`[personal-files-mail:client] ${message}`, meta ?? {});
@@ -169,6 +170,21 @@ export default function AdminPersonalFilesMailPage() {
       debugClient("create-event blocked by client total limit", {
         totalBytes,
         maxBytes: MAX_CREATE_EVENT_TOTAL_BYTES,
+      });
+      setError(message);
+      setIsCreating(false);
+      return;
+    }
+
+    if (
+      window.location.hostname.endsWith(".vercel.app") &&
+      totalBytes > VERCEL_FUNCTION_BODY_LIMIT_BYTES
+    ) {
+      const message = `Selected files are ${formatBytes(totalBytes)} total. Vercel blocks server uploads above about ${formatBytes(VERCEL_FUNCTION_BODY_LIMIT_BYTES)}, so this request would fail before reaching our API route. Use a smaller file or switch this flow to direct object-storage uploads.`;
+      debugClient("create-event blocked by Vercel function body limit", {
+        totalBytes,
+        maxBytes: VERCEL_FUNCTION_BODY_LIMIT_BYTES,
+        hostname: window.location.hostname,
       });
       setError(message);
       setIsCreating(false);
@@ -394,12 +410,11 @@ export default function AdminPersonalFilesMailPage() {
                 <input
                   name="files"
                   type="file"
-                  required
                   multiple
                   className="rounded-lg border border-zinc-200 bg-white px-3 py-2 font-normal file:mr-3 file:rounded-md file:border-0 file:bg-violet-100 file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-violet-800 dark:border-white/10 dark:bg-zinc-950 dark:file:bg-violet-500/20 dark:file:text-violet-100"
                 />
                 <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                  Upload 1-5 files. Each file can be up to 20 MB.
+                  Optional. Upload up to 5 files, or leave empty for a link-only email.
                 </span>
               </label>
             </div>
@@ -459,7 +474,9 @@ export default function AdminPersonalFilesMailPage() {
             <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-white/10 dark:bg-white/5">
               <p className="font-bold">{selectedBatch.subject}</p>
               <p className="mt-1 text-zinc-500 dark:text-zinc-400">
-                {selectedBatch.files.map((file) => file.fileName).join(", ")}
+                {selectedBatch.files.length > 0
+                  ? selectedBatch.files.map((file) => file.fileName).join(", ")
+                  : "No attached files"}
               </p>
             </div>
           ) : null}
@@ -603,7 +620,9 @@ export default function AdminPersonalFilesMailPage() {
                         {formatBytes(batch.fileSizeBytes)} · {formatDate(batch.createdAt)}
                       </p>
                       <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
-                        {batch.files.map((file) => file.fileName).join(", ")}
+                        {batch.files.length > 0
+                          ? batch.files.map((file) => file.fileName).join(", ")
+                          : "No attached files"}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs font-bold">

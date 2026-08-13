@@ -4387,7 +4387,6 @@ export async function createPersonalFileMailBatch(input: {
   const message = input.message.trim();
   if (!subject) throw new Error("Email subject is required.");
   if (!message) throw new Error("Email message is required.");
-  if (input.files.length === 0) throw new Error("Upload at least one file.");
   if (input.files.length > 5) throw new Error("Upload no more than 5 files.");
 
   const files = input.files.map((file) => ({
@@ -4445,9 +4444,9 @@ export async function createPersonalFileMailBatch(input: {
       [
         subject,
         message,
-        files[0].fileName,
-        files[0].contentType,
-        files[0].fileBytes,
+        files[0]?.fileName ?? "",
+        files[0]?.contentType ?? "application/octet-stream",
+        files[0]?.fileBytes ?? Buffer.alloc(0),
         files.reduce((total, file) => total + file.fileBytes.length, 0),
         input.createdBy?.trim() || null,
       ],

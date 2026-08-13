@@ -165,14 +165,6 @@ export async function POST(request: Request) {
         })),
       });
 
-      if (files.length === 0) {
-        trace.log("create-event-rejected-no-files");
-        return trace.json(
-          { error: "Upload at least one file." },
-          { status: 400 },
-        );
-      }
-
       if (files.length > MAX_ATTACHMENT_COUNT) {
         trace.log("create-event-rejected-too-many-files", {
           fileCount: files.length,
