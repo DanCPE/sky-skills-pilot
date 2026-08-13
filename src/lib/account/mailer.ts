@@ -12,7 +12,6 @@ export interface SendPersonalFileMailInput {
   subject: string;
   message: string;
   attachments: MailAttachment[];
-  smtpPasswordOverride?: string | null;
 }
 
 function getSmtpPort() {
@@ -24,13 +23,13 @@ export function isSmtpConfigured() {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM);
 }
 
-function getTransport(input?: { smtpPasswordOverride?: string | null }) {
+function getTransport() {
   if (!isSmtpConfigured()) {
     throw new Error("SMTP_HOST and SMTP_FROM are required before sending mail.");
   }
 
   const user = process.env.SMTP_USER || undefined;
-  const pass = input?.smtpPasswordOverride?.trim() || process.env.SMTP_PASS || undefined;
+  const pass = process.env.SMTP_PASS || undefined;
 
   return nodemailer.createTransport({
     host: process.env.SMTP_HOST,
@@ -72,9 +71,7 @@ function getHtmlBody(name: string, message: string) {
 }
 
 export async function sendPersonalFileMail(input: SendPersonalFileMailInput) {
-  const transport = getTransport({
-    smtpPasswordOverride: input.smtpPasswordOverride,
-  });
+  const transport = getTransport();
   const text = `Hi ${input.name},\n\n${input.message}\n\nSkySkills Team`;
 
   await transport.sendMail({

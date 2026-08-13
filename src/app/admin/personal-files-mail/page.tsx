@@ -27,14 +27,6 @@ function statusClass(status: string) {
 const MAX_CREATE_EVENT_TOTAL_BYTES = 120 * 1024 * 1024;
 const VERCEL_FUNCTION_BODY_LIMIT_BYTES = 4.5 * 1024 * 1024;
 
-function debugClient(message: string, meta?: Record<string, unknown>) {
-  console.log(`[personal-files-mail:client] ${message}`, meta ?? {});
-}
-
-function createClientTraceId(label: string) {
-  return `${label}-${crypto.randomUUID()}`;
-}
-
 export default function AdminPersonalFilesMailPage() {
   const [data, setData] = useState<PersonalFileMailOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -82,17 +74,12 @@ export default function AdminPersonalFilesMailPage() {
       const url = selectedBatchId
         ? `/api/admin/personal-files-mail?batchId=${encodeURIComponent(selectedBatchId)}`
         : "/api/admin/personal-files-mail";
-      const traceId = createClientTraceId("overview");
-      debugClient("GET overview start", { traceId, url, selectedBatchId });
       const response = await fetch(url, {
         cache: "no-store",
-        headers: {
-          "x-personal-mail-trace-id": traceId,
-        },
       });
       const json = (await response.json().catch(() => null)) as
         | PersonalFileMailOverview
-        | { error?: string; traceId?: string }
+        | { error?: string }
         | null;
 
       if (!response.ok) {
@@ -104,23 +91,7 @@ export default function AdminPersonalFilesMailPage() {
       }
 
       setData(json as PersonalFileMailOverview);
-      debugClient("GET overview success", {
-        traceId,
-        responseTraceId: response.headers.get("x-personal-mail-trace-id"),
-        status: response.status,
-        batchCount:
-          json && "batches" in json && Array.isArray(json.batches)
-            ? json.batches.length
-            : null,
-        paidRecipientCount:
-          json && "paidRecipientCount" in json ? json.paidRecipientCount : null,
-      });
     } catch (fetchError) {
-      debugClient("GET overview failed", {
-        selectedBatchId,
-        error:
-          fetchError instanceof Error ? fetchError.message : String(fetchError),
-      });
       setError(
         fetchError instanceof Error
           ? fetchError.message
@@ -153,24 +124,9 @@ export default function AdminPersonalFilesMailPage() {
       .getAll("files")
       .filter((value): value is File => value instanceof File);
     const totalBytes = files.reduce((total, file) => total + file.size, 0);
-    const traceId = createClientTraceId("create-event");
-    debugClient("create-event POST start", {
-      traceId,
-      fileCount: files.length,
-      totalBytes,
-      files: files.map((file) => ({
-        name: file.name,
-        type: file.type,
-        size: file.size,
-      })),
-    });
 
     if (totalBytes > MAX_CREATE_EVENT_TOTAL_BYTES) {
       const message = `Selected files are ${formatBytes(totalBytes)} total. Limit is ${formatBytes(MAX_CREATE_EVENT_TOTAL_BYTES)}.`;
-      debugClient("create-event blocked by client total limit", {
-        totalBytes,
-        maxBytes: MAX_CREATE_EVENT_TOTAL_BYTES,
-      });
       setError(message);
       setIsCreating(false);
       return;
@@ -181,11 +137,6 @@ export default function AdminPersonalFilesMailPage() {
       totalBytes > VERCEL_FUNCTION_BODY_LIMIT_BYTES
     ) {
       const message = `Selected files are ${formatBytes(totalBytes)} total. Vercel blocks server uploads above about ${formatBytes(VERCEL_FUNCTION_BODY_LIMIT_BYTES)}, so this request would fail before reaching our API route. Use a smaller file or switch this flow to direct object-storage uploads.`;
-      debugClient("create-event blocked by Vercel function body limit", {
-        totalBytes,
-        maxBytes: VERCEL_FUNCTION_BODY_LIMIT_BYTES,
-        hostname: window.location.hostname,
-      });
       setError(message);
       setIsCreating(false);
       return;
@@ -194,28 +145,14 @@ export default function AdminPersonalFilesMailPage() {
     try {
       const response = await fetch("/api/admin/personal-files-mail", {
         method: "POST",
-        headers: {
-          "x-personal-mail-trace-id": traceId,
-        },
         body: formData,
       });
       const json = (await response.json().catch(() => null)) as
-        | { overview?: PersonalFileMailOverview; error?: string; traceId?: string }
+        | { overview?: PersonalFileMailOverview; error?: string }
         | null;
 
       if (!response.ok) {
-        debugClient("create-event POST rejected", {
-          traceId,
-          responseTraceId: response.headers.get("x-personal-mail-trace-id"),
-          status: response.status,
-          error: json?.error ?? null,
-          responseBodyTraceId: json?.traceId ?? null,
-        });
-        throw new Error(
-          `${json?.error ?? "Failed to create sending event."} Trace: ${
-            json?.traceId ?? traceId
-          }`,
-        );
+        throw new Error(json?.error ?? "Failed to create sending event.");
       }
 
       if (json?.overview) {
@@ -223,23 +160,10 @@ export default function AdminPersonalFilesMailPage() {
         const latestBatch = json.overview.batches[0];
         if (latestBatch) setSelectedBatchId(latestBatch.id);
         setSuccess("Sending event created.");
-        debugClient("create-event POST success", {
-          traceId,
-          responseTraceId: response.headers.get("x-personal-mail-trace-id"),
-          status: response.status,
-          selectedBatchId: latestBatch?.id ?? null,
-        });
       }
       form.reset();
       setSelectedFleetIds(new Set());
     } catch (createError) {
-      debugClient("create-event POST failed", {
-        traceId,
-        error:
-          createError instanceof Error
-            ? createError.message
-            : String(createError),
-      });
       setError(
         createError instanceof Error
           ? createError.message
@@ -261,42 +185,18 @@ export default function AdminPersonalFilesMailPage() {
     const formData = new FormData(event.currentTarget);
     formData.set("action", "send-event");
     formData.set("batchId", selectedBatch.id);
-    const traceId = createClientTraceId("send-event");
-    debugClient("send-event POST start", {
-      traceId,
-      batchId: selectedBatch.id,
-      selectedRecipientCount: selectedPaidRecipients.length,
-      selectedFleetIds: selectedPaidRecipients.map((recipient) => recipient.fleetId),
-      fileCount: selectedBatch.files.length,
-      totalFileSizeBytes: selectedBatch.fileSizeBytes,
-      hasSmtpPasswordOverride: Boolean(formData.get("smtpPasswordOverride")),
-    });
 
     try {
       const response = await fetch("/api/admin/personal-files-mail", {
         method: "POST",
-        headers: {
-          "x-personal-mail-trace-id": traceId,
-        },
         body: formData,
       });
       const json = (await response.json().catch(() => null)) as
-        | { overview?: PersonalFileMailOverview; error?: string; traceId?: string }
+        | { overview?: PersonalFileMailOverview; error?: string }
         | null;
 
       if (!response.ok) {
-        debugClient("send-event POST rejected", {
-          traceId,
-          responseTraceId: response.headers.get("x-personal-mail-trace-id"),
-          status: response.status,
-          error: json?.error ?? null,
-          responseBodyTraceId: json?.traceId ?? null,
-        });
-        throw new Error(
-          `${json?.error ?? "Failed to send personal file mail."} Trace: ${
-            json?.traceId ?? traceId
-          }`,
-        );
+        throw new Error(json?.error ?? "Failed to send personal file mail.");
       }
 
       if (json?.overview) {
@@ -309,21 +209,9 @@ export default function AdminPersonalFilesMailPage() {
             ? `Event sent to ${selectedPaidRecipients.length} selected users.`
             : "Personal file mail sent.",
         );
-        debugClient("send-event POST success", {
-          traceId,
-          responseTraceId: response.headers.get("x-personal-mail-trace-id"),
-          status: response.status,
-          batchId: selectedBatch.id,
-          sentSelectionCount: selectedPaidRecipients.length,
-        });
       }
       setSelectedFleetIds(new Set());
     } catch (sendError) {
-      debugClient("send-event POST failed", {
-        traceId,
-        batchId: selectedBatch.id,
-        error: sendError instanceof Error ? sendError.message : String(sendError),
-      });
       setError(
         sendError instanceof Error
           ? sendError.message
@@ -483,19 +371,6 @@ export default function AdminPersonalFilesMailPage() {
           ) : null}
 
           <form onSubmit={(event) => void sendEvent(event)} className="grid gap-4">
-            <label className="grid gap-2 text-sm font-bold">
-              Temporary SMTP password override
-              <input
-                name="smtpPasswordOverride"
-                type="password"
-                autoComplete="off"
-                placeholder="Optional Gmail app password for this send only"
-                className="rounded-lg border border-zinc-200 bg-white px-3 py-2 font-normal outline-none transition focus:border-violet-400 dark:border-white/10 dark:bg-zinc-950"
-              />
-              <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
-                Optional. Used only for this send request and not saved in the database.
-              </span>
-            </label>
             <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-white/10">
               <div className="flex flex-col gap-3 border-b border-zinc-100 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between">
                 <div>

@@ -4621,11 +4621,20 @@ export async function getPersonalFileMailBatchFiles(batchId: string) {
   }
 
   const row = fallbackResult.rows[0];
-  return [{
-    fileName: String(row.file_name),
-    contentType: String(row.content_type),
-    fileBytes: row.file_bytes as Buffer,
-  }];
+  const fileName = row.file_name ? String(row.file_name) : "";
+  const fileBytes = row.file_bytes as Buffer;
+
+  if (!fileName || fileBytes.length === 0) {
+    return [];
+  }
+
+  return [
+    {
+      fileName,
+      contentType: String(row.content_type),
+      fileBytes,
+    },
+  ];
 }
 
 export async function preparePersonalFileMailEventRecipients(input: {
