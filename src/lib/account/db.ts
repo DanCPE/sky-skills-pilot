@@ -273,6 +273,49 @@ export interface ManualPaymentSlip {
   updatedAt: string;
 }
 
+export type PersonalFileMailRecipientStatus = "pending" | "sent" | "failed";
+
+export interface PersonalFileMailBatch {
+  id: string;
+  subject: string;
+  message: string;
+  fileName: string;
+  contentType: string;
+  fileSizeBytes: number;
+  createdBy: string | null;
+  recipientCount: number;
+  pendingCount: number;
+  sentCount: number;
+  failedCount: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonalFileMailRecipient {
+  id: string;
+  batchId: string;
+  fleetId: string;
+  email: string;
+  name: string;
+  packageKey: string;
+  packageTitle: string | null;
+  status: PersonalFileMailRecipientStatus;
+  sentAt: string | null;
+  error: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonalFileMailBatchDetail extends PersonalFileMailBatch {
+  recipients: PersonalFileMailRecipient[];
+}
+
+export interface PersonalFileMailOverview {
+  generatedAt: string;
+  paidRecipientCount: number;
+  batches: PersonalFileMailBatchDetail[];
+}
+
 export interface AdminAccountProfileSummary {
   id: string;
   callSign: string;
@@ -438,6 +481,8 @@ async function canUseExistingAccountSchema(pool: Pool) {
         to_regclass('public.account_manual_payment_slips') IS NOT NULL AS has_payment_slips,
         to_regclass('public.account_subscription_packages') IS NOT NULL AS has_packages,
         to_regclass('public.account_billing_assets') IS NOT NULL AS has_billing_assets,
+        to_regclass('public.account_personal_file_mail_batches') IS NOT NULL AS has_personal_file_mail_batches,
+        to_regclass('public.account_personal_file_mail_recipients') IS NOT NULL AS has_personal_file_mail_recipients,
         EXISTS (
           SELECT 1
           FROM information_schema.columns
@@ -527,6 +572,51 @@ async function ensureAccountSessionMetadataColumns() {
   );
 }
 
+async function ensurePersonalFileMailSchema() {
+  if (!hasAccountDatabase()) return;
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS account_personal_file_mail_batches (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      subject TEXT NOT NULL,
+      message TEXT NOT NULL,
+      file_name TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      file_bytes BYTEA NOT NULL,
+      file_size_bytes INT NOT NULL,
+      created_by TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS account_personal_file_mail_recipients (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      batch_id UUID NOT NULL REFERENCES account_personal_file_mail_batches(id) ON DELETE CASCADE,
+      user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+      email TEXT NOT NULL,
+      name TEXT NOT NULL,
+      package_key TEXT NOT NULL,
+      package_title TEXT,
+      status TEXT NOT NULL DEFAULT 'pending',
+      sent_at TIMESTAMPTZ,
+      error TEXT,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      UNIQUE (batch_id, user_id),
+      CHECK (status IN ('pending', 'sent', 'failed'))
+    );
+  `);
+
+  await getPool().query(
+    "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batches_created_idx ON account_personal_file_mail_batches(created_at DESC);",
+  );
+  await getPool().query(
+    "CREATE INDEX IF NOT EXISTS account_personal_file_mail_recipients_batch_idx ON account_personal_file_mail_recipients(batch_id, status);",
+  );
+}
+
 export function rankScore(percentage: number) {
   if (percentage >= 90) return "Captain";
   if (percentage >= 75) return "First Officer";
@@ -551,6 +641,7 @@ export async function ensureAccountSchema() {
   if (schemaReady) {
     await ensureSubscriptionPlanKeyColumn();
     await ensureAccountSessionMetadataColumns();
+    await ensurePersonalFileMailSchema();
     return;
   }
   if (schemaPromise) return schemaPromise;
@@ -819,6 +910,47 @@ export async function ensureAccountSchema() {
       );
     `);
       await pool.query("CREATE INDEX IF NOT EXISTS account_promotion_codes_package_idx ON account_promotion_codes(package_key, is_active);");
+
+      await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_personal_file_mail_batches (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        file_bytes BYTEA NOT NULL,
+        file_size_bytes INT NOT NULL,
+        created_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+      await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_personal_file_mail_recipients (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        batch_id UUID NOT NULL REFERENCES account_personal_file_mail_batches(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        package_key TEXT NOT NULL,
+        package_title TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        sent_at TIMESTAMPTZ,
+        error TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (batch_id, user_id),
+        CHECK (status IN ('pending', 'sent', 'failed'))
+      );
+    `);
+
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batches_created_idx ON account_personal_file_mail_batches(created_at DESC);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_personal_file_mail_recipients_batch_idx ON account_personal_file_mail_recipients(batch_id, status);",
+      );
 
       const packageMigration = await pool.query(
         "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
@@ -1811,6 +1943,45 @@ function mapManualPaymentSlip(row: Record<string, unknown>): ManualPaymentSlip {
     personalFilesSentAt: row.personal_files_sent_at
       ? new Date(String(row.personal_files_sent_at)).toISOString()
       : null,
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
+function mapPersonalFileMailRecipient(
+  row: Record<string, unknown>,
+): PersonalFileMailRecipient {
+  return {
+    id: String(row.id),
+    batchId: String(row.batch_id),
+    fleetId: String(row.user_id),
+    email: String(row.email),
+    name: String(row.name),
+    packageKey: String(row.package_key),
+    packageTitle: row.package_title ? String(row.package_title) : null,
+    status: String(row.status) as PersonalFileMailRecipientStatus,
+    sentAt: row.sent_at ? new Date(String(row.sent_at)).toISOString() : null,
+    error: row.error ? String(row.error) : null,
+    createdAt: new Date(String(row.created_at)).toISOString(),
+    updatedAt: new Date(String(row.updated_at)).toISOString(),
+  };
+}
+
+function mapPersonalFileMailBatch(
+  row: Record<string, unknown>,
+): PersonalFileMailBatch {
+  return {
+    id: String(row.id),
+    subject: String(row.subject),
+    message: String(row.message),
+    fileName: String(row.file_name),
+    contentType: String(row.content_type),
+    fileSizeBytes: Number(row.file_size_bytes),
+    createdBy: row.created_by ? String(row.created_by) : null,
+    recipientCount: Number(row.recipient_count ?? 0),
+    pendingCount: Number(row.pending_count ?? 0),
+    sentCount: Number(row.sent_count ?? 0),
+    failedCount: Number(row.failed_count ?? 0),
     createdAt: new Date(String(row.created_at)).toISOString(),
     updatedAt: new Date(String(row.updated_at)).toISOString(),
   };
@@ -4070,6 +4241,301 @@ export async function setManualPaymentPersonalFilesSent(input: {
   );
 
   return mapManualPaymentSlip(decoratedResult.rows[0] ?? result.rows[0]);
+}
+
+export async function getPaidPersonalFileMailRecipients() {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      WITH latest_subscription AS (
+        SELECT DISTINCT ON (s.user_id)
+          s.user_id,
+          s.plan_key,
+          s.status,
+          s.current_period_end
+        FROM account_subscriptions s
+        ORDER BY s.user_id, s.created_at DESC, s.updated_at DESC, s.id DESC
+      )
+      SELECT
+        u.id AS user_id,
+        u.email,
+        u.name,
+        sub.plan_key AS package_key,
+        pkg.title AS package_title
+      FROM latest_subscription sub
+      JOIN account_users u ON u.id = sub.user_id
+      LEFT JOIN account_subscription_packages pkg ON pkg.key = sub.plan_key
+      WHERE sub.status IN ('active', 'trialing')
+        AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW())
+        AND sub.plan_key IS NOT NULL
+        AND sub.plan_key <> 'free'
+      ORDER BY u.email ASC;
+    `,
+  );
+
+  return result.rows.map((row) => ({
+    fleetId: String(row.user_id),
+    email: String(row.email),
+    name: String(row.name),
+    packageKey: String(row.package_key),
+    packageTitle: row.package_title ? String(row.package_title) : null,
+  }));
+}
+
+export async function createPersonalFileMailBatch(input: {
+  subject: string;
+  message: string;
+  fileName: string;
+  contentType: string;
+  fileBytes: Buffer;
+  createdBy?: string | null;
+}) {
+  await ensureAccountSchema();
+
+  const subject = input.subject.trim();
+  const message = input.message.trim();
+  if (!subject) throw new Error("Email subject is required.");
+  if (!message) throw new Error("Email message is required.");
+  if (!input.fileName.trim()) throw new Error("Upload file is required.");
+  if (input.fileBytes.length === 0) throw new Error("Upload file is empty.");
+
+  const recipients = await getPaidPersonalFileMailRecipients();
+  if (recipients.length === 0) {
+    throw new Error("No paid subscribers are available for this mail.");
+  }
+
+  const client = await getPool().connect();
+
+  try {
+    await client.query("BEGIN");
+    const batchResult = await client.query(
+      `
+        INSERT INTO account_personal_file_mail_batches (
+          subject,
+          message,
+          file_name,
+          content_type,
+          file_bytes,
+          file_size_bytes,
+          created_by
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7)
+        RETURNING
+          *,
+          0::int AS recipient_count,
+          0::int AS pending_count,
+          0::int AS sent_count,
+          0::int AS failed_count;
+      `,
+      [
+        subject,
+        message,
+        input.fileName.trim(),
+        input.contentType || "application/octet-stream",
+        input.fileBytes,
+        input.fileBytes.length,
+        input.createdBy?.trim() || null,
+      ],
+    );
+
+    const batchId = String(batchResult.rows[0].id);
+    for (const recipient of recipients) {
+      await client.query(
+        `
+          INSERT INTO account_personal_file_mail_recipients (
+            batch_id,
+            user_id,
+            email,
+            name,
+            package_key,
+            package_title
+          )
+          VALUES ($1, $2, $3, $4, $5, $6)
+          ON CONFLICT (batch_id, user_id) DO NOTHING;
+        `,
+        [
+          batchId,
+          recipient.fleetId,
+          recipient.email,
+          recipient.name,
+          recipient.packageKey,
+          recipient.packageTitle,
+        ],
+      );
+    }
+
+    await client.query("COMMIT");
+    return getPersonalFileMailBatch(batchId);
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function getPersonalFileMailBatch(batchId: string) {
+  await ensureAccountSchema();
+
+  const [batchResult, recipientResult] = await Promise.all([
+    getPool().query(
+      `
+        SELECT
+          b.*,
+          COUNT(r.id)::int AS recipient_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'pending')::int AS pending_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'sent')::int AS sent_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'failed')::int AS failed_count
+        FROM account_personal_file_mail_batches b
+        LEFT JOIN account_personal_file_mail_recipients r ON r.batch_id = b.id
+        WHERE b.id = $1
+        GROUP BY b.id
+        LIMIT 1;
+      `,
+      [batchId],
+    ),
+    getPool().query(
+      `
+        SELECT *
+        FROM account_personal_file_mail_recipients
+        WHERE batch_id = $1
+        ORDER BY email ASC;
+      `,
+      [batchId],
+    ),
+  ]);
+
+  if (batchResult.rowCount === 0) {
+    throw new Error("Mail batch not found.");
+  }
+
+  return {
+    ...mapPersonalFileMailBatch(batchResult.rows[0]),
+    recipients: recipientResult.rows.map(mapPersonalFileMailRecipient),
+  };
+}
+
+export async function getPersonalFileMailBatchFile(batchId: string) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        id,
+        subject,
+        message,
+        file_name,
+        content_type,
+        file_bytes
+      FROM account_personal_file_mail_batches
+      WHERE id = $1
+      LIMIT 1;
+    `,
+    [batchId],
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("Mail batch not found.");
+  }
+
+  const row = result.rows[0];
+  return {
+    id: String(row.id),
+    subject: String(row.subject),
+    message: String(row.message),
+    fileName: String(row.file_name),
+    contentType: String(row.content_type),
+    fileBytes: row.file_bytes as Buffer,
+  };
+}
+
+export async function setPersonalFileMailRecipientStatus(input: {
+  recipientId: string;
+  status: PersonalFileMailRecipientStatus;
+  error?: string | null;
+}) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      UPDATE account_personal_file_mail_recipients
+      SET status = $2,
+          sent_at = CASE WHEN $2 = 'sent' THEN NOW() ELSE NULL END,
+          error = $3,
+          updated_at = NOW()
+      WHERE id = $1
+      RETURNING *;
+    `,
+    [
+      input.recipientId,
+      input.status,
+      input.error ? input.error.slice(0, 1000) : null,
+    ],
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("Mail recipient not found.");
+  }
+
+  return mapPersonalFileMailRecipient(result.rows[0]);
+}
+
+export async function getPersonalFileMailOverview(): Promise<PersonalFileMailOverview> {
+  await ensureAccountSchema();
+
+  const [paidRecipients, batchResult, recipientResult] = await Promise.all([
+    getPaidPersonalFileMailRecipients(),
+    getPool().query(
+      `
+        SELECT
+          b.*,
+          COUNT(r.id)::int AS recipient_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'pending')::int AS pending_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'sent')::int AS sent_count,
+          COUNT(r.id) FILTER (WHERE r.status = 'failed')::int AS failed_count
+        FROM account_personal_file_mail_batches b
+        LEFT JOIN account_personal_file_mail_recipients r ON r.batch_id = b.id
+        GROUP BY b.id
+        ORDER BY b.created_at DESC
+        LIMIT 25;
+      `,
+    ),
+    getPool().query(
+      `
+        SELECT r.*
+        FROM account_personal_file_mail_recipients r
+        JOIN account_personal_file_mail_batches b ON b.id = r.batch_id
+        WHERE b.id IN (
+          SELECT id
+          FROM account_personal_file_mail_batches
+          ORDER BY created_at DESC
+          LIMIT 25
+        )
+        ORDER BY b.created_at DESC, r.email ASC;
+      `,
+    ),
+  ]);
+
+  const recipientsByBatch = new Map<string, PersonalFileMailRecipient[]>();
+  for (const row of recipientResult.rows) {
+    const recipient = mapPersonalFileMailRecipient(row);
+    const recipients = recipientsByBatch.get(recipient.batchId) ?? [];
+    recipients.push(recipient);
+    recipientsByBatch.set(recipient.batchId, recipients);
+  }
+
+  return {
+    generatedAt: new Date().toISOString(),
+    paidRecipientCount: paidRecipients.length,
+    batches: batchResult.rows.map((row) => {
+      const batch = mapPersonalFileMailBatch(row);
+      return {
+        ...batch,
+        recipients: recipientsByBatch.get(batch.id) ?? [],
+      };
+    }),
+  };
 }
 
 export async function getAdminBillingOverview() {
