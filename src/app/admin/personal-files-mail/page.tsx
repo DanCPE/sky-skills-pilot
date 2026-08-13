@@ -24,6 +24,10 @@ function statusClass(status: string) {
   return "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100";
 }
 
+function debugClient(message: string, meta?: Record<string, unknown>) {
+  console.log(`[personal-files-mail:client] ${message}`, meta ?? {});
+}
+
 export default function AdminPersonalFilesMailPage() {
   const [data, setData] = useState<PersonalFileMailOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -71,6 +75,7 @@ export default function AdminPersonalFilesMailPage() {
       const url = selectedBatchId
         ? `/api/admin/personal-files-mail?batchId=${encodeURIComponent(selectedBatchId)}`
         : "/api/admin/personal-files-mail";
+      debugClient("GET overview start", { url, selectedBatchId });
       const response = await fetch(url, {
         cache: "no-store",
       });
@@ -88,7 +93,20 @@ export default function AdminPersonalFilesMailPage() {
       }
 
       setData(json as PersonalFileMailOverview);
+      debugClient("GET overview success", {
+        status: response.status,
+        batchCount:
+          json && "batches" in json && Array.isArray(json.batches)
+            ? json.batches.length
+            : null,
+        paidRecipientCount:
+          json && "paidRecipientCount" in json ? json.paidRecipientCount : null,
+      });
     } catch (fetchError) {
+      debugClient("GET overview failed", {
+        error:
+          fetchError instanceof Error ? fetchError.message : String(fetchError),
+      });
       setError(
         fetchError instanceof Error
           ? fetchError.message
@@ -117,6 +135,18 @@ export default function AdminPersonalFilesMailPage() {
 
     const form = event.currentTarget;
     const formData = new FormData(form);
+    const files = formData
+      .getAll("files")
+      .filter((value): value is File => value instanceof File);
+    debugClient("create-event POST start", {
+      fileCount: files.length,
+      totalBytes: files.reduce((total, file) => total + file.size, 0),
+      files: files.map((file) => ({
+        name: file.name,
+        type: file.type,
+        size: file.size,
+      })),
+    });
 
     try {
       const response = await fetch("/api/admin/personal-files-mail", {
@@ -128,6 +158,10 @@ export default function AdminPersonalFilesMailPage() {
         | null;
 
       if (!response.ok) {
+        debugClient("create-event POST rejected", {
+          status: response.status,
+          error: json?.error ?? null,
+        });
         throw new Error(json?.error ?? "Failed to create sending event.");
       }
 
@@ -136,10 +170,20 @@ export default function AdminPersonalFilesMailPage() {
         const latestBatch = json.overview.batches[0];
         if (latestBatch) setSelectedBatchId(latestBatch.id);
         setSuccess("Sending event created.");
+        debugClient("create-event POST success", {
+          status: response.status,
+          selectedBatchId: latestBatch?.id ?? null,
+        });
       }
       form.reset();
       setSelectedFleetIds(new Set());
     } catch (createError) {
+      debugClient("create-event POST failed", {
+        error:
+          createError instanceof Error
+            ? createError.message
+            : String(createError),
+      });
       setError(
         createError instanceof Error
           ? createError.message
@@ -161,6 +205,13 @@ export default function AdminPersonalFilesMailPage() {
     const formData = new FormData(event.currentTarget);
     formData.set("action", "send-event");
     formData.set("batchId", selectedBatch.id);
+    debugClient("send-event POST start", {
+      batchId: selectedBatch.id,
+      selectedRecipientCount: selectedPaidRecipients.length,
+      selectedFleetIds: selectedPaidRecipients.map((recipient) => recipient.fleetId),
+      fileCount: selectedBatch.files.length,
+      totalFileSizeBytes: selectedBatch.fileSizeBytes,
+    });
 
     try {
       const response = await fetch("/api/admin/personal-files-mail", {
@@ -172,6 +223,10 @@ export default function AdminPersonalFilesMailPage() {
         | null;
 
       if (!response.ok) {
+        debugClient("send-event POST rejected", {
+          status: response.status,
+          error: json?.error ?? null,
+        });
         throw new Error(json?.error ?? "Failed to send personal file mail.");
       }
 
@@ -185,9 +240,18 @@ export default function AdminPersonalFilesMailPage() {
             ? `Event sent to ${selectedPaidRecipients.length} selected users.`
             : "Personal file mail sent.",
         );
+        debugClient("send-event POST success", {
+          status: response.status,
+          batchId: selectedBatch.id,
+          sentSelectionCount: selectedPaidRecipients.length,
+        });
       }
       setSelectedFleetIds(new Set());
     } catch (sendError) {
+      debugClient("send-event POST failed", {
+        batchId: selectedBatch.id,
+        error: sendError instanceof Error ? sendError.message : String(sendError),
+      });
       setError(
         sendError instanceof Error
           ? sendError.message
