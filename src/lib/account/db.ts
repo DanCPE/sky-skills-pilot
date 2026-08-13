@@ -310,9 +310,18 @@ export interface PersonalFileMailBatchDetail extends PersonalFileMailBatch {
   recipients: PersonalFileMailRecipient[];
 }
 
+export interface PaidPersonalFileMailRecipient {
+  fleetId: string;
+  email: string;
+  name: string;
+  packageKey: string;
+  packageTitle: string | null;
+}
+
 export interface PersonalFileMailOverview {
   generatedAt: string;
   paidRecipientCount: number;
+  paidRecipients: PaidPersonalFileMailRecipient[];
   batches: PersonalFileMailBatchDetail[];
 }
 
@@ -4274,7 +4283,7 @@ export async function getPaidPersonalFileMailRecipients() {
     `,
   );
 
-  return result.rows.map((row) => ({
+  return result.rows.map((row): PaidPersonalFileMailRecipient => ({
     fleetId: String(row.user_id),
     email: String(row.email),
     name: String(row.name),
@@ -4290,6 +4299,7 @@ export async function createPersonalFileMailBatch(input: {
   contentType: string;
   fileBytes: Buffer;
   createdBy?: string | null;
+  recipientFleetIds?: string[];
 }) {
   await ensureAccountSchema();
 
@@ -4300,9 +4310,21 @@ export async function createPersonalFileMailBatch(input: {
   if (!input.fileName.trim()) throw new Error("Upload file is required.");
   if (input.fileBytes.length === 0) throw new Error("Upload file is empty.");
 
-  const recipients = await getPaidPersonalFileMailRecipients();
+  const recipientFleetIds = new Set(
+    (input.recipientFleetIds ?? [])
+      .map((fleetId) => fleetId.trim())
+      .filter(Boolean),
+  );
+
+  if (recipientFleetIds.size === 0) {
+    throw new Error("Select at least one paid subscriber.");
+  }
+
+  const recipients = (await getPaidPersonalFileMailRecipients()).filter(
+    (recipient) => recipientFleetIds.has(recipient.fleetId),
+  );
   if (recipients.length === 0) {
-    throw new Error("No paid subscribers are available for this mail.");
+    throw new Error("Selected subscribers are no longer active paid subscribers.");
   }
 
   const client = await getPool().connect();
@@ -4528,6 +4550,7 @@ export async function getPersonalFileMailOverview(): Promise<PersonalFileMailOve
   return {
     generatedAt: new Date().toISOString(),
     paidRecipientCount: paidRecipients.length,
+    paidRecipients,
     batches: batchResult.rows.map((row) => {
       const batch = mapPersonalFileMailBatch(row);
       return {

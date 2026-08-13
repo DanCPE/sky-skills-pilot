@@ -68,9 +68,20 @@ export async function POST(request: Request) {
     const file = formData.get("file");
     const subject = String(formData.get("subject") ?? "").trim();
     const message = String(formData.get("message") ?? "").trim();
+    const recipientFleetIds = formData
+      .getAll("recipientFleetIds")
+      .map((value) => String(value).trim())
+      .filter(Boolean);
 
     if (!(file instanceof File)) {
       return NextResponse.json({ error: "Upload file is required." }, { status: 400 });
+    }
+
+    if (recipientFleetIds.length === 0) {
+      return NextResponse.json(
+        { error: "Select at least one paid subscriber." },
+        { status: 400 },
+      );
     }
 
     if (file.size > MAX_ATTACHMENT_BYTES) {
@@ -87,6 +98,7 @@ export async function POST(request: Request) {
       contentType: file.type || "application/octet-stream",
       fileBytes: Buffer.from(await file.arrayBuffer()),
       createdBy: adminUser?.email ?? null,
+      recipientFleetIds,
     });
 
     const batchFile = await getPersonalFileMailBatchFile(batch.id);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { PersonalFileMailOverview } from "@/lib/account/db";
 
 function formatDate(value: string | null) {
@@ -30,6 +30,23 @@ export default function AdminPersonalFilesMailPage() {
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [selectedFleetIds, setSelectedFleetIds] = useState<Set<string>>(
+    new Set(),
+  );
+
+  const paidRecipients = useMemo(
+    () => data?.paidRecipients ?? [],
+    [data?.paidRecipients],
+  );
+  const selectedPaidRecipients = useMemo(
+    () =>
+      paidRecipients.filter((recipient) =>
+        selectedFleetIds.has(recipient.fleetId),
+      ),
+    [paidRecipients, selectedFleetIds],
+  );
+  const allPaidRecipientsSelected =
+    paidRecipients.length > 0 && selectedPaidRecipients.length === paidRecipients.length;
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -100,6 +117,7 @@ export default function AdminPersonalFilesMailPage() {
         );
       }
       form.reset();
+      setSelectedFleetIds(new Set());
     } catch (sendError) {
       setError(
         sendError instanceof Error
@@ -109,6 +127,26 @@ export default function AdminPersonalFilesMailPage() {
     } finally {
       setIsSending(false);
     }
+  }
+
+  function toggleRecipient(fleetId: string) {
+    setSelectedFleetIds((current) => {
+      const next = new Set(current);
+      if (next.has(fleetId)) {
+        next.delete(fleetId);
+      } else {
+        next.add(fleetId);
+      }
+      return next;
+    });
+  }
+
+  function selectAllRecipients() {
+    setSelectedFleetIds(new Set(paidRecipients.map((recipient) => recipient.fleetId)));
+  }
+
+  function clearSelectedRecipients() {
+    setSelectedFleetIds(new Set());
   }
 
   return (
@@ -122,7 +160,7 @@ export default function AdminPersonalFilesMailPage() {
             <div>
               <h1 className="text-3xl font-bold">Personal File Delivery</h1>
               <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-300">
-                Upload one file and send it to every active subscriber above the free tier.
+                Upload one file and choose which active paid subscribers should receive it.
               </p>
             </div>
             <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-white/10 dark:bg-white/5">
@@ -176,13 +214,90 @@ export default function AdminPersonalFilesMailPage() {
                 className="rounded-lg border border-zinc-200 bg-white px-3 py-2 font-normal outline-none transition focus:border-violet-400 dark:border-white/10 dark:bg-zinc-950"
               />
             </label>
+            <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-white/10">
+              <div className="flex flex-col gap-3 border-b border-zinc-100 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p className="text-sm font-bold">Active paid recipients</p>
+                  <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                    {selectedPaidRecipients.length} selected from{" "}
+                    {paidRecipients.length} active paid users
+                  </p>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={selectAllRecipients}
+                    disabled={paidRecipients.length === 0 || allPaidRecipientsSelected}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200"
+                  >
+                    Select All
+                  </button>
+                  <button
+                    type="button"
+                    onClick={clearSelectedRecipients}
+                    disabled={selectedPaidRecipients.length === 0}
+                    className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200"
+                  >
+                    Clear
+                  </button>
+                </div>
+              </div>
+
+              {paidRecipients.length === 0 ? (
+                <p className="px-4 py-5 text-sm text-zinc-500 dark:text-zinc-400">
+                  No active paid users are available.
+                </p>
+              ) : (
+                <div className="max-h-80 overflow-y-auto">
+                  {paidRecipients.map((recipient) => {
+                    const isSelected = selectedFleetIds.has(recipient.fleetId);
+
+                    return (
+                      <label
+                        key={recipient.fleetId}
+                        className={`flex cursor-pointer items-center gap-3 border-t border-zinc-100 px-4 py-3 text-sm transition first:border-t-0 dark:border-white/10 ${
+                          isSelected
+                            ? "bg-violet-50 dark:bg-violet-500/10"
+                            : "hover:bg-zinc-50 dark:hover:bg-white/5"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          checked={isSelected}
+                          onChange={() => toggleRecipient(recipient.fleetId)}
+                          className="h-4 w-4 rounded border-zinc-300 text-violet-700"
+                        />
+                        {isSelected ? (
+                          <input
+                            type="hidden"
+                            name="recipientFleetIds"
+                            value={recipient.fleetId}
+                          />
+                        ) : null}
+                        <span className="min-w-0 flex-1">
+                          <span className="block truncate font-bold">
+                            {recipient.email}
+                          </span>
+                          <span className="block truncate text-xs text-zinc-500 dark:text-zinc-400">
+                            {recipient.name} ·{" "}
+                            {recipient.packageTitle ?? recipient.packageKey}
+                          </span>
+                        </span>
+                      </label>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={isSending || (data?.paidRecipientCount ?? 0) === 0}
+                disabled={isSending || selectedPaidRecipients.length === 0}
                 className="rounded-lg bg-zinc-950 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-brand-gold dark:text-zinc-950 dark:hover:bg-amber-300"
               >
-                {isSending ? "Sending..." : "Upload and Send"}
+                {isSending
+                  ? "Sending..."
+                  : `Upload and Send (${selectedPaidRecipients.length})`}
               </button>
             </div>
           </form>
