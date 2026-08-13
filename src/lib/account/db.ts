@@ -4319,34 +4319,39 @@ export async function getPaidPersonalFileMailRecipients(batchId?: string | null)
 
   const result = await getPool().query(
     `
-      WITH latest_subscription AS (
-        SELECT DISTINCT ON (s.user_id)
-          s.user_id,
-          s.plan_key,
-          s.status,
-          s.current_period_end
-        FROM account_subscriptions s
-        ORDER BY s.user_id, s.created_at DESC, s.updated_at DESC, s.id DESC
-      )
       SELECT
         u.id AS user_id,
         u.email,
         u.name,
-        sub.plan_key AS package_key,
+        COALESCE(s.plan_key, latest_slip.plan_key, '__paid_without_package') AS package_key,
         pkg.title AS package_title,
         event_recipient.status AS event_recipient_status,
         event_recipient.sent_at AS event_sent_at,
         event_recipient.error AS event_error
-      FROM latest_subscription sub
-      JOIN account_users u ON u.id = sub.user_id
-      LEFT JOIN account_subscription_packages pkg ON pkg.key = sub.plan_key
+      FROM account_users u
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM account_subscriptions sub
+        WHERE sub.user_id = u.id
+        ORDER BY sub.created_at DESC, sub.updated_at DESC, sub.id DESC
+        LIMIT 1
+      ) s ON TRUE
+      LEFT JOIN LATERAL (
+        SELECT *
+        FROM account_manual_payment_slips slip
+        WHERE slip.user_id = u.id
+          AND slip.status = 'approved'
+        ORDER BY slip.reviewed_at DESC NULLS LAST, slip.created_at DESC
+        LIMIT 1
+      ) latest_slip ON TRUE
+      LEFT JOIN account_subscription_packages pkg
+        ON pkg.key = COALESCE(s.plan_key, latest_slip.plan_key)
       LEFT JOIN account_personal_file_mail_recipients event_recipient
         ON event_recipient.user_id = u.id
        AND event_recipient.batch_id = $1::uuid
-      WHERE sub.status IN ('active', 'trialing')
-        AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW())
-        AND sub.plan_key IS NOT NULL
-        AND sub.plan_key <> 'free'
+      WHERE s.status IN ('active', 'trialing')
+        AND (s.current_period_end IS NULL OR s.current_period_end > NOW())
+        AND COALESCE(s.plan_key, latest_slip.plan_key, '__paid_without_package') <> 'free'
       ORDER BY
         CASE WHEN event_recipient.status = 'sent' THEN 1 ELSE 0 END,
         u.email ASC;

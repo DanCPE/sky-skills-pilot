@@ -49,8 +49,23 @@ function isPaidSubscription(
   return new Date(currentPeriodEnd).getTime() > Date.now();
 }
 
-function paidLabel(status: string, currentPeriodEnd?: string | null) {
-  return isPaidSubscription(status, currentPeriodEnd) ? "Paid" : "Free";
+function isPaidFleet(fleet: AdminBillingFleet) {
+  return (
+    isPaidSubscription(fleet.subscriptionStatus, fleet.currentPeriodEnd) &&
+    fleet.latestPackageKey !== "free"
+  );
+}
+
+function getFleetPackageFilterKey(fleet: AdminBillingFleet) {
+  if (!isPaidFleet(fleet)) {
+    return "__free";
+  }
+
+  return fleet.latestPackageKey ?? "__paid_without_package";
+}
+
+function fleetPaidLabel(fleet: AdminBillingFleet) {
+  return isPaidFleet(fleet) ? "Paid" : "Free";
 }
 
 function formatAmount(value: number) {
@@ -212,27 +227,31 @@ export default function AdminBillingPage() {
     const fleets = data?.fleets ?? [];
     const normalizedQuery = query.trim().toLowerCase();
 
-    return fleets.filter(
-      (fleet) => {
-        const matchesQuery =
-          !normalizedQuery ||
-          fleet.email.toLowerCase().includes(normalizedQuery) ||
-          fleet.name.toLowerCase().includes(normalizedQuery);
-        const packageFilterKey = fleet.latestPackageKey ?? "__free";
-        const matchesPackage =
-          selectedPackageFilters.size === 0 ||
-          selectedPackageFilters.has(packageFilterKey);
+    return fleets.filter((fleet) => {
+      if (
+        selectedPackageFilters.size > 0 &&
+        !selectedPackageFilters.has(getFleetPackageFilterKey(fleet))
+      ) {
+        return false;
+      }
 
-        return matchesQuery && matchesPackage;
-      },
-    );
+      if (!normalizedQuery) return true;
+
+      return (
+        fleet.email.toLowerCase().includes(normalizedQuery) ||
+        fleet.name.toLowerCase().includes(normalizedQuery)
+      );
+    });
   }, [data, query, selectedPackageFilters]);
 
   const assignablePackages = useMemo(
     () => (data?.subscriptionPackages ?? []).filter((pkg) => pkg.isActive),
     [data],
   );
-  const packageFilterOptions = data?.subscriptionPackages ?? [];
+  const packageFilterOptions = useMemo(
+    () => (data?.subscriptionPackages ?? []).filter((pkg) => pkg.key !== "free"),
+    [data?.subscriptionPackages],
+  );
 
   function togglePackageFilter(packageKey: string) {
     setSelectedPackageFilters((current) => {
@@ -867,9 +886,7 @@ export default function AdminBillingPage() {
               Paid Fleets
             </p>
             <p className="mt-2 text-3xl font-bold">
-              {data?.fleets.filter((fleet) =>
-                isPaidSubscription(fleet.subscriptionStatus, fleet.currentPeriodEnd),
-              ).length ?? 0}
+              {data?.fleets.filter(isPaidFleet).length ?? 0}
             </p>
           </div>
           <div className="rounded-2xl border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-zinc-950">
@@ -1553,7 +1570,12 @@ export default function AdminBillingPage() {
         <section className="overflow-hidden rounded-2xl border border-zinc-200 bg-white shadow-sm dark:border-white/10 dark:bg-zinc-950">
           <div className="flex flex-col gap-4 border-b border-zinc-200 px-5 py-4 dark:border-white/10 lg:flex-row lg:items-start lg:justify-between">
             <div>
-              <h2 className="text-lg font-bold">Manual Paid Fleets</h2>
+              <div className="flex flex-wrap items-center gap-3">
+                <h2 className="text-lg font-bold">Manual Paid Fleets</h2>
+                <span className="rounded-full bg-zinc-100 px-3 py-1 text-xs font-bold text-zinc-600 dark:bg-white/10 dark:text-zinc-300">
+                  {filteredFleets.length} / {data?.fleets.length ?? 0} accounts
+                </span>
+              </div>
               <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
                 Find registered fleets and assign packages from each row.
                 Package fleets can access every quiz regardless of lock settings.
@@ -1575,6 +1597,15 @@ export default function AdminBillingPage() {
                     className="h-4 w-4 rounded border-zinc-300 text-violet-700 focus:ring-violet-500"
                   />
                   Free
+                </label>
+                <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-zinc-200 px-3 py-2 text-xs font-bold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 dark:border-white/10 dark:text-zinc-200 dark:hover:border-violet-400 dark:hover:text-violet-200">
+                  <input
+                    type="checkbox"
+                    checked={selectedPackageFilters.has("__paid_without_package")}
+                    onChange={() => togglePackageFilter("__paid_without_package")}
+                    className="h-4 w-4 rounded border-zinc-300 text-violet-700 focus:ring-violet-500"
+                  />
+                  Paid - no package
                 </label>
                 {packageFilterOptions.map((pkg) => (
                   <label
@@ -1621,13 +1652,10 @@ export default function AdminBillingPage() {
                   </tr>
                 ) : (
                   visibleFleets.map((fleet) => {
-                    const isPaid = isPaidSubscription(
-                      fleet.subscriptionStatus,
-                      fleet.currentPeriodEnd,
-                    );
+                    const isPaid = isPaidFleet(fleet);
                     const key = `fleet:${fleet.fleetId}`;
                     const isSpecialDeal =
-                      fleet.latestPackageKey === "captain-pro-max";
+                      isPaid && fleet.latestPackageKey === "captain-pro-max";
                     const selectedPackageKey =
                       isPaid && fleet.latestPackageKey
                         ? fleet.latestPackageKey
@@ -1660,14 +1688,11 @@ export default function AdminBillingPage() {
                               : "bg-zinc-100 text-zinc-600 dark:bg-white/10 dark:text-zinc-300"
                           }`}
                         >
-                          {paidLabel(
-                            fleet.subscriptionStatus,
-                            fleet.currentPeriodEnd,
-                          )}
+                          {fleetPaidLabel(fleet)}
                         </span>
                       </td>
                       <td className="min-w-60 px-4 py-3">
-                        {fleet.latestPackageTitle || fleet.latestPackageKey ? (
+                        {isPaid && (fleet.latestPackageTitle || fleet.latestPackageKey) ? (
                           <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
                             <p className="text-sm font-bold text-zinc-950 dark:text-zinc-100">
                               {fleet.latestPackageTitle ??
@@ -1743,7 +1768,7 @@ export default function AdminBillingPage() {
                         ) : (
                           <div className="space-y-1 text-xs text-zinc-500 dark:text-zinc-400">
                             <p className="text-sm font-bold text-zinc-950 dark:text-zinc-100">
-                              Manual override
+                              {isPaid ? "Manual override" : "No active package"}
                             </p>
                             <p>Package -</p>
                             <p>Amount -</p>
@@ -1752,6 +1777,14 @@ export default function AdminBillingPage() {
                             <p>
                               Expires {formatDateOnly(fleet.currentPeriodEnd)}
                             </p>
+                            {!isPaid &&
+                            (fleet.latestPackageTitle || fleet.latestPackageKey) ? (
+                              <p>
+                                Latest record:{" "}
+                                {fleet.latestPackageTitle ??
+                                  fleet.latestPackageKey}
+                              </p>
+                            ) : null}
                           </div>
                         )}
                       </td>
