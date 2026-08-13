@@ -24,8 +24,14 @@ function statusClass(status: string) {
   return "bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-100";
 }
 
+const MAX_CREATE_EVENT_TOTAL_BYTES = 120 * 1024 * 1024;
+
 function debugClient(message: string, meta?: Record<string, unknown>) {
   console.log(`[personal-files-mail:client] ${message}`, meta ?? {});
+}
+
+function createClientTraceId(label: string) {
+  return `${label}-${crypto.randomUUID()}`;
 }
 
 export default function AdminPersonalFilesMailPage() {
@@ -75,13 +81,17 @@ export default function AdminPersonalFilesMailPage() {
       const url = selectedBatchId
         ? `/api/admin/personal-files-mail?batchId=${encodeURIComponent(selectedBatchId)}`
         : "/api/admin/personal-files-mail";
-      debugClient("GET overview start", { url, selectedBatchId });
+      const traceId = createClientTraceId("overview");
+      debugClient("GET overview start", { traceId, url, selectedBatchId });
       const response = await fetch(url, {
         cache: "no-store",
+        headers: {
+          "x-personal-mail-trace-id": traceId,
+        },
       });
       const json = (await response.json().catch(() => null)) as
         | PersonalFileMailOverview
-        | { error?: string }
+        | { error?: string; traceId?: string }
         | null;
 
       if (!response.ok) {
@@ -94,6 +104,8 @@ export default function AdminPersonalFilesMailPage() {
 
       setData(json as PersonalFileMailOverview);
       debugClient("GET overview success", {
+        traceId,
+        responseTraceId: response.headers.get("x-personal-mail-trace-id"),
         status: response.status,
         batchCount:
           json && "batches" in json && Array.isArray(json.batches)
@@ -104,6 +116,7 @@ export default function AdminPersonalFilesMailPage() {
       });
     } catch (fetchError) {
       debugClient("GET overview failed", {
+        selectedBatchId,
         error:
           fetchError instanceof Error ? fetchError.message : String(fetchError),
       });
@@ -138,9 +151,12 @@ export default function AdminPersonalFilesMailPage() {
     const files = formData
       .getAll("files")
       .filter((value): value is File => value instanceof File);
+    const totalBytes = files.reduce((total, file) => total + file.size, 0);
+    const traceId = createClientTraceId("create-event");
     debugClient("create-event POST start", {
+      traceId,
       fileCount: files.length,
-      totalBytes: files.reduce((total, file) => total + file.size, 0),
+      totalBytes,
       files: files.map((file) => ({
         name: file.name,
         type: file.type,
@@ -148,21 +164,42 @@ export default function AdminPersonalFilesMailPage() {
       })),
     });
 
+    if (totalBytes > MAX_CREATE_EVENT_TOTAL_BYTES) {
+      const message = `Selected files are ${formatBytes(totalBytes)} total. Limit is ${formatBytes(MAX_CREATE_EVENT_TOTAL_BYTES)}.`;
+      debugClient("create-event blocked by client total limit", {
+        totalBytes,
+        maxBytes: MAX_CREATE_EVENT_TOTAL_BYTES,
+      });
+      setError(message);
+      setIsCreating(false);
+      return;
+    }
+
     try {
       const response = await fetch("/api/admin/personal-files-mail", {
         method: "POST",
+        headers: {
+          "x-personal-mail-trace-id": traceId,
+        },
         body: formData,
       });
       const json = (await response.json().catch(() => null)) as
-        | { overview?: PersonalFileMailOverview; error?: string }
+        | { overview?: PersonalFileMailOverview; error?: string; traceId?: string }
         | null;
 
       if (!response.ok) {
         debugClient("create-event POST rejected", {
+          traceId,
+          responseTraceId: response.headers.get("x-personal-mail-trace-id"),
           status: response.status,
           error: json?.error ?? null,
+          responseBodyTraceId: json?.traceId ?? null,
         });
-        throw new Error(json?.error ?? "Failed to create sending event.");
+        throw new Error(
+          `${json?.error ?? "Failed to create sending event."} Trace: ${
+            json?.traceId ?? traceId
+          }`,
+        );
       }
 
       if (json?.overview) {
@@ -171,6 +208,8 @@ export default function AdminPersonalFilesMailPage() {
         if (latestBatch) setSelectedBatchId(latestBatch.id);
         setSuccess("Sending event created.");
         debugClient("create-event POST success", {
+          traceId,
+          responseTraceId: response.headers.get("x-personal-mail-trace-id"),
           status: response.status,
           selectedBatchId: latestBatch?.id ?? null,
         });
@@ -179,6 +218,7 @@ export default function AdminPersonalFilesMailPage() {
       setSelectedFleetIds(new Set());
     } catch (createError) {
       debugClient("create-event POST failed", {
+        traceId,
         error:
           createError instanceof Error
             ? createError.message
@@ -205,7 +245,9 @@ export default function AdminPersonalFilesMailPage() {
     const formData = new FormData(event.currentTarget);
     formData.set("action", "send-event");
     formData.set("batchId", selectedBatch.id);
+    const traceId = createClientTraceId("send-event");
     debugClient("send-event POST start", {
+      traceId,
       batchId: selectedBatch.id,
       selectedRecipientCount: selectedPaidRecipients.length,
       selectedFleetIds: selectedPaidRecipients.map((recipient) => recipient.fleetId),
@@ -216,18 +258,28 @@ export default function AdminPersonalFilesMailPage() {
     try {
       const response = await fetch("/api/admin/personal-files-mail", {
         method: "POST",
+        headers: {
+          "x-personal-mail-trace-id": traceId,
+        },
         body: formData,
       });
       const json = (await response.json().catch(() => null)) as
-        | { overview?: PersonalFileMailOverview; error?: string }
+        | { overview?: PersonalFileMailOverview; error?: string; traceId?: string }
         | null;
 
       if (!response.ok) {
         debugClient("send-event POST rejected", {
+          traceId,
+          responseTraceId: response.headers.get("x-personal-mail-trace-id"),
           status: response.status,
           error: json?.error ?? null,
+          responseBodyTraceId: json?.traceId ?? null,
         });
-        throw new Error(json?.error ?? "Failed to send personal file mail.");
+        throw new Error(
+          `${json?.error ?? "Failed to send personal file mail."} Trace: ${
+            json?.traceId ?? traceId
+          }`,
+        );
       }
 
       if (json?.overview) {
@@ -241,6 +293,8 @@ export default function AdminPersonalFilesMailPage() {
             : "Personal file mail sent.",
         );
         debugClient("send-event POST success", {
+          traceId,
+          responseTraceId: response.headers.get("x-personal-mail-trace-id"),
           status: response.status,
           batchId: selectedBatch.id,
           sentSelectionCount: selectedPaidRecipients.length,
@@ -249,6 +303,7 @@ export default function AdminPersonalFilesMailPage() {
       setSelectedFleetIds(new Set());
     } catch (sendError) {
       debugClient("send-event POST failed", {
+        traceId,
         batchId: selectedBatch.id,
         error: sendError instanceof Error ? sendError.message : String(sendError),
       });
