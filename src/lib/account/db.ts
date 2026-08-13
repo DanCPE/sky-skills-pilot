@@ -282,6 +282,7 @@ export interface PersonalFileMailBatch {
   fileName: string;
   contentType: string;
   fileSizeBytes: number;
+  files: PersonalFileMailBatchFile[];
   createdBy: string | null;
   recipientCount: number;
   pendingCount: number;
@@ -289,6 +290,16 @@ export interface PersonalFileMailBatch {
   failedCount: number;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface PersonalFileMailBatchFile {
+  id: string;
+  batchId: string;
+  fileName: string;
+  contentType: string;
+  fileSizeBytes: number;
+  sortOrder: number;
+  createdAt: string;
 }
 
 export interface PersonalFileMailRecipient {
@@ -316,6 +327,9 @@ export interface PaidPersonalFileMailRecipient {
   name: string;
   packageKey: string;
   packageTitle: string | null;
+  eventRecipientStatus?: PersonalFileMailRecipientStatus | null;
+  eventSentAt?: string | null;
+  eventError?: string | null;
 }
 
 export interface PersonalFileMailOverview {
@@ -492,6 +506,7 @@ async function canUseExistingAccountSchema(pool: Pool) {
         to_regclass('public.account_billing_assets') IS NOT NULL AS has_billing_assets,
         to_regclass('public.account_personal_file_mail_batches') IS NOT NULL AS has_personal_file_mail_batches,
         to_regclass('public.account_personal_file_mail_recipients') IS NOT NULL AS has_personal_file_mail_recipients,
+        to_regclass('public.account_personal_file_mail_batch_files') IS NOT NULL AS has_personal_file_mail_batch_files,
         EXISTS (
           SELECT 1
           FROM information_schema.columns
@@ -618,11 +633,27 @@ async function ensurePersonalFileMailSchema() {
     );
   `);
 
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS account_personal_file_mail_batch_files (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      batch_id UUID NOT NULL REFERENCES account_personal_file_mail_batches(id) ON DELETE CASCADE,
+      file_name TEXT NOT NULL,
+      content_type TEXT NOT NULL,
+      file_bytes BYTEA NOT NULL,
+      file_size_bytes INT NOT NULL,
+      sort_order INT NOT NULL DEFAULT 0,
+      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
   await getPool().query(
     "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batches_created_idx ON account_personal_file_mail_batches(created_at DESC);",
   );
   await getPool().query(
     "CREATE INDEX IF NOT EXISTS account_personal_file_mail_recipients_batch_idx ON account_personal_file_mail_recipients(batch_id, status);",
+  );
+  await getPool().query(
+    "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batch_files_batch_idx ON account_personal_file_mail_batch_files(batch_id, sort_order);",
   );
 }
 
@@ -954,11 +985,27 @@ export async function ensureAccountSchema() {
       );
     `);
 
+      await pool.query(`
+      CREATE TABLE IF NOT EXISTS account_personal_file_mail_batch_files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        batch_id UUID NOT NULL REFERENCES account_personal_file_mail_batches(id) ON DELETE CASCADE,
+        file_name TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        file_bytes BYTEA NOT NULL,
+        file_size_bytes INT NOT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
       await pool.query(
         "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batches_created_idx ON account_personal_file_mail_batches(created_at DESC);",
       );
       await pool.query(
         "CREATE INDEX IF NOT EXISTS account_personal_file_mail_recipients_batch_idx ON account_personal_file_mail_recipients(batch_id, status);",
+      );
+      await pool.query(
+        "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batch_files_batch_idx ON account_personal_file_mail_batch_files(batch_id, sort_order);",
       );
 
       const packageMigration = await pool.query(
@@ -1976,6 +2023,20 @@ function mapPersonalFileMailRecipient(
   };
 }
 
+function mapPersonalFileMailBatchFile(
+  row: Record<string, unknown>,
+): PersonalFileMailBatchFile {
+  return {
+    id: String(row.id),
+    batchId: String(row.batch_id),
+    fileName: String(row.file_name),
+    contentType: String(row.content_type),
+    fileSizeBytes: Number(row.file_size_bytes),
+    sortOrder: Number(row.sort_order ?? 0),
+    createdAt: new Date(String(row.created_at)).toISOString(),
+  };
+}
+
 function mapPersonalFileMailBatch(
   row: Record<string, unknown>,
 ): PersonalFileMailBatch {
@@ -1986,6 +2047,7 @@ function mapPersonalFileMailBatch(
     fileName: String(row.file_name),
     contentType: String(row.content_type),
     fileSizeBytes: Number(row.file_size_bytes),
+    files: [],
     createdBy: row.created_by ? String(row.created_by) : null,
     recipientCount: Number(row.recipient_count ?? 0),
     pendingCount: Number(row.pending_count ?? 0),
@@ -4252,7 +4314,7 @@ export async function setManualPaymentPersonalFilesSent(input: {
   return mapManualPaymentSlip(decoratedResult.rows[0] ?? result.rows[0]);
 }
 
-export async function getPaidPersonalFileMailRecipients() {
+export async function getPaidPersonalFileMailRecipients(batchId?: string | null) {
   await ensureAccountSchema();
 
   const result = await getPool().query(
@@ -4271,16 +4333,25 @@ export async function getPaidPersonalFileMailRecipients() {
         u.email,
         u.name,
         sub.plan_key AS package_key,
-        pkg.title AS package_title
+        pkg.title AS package_title,
+        event_recipient.status AS event_recipient_status,
+        event_recipient.sent_at AS event_sent_at,
+        event_recipient.error AS event_error
       FROM latest_subscription sub
       JOIN account_users u ON u.id = sub.user_id
       LEFT JOIN account_subscription_packages pkg ON pkg.key = sub.plan_key
+      LEFT JOIN account_personal_file_mail_recipients event_recipient
+        ON event_recipient.user_id = u.id
+       AND event_recipient.batch_id = $1::uuid
       WHERE sub.status IN ('active', 'trialing')
         AND (sub.current_period_end IS NULL OR sub.current_period_end > NOW())
         AND sub.plan_key IS NOT NULL
         AND sub.plan_key <> 'free'
-      ORDER BY u.email ASC;
+      ORDER BY
+        CASE WHEN event_recipient.status = 'sent' THEN 1 ELSE 0 END,
+        u.email ASC;
     `,
+    [batchId ?? null],
   );
 
   return result.rows.map((row): PaidPersonalFileMailRecipient => ({
@@ -4289,15 +4360,24 @@ export async function getPaidPersonalFileMailRecipients() {
     name: String(row.name),
     packageKey: String(row.package_key),
     packageTitle: row.package_title ? String(row.package_title) : null,
+    eventRecipientStatus: row.event_recipient_status
+      ? (String(row.event_recipient_status) as PersonalFileMailRecipientStatus)
+      : null,
+    eventSentAt: row.event_sent_at
+      ? new Date(String(row.event_sent_at)).toISOString()
+      : null,
+    eventError: row.event_error ? String(row.event_error) : null,
   }));
 }
 
 export async function createPersonalFileMailBatch(input: {
   subject: string;
   message: string;
-  fileName: string;
-  contentType: string;
-  fileBytes: Buffer;
+  files: Array<{
+    fileName: string;
+    contentType: string;
+    fileBytes: Buffer;
+  }>;
   createdBy?: string | null;
   recipientFleetIds?: string[];
 }) {
@@ -4307,23 +4387,35 @@ export async function createPersonalFileMailBatch(input: {
   const message = input.message.trim();
   if (!subject) throw new Error("Email subject is required.");
   if (!message) throw new Error("Email message is required.");
-  if (!input.fileName.trim()) throw new Error("Upload file is required.");
-  if (input.fileBytes.length === 0) throw new Error("Upload file is empty.");
+  if (input.files.length === 0) throw new Error("Upload at least one file.");
+  if (input.files.length > 5) throw new Error("Upload no more than 5 files.");
+
+  const files = input.files.map((file) => ({
+    fileName: file.fileName.trim(),
+    contentType: file.contentType || "application/octet-stream",
+    fileBytes: file.fileBytes,
+  }));
+
+  if (files.some((file) => !file.fileName)) {
+    throw new Error("Every upload must have a file name.");
+  }
+  if (files.some((file) => file.fileBytes.length === 0)) {
+    throw new Error("Upload file is empty.");
+  }
 
   const recipientFleetIds = new Set(
     (input.recipientFleetIds ?? [])
       .map((fleetId) => fleetId.trim())
       .filter(Boolean),
   );
+  const recipients =
+    recipientFleetIds.size === 0
+      ? []
+      : (await getPaidPersonalFileMailRecipients()).filter((recipient) =>
+          recipientFleetIds.has(recipient.fleetId),
+        );
 
-  if (recipientFleetIds.size === 0) {
-    throw new Error("Select at least one paid subscriber.");
-  }
-
-  const recipients = (await getPaidPersonalFileMailRecipients()).filter(
-    (recipient) => recipientFleetIds.has(recipient.fleetId),
-  );
-  if (recipients.length === 0) {
+  if (recipientFleetIds.size > 0 && recipients.length === 0) {
     throw new Error("Selected subscribers are no longer active paid subscribers.");
   }
 
@@ -4353,15 +4445,39 @@ export async function createPersonalFileMailBatch(input: {
       [
         subject,
         message,
-        input.fileName.trim(),
-        input.contentType || "application/octet-stream",
-        input.fileBytes,
-        input.fileBytes.length,
+        files[0].fileName,
+        files[0].contentType,
+        files[0].fileBytes,
+        files.reduce((total, file) => total + file.fileBytes.length, 0),
         input.createdBy?.trim() || null,
       ],
     );
 
     const batchId = String(batchResult.rows[0].id);
+    for (const [index, file] of files.entries()) {
+      await client.query(
+        `
+          INSERT INTO account_personal_file_mail_batch_files (
+            batch_id,
+            file_name,
+            content_type,
+            file_bytes,
+            file_size_bytes,
+            sort_order
+          )
+          VALUES ($1, $2, $3, $4, $5, $6);
+        `,
+        [
+          batchId,
+          file.fileName,
+          file.contentType,
+          file.fileBytes,
+          file.fileBytes.length,
+          index,
+        ],
+      );
+    }
+
     for (const recipient of recipients) {
       await client.query(
         `
@@ -4400,7 +4516,7 @@ export async function createPersonalFileMailBatch(input: {
 export async function getPersonalFileMailBatch(batchId: string) {
   await ensureAccountSchema();
 
-  const [batchResult, recipientResult] = await Promise.all([
+  const [batchResult, recipientResult, fileResult] = await Promise.all([
     getPool().query(
       `
         SELECT
@@ -4426,27 +4542,71 @@ export async function getPersonalFileMailBatch(batchId: string) {
       `,
       [batchId],
     ),
+    getPool().query(
+      `
+        SELECT *
+        FROM account_personal_file_mail_batch_files
+        WHERE batch_id = $1
+        ORDER BY sort_order ASC, created_at ASC;
+      `,
+      [batchId],
+    ),
   ]);
 
   if (batchResult.rowCount === 0) {
     throw new Error("Mail batch not found.");
   }
 
+  const batch = mapPersonalFileMailBatch(batchResult.rows[0]);
+  const files = fileResult.rows.map(mapPersonalFileMailBatchFile);
+
   return {
-    ...mapPersonalFileMailBatch(batchResult.rows[0]),
+    ...batch,
+    files:
+      files.length > 0
+        ? files
+        : [
+            {
+              id: batch.id,
+              batchId: batch.id,
+              fileName: batch.fileName,
+              contentType: batch.contentType,
+              fileSizeBytes: batch.fileSizeBytes,
+              sortOrder: 0,
+              createdAt: batch.createdAt,
+            },
+          ],
     recipients: recipientResult.rows.map(mapPersonalFileMailRecipient),
   };
 }
 
-export async function getPersonalFileMailBatchFile(batchId: string) {
+export async function getPersonalFileMailBatchFiles(batchId: string) {
   await ensureAccountSchema();
 
   const result = await getPool().query(
     `
       SELECT
-        id,
-        subject,
-        message,
+        file_name,
+        content_type,
+        file_bytes
+      FROM account_personal_file_mail_batch_files
+      WHERE batch_id = $1
+      ORDER BY sort_order ASC, created_at ASC;
+    `,
+    [batchId],
+  );
+
+  if ((result.rowCount ?? 0) > 0) {
+    return result.rows.map((row) => ({
+      fileName: String(row.file_name),
+      contentType: String(row.content_type),
+      fileBytes: row.file_bytes as Buffer,
+    }));
+  }
+
+  const fallbackResult = await getPool().query(
+    `
+      SELECT
         file_name,
         content_type,
         file_bytes
@@ -4457,18 +4617,114 @@ export async function getPersonalFileMailBatchFile(batchId: string) {
     [batchId],
   );
 
-  if (result.rowCount === 0) {
+  if (fallbackResult.rowCount === 0) {
     throw new Error("Mail batch not found.");
   }
 
-  const row = result.rows[0];
-  return {
-    id: String(row.id),
-    subject: String(row.subject),
-    message: String(row.message),
+  const row = fallbackResult.rows[0];
+  return [{
     fileName: String(row.file_name),
     contentType: String(row.content_type),
     fileBytes: row.file_bytes as Buffer,
+  }];
+}
+
+export async function preparePersonalFileMailEventRecipients(input: {
+  batchId: string;
+  recipientFleetIds: string[];
+}) {
+  await ensureAccountSchema();
+
+  const recipientFleetIds = new Set(
+    input.recipientFleetIds.map((fleetId) => fleetId.trim()).filter(Boolean),
+  );
+  if (recipientFleetIds.size === 0) {
+    throw new Error("Select at least one paid subscriber.");
+  }
+
+  const batch = await getPersonalFileMailBatch(input.batchId);
+  const sentFleetIds = new Set(
+    batch.recipients
+      .filter((recipient) => recipient.status === "sent")
+      .map((recipient) => recipient.fleetId),
+  );
+  const recipients = (await getPaidPersonalFileMailRecipients(input.batchId)).filter(
+    (recipient) =>
+      recipientFleetIds.has(recipient.fleetId) && !sentFleetIds.has(recipient.fleetId),
+  );
+
+  if (recipients.length === 0) {
+    throw new Error("Selected subscribers already received this event.");
+  }
+
+  const client = await getPool().connect();
+  try {
+    await client.query("BEGIN");
+    for (const recipient of recipients) {
+      await client.query(
+        `
+          INSERT INTO account_personal_file_mail_recipients (
+            batch_id,
+            user_id,
+            email,
+            name,
+            package_key,
+            package_title,
+            status,
+            sent_at,
+            error
+          )
+          VALUES ($1, $2, $3, $4, $5, $6, 'pending', NULL, NULL)
+          ON CONFLICT (batch_id, user_id)
+          DO UPDATE SET
+            email = EXCLUDED.email,
+            name = EXCLUDED.name,
+            package_key = EXCLUDED.package_key,
+            package_title = EXCLUDED.package_title,
+            status = CASE
+              WHEN account_personal_file_mail_recipients.status = 'sent'
+                THEN account_personal_file_mail_recipients.status
+              ELSE 'pending'
+            END,
+            sent_at = CASE
+              WHEN account_personal_file_mail_recipients.status = 'sent'
+                THEN account_personal_file_mail_recipients.sent_at
+              ELSE NULL
+            END,
+            error = CASE
+              WHEN account_personal_file_mail_recipients.status = 'sent'
+                THEN account_personal_file_mail_recipients.error
+              ELSE NULL
+            END,
+            updated_at = NOW()
+          RETURNING *;
+        `,
+        [
+          input.batchId,
+          recipient.fleetId,
+          recipient.email,
+          recipient.name,
+          recipient.packageKey,
+          recipient.packageTitle,
+        ],
+      );
+    }
+    await client.query("COMMIT");
+  } catch (error) {
+    await client.query("ROLLBACK");
+    throw error;
+  } finally {
+    client.release();
+  }
+
+  const updatedBatch = await getPersonalFileMailBatch(input.batchId);
+  const selectedFleetIdSet = new Set(recipients.map((recipient) => recipient.fleetId));
+  return {
+    batch: updatedBatch,
+    recipients: updatedBatch.recipients.filter(
+      (recipient) =>
+        selectedFleetIdSet.has(recipient.fleetId) && recipient.status === "pending",
+    ),
   };
 }
 
@@ -4503,11 +4759,13 @@ export async function setPersonalFileMailRecipientStatus(input: {
   return mapPersonalFileMailRecipient(result.rows[0]);
 }
 
-export async function getPersonalFileMailOverview(): Promise<PersonalFileMailOverview> {
+export async function getPersonalFileMailOverview(input?: {
+  batchId?: string | null;
+}): Promise<PersonalFileMailOverview> {
   await ensureAccountSchema();
 
-  const [paidRecipients, batchResult, recipientResult] = await Promise.all([
-    getPaidPersonalFileMailRecipients(),
+  const [paidRecipients, batchResult, recipientResult, fileResult] = await Promise.all([
+    getPaidPersonalFileMailRecipients(input?.batchId ?? null),
     getPool().query(
       `
         SELECT
@@ -4537,6 +4795,20 @@ export async function getPersonalFileMailOverview(): Promise<PersonalFileMailOve
         ORDER BY b.created_at DESC, r.email ASC;
       `,
     ),
+    getPool().query(
+      `
+        SELECT f.*
+        FROM account_personal_file_mail_batch_files f
+        JOIN account_personal_file_mail_batches b ON b.id = f.batch_id
+        WHERE b.id IN (
+          SELECT id
+          FROM account_personal_file_mail_batches
+          ORDER BY created_at DESC
+          LIMIT 25
+        )
+        ORDER BY b.created_at DESC, f.sort_order ASC, f.created_at ASC;
+      `,
+    ),
   ]);
 
   const recipientsByBatch = new Map<string, PersonalFileMailRecipient[]>();
@@ -4547,14 +4819,37 @@ export async function getPersonalFileMailOverview(): Promise<PersonalFileMailOve
     recipientsByBatch.set(recipient.batchId, recipients);
   }
 
+  const filesByBatch = new Map<string, PersonalFileMailBatchFile[]>();
+  for (const row of fileResult.rows) {
+    const file = mapPersonalFileMailBatchFile(row);
+    const files = filesByBatch.get(file.batchId) ?? [];
+    files.push(file);
+    filesByBatch.set(file.batchId, files);
+  }
+
   return {
     generatedAt: new Date().toISOString(),
     paidRecipientCount: paidRecipients.length,
     paidRecipients,
     batches: batchResult.rows.map((row) => {
       const batch = mapPersonalFileMailBatch(row);
+      const files = filesByBatch.get(batch.id);
       return {
         ...batch,
+        files:
+          files && files.length > 0
+            ? files
+            : [
+                {
+                  id: batch.id,
+                  batchId: batch.id,
+                  fileName: batch.fileName,
+                  contentType: batch.contentType,
+                  fileSizeBytes: batch.fileSizeBytes,
+                  sortOrder: 0,
+                  createdAt: batch.createdAt,
+                },
+              ],
         recipients: recipientsByBatch.get(batch.id) ?? [],
       };
     }),

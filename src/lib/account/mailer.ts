@@ -11,7 +11,7 @@ export interface SendPersonalFileMailInput {
   name: string;
   subject: string;
   message: string;
-  attachment: MailAttachment;
+  attachments: MailAttachment[];
 }
 
 function getSmtpPort() {
@@ -80,12 +80,10 @@ export async function sendPersonalFileMail(input: SendPersonalFileMailInput) {
     subject: input.subject,
     text,
     html: getHtmlBody(input.name, input.message),
-    attachments: [
-      {
-        filename: input.attachment.fileName,
-        contentType: input.attachment.contentType,
-        content: input.attachment.content,
-      },
-    ],
+    attachments: input.attachments.map((attachment) => ({
+      filename: attachment.fileName,
+      contentType: attachment.contentType,
+      content: attachment.content,
+    })),
   });
 }

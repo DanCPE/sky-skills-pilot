@@ -27,33 +27,51 @@ function statusClass(status: string) {
 export default function AdminPersonalFilesMailPage() {
   const [data, setData] = useState<PersonalFileMailOverview | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isCreating, setIsCreating] = useState(false);
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
+  const [selectedBatchId, setSelectedBatchId] = useState<string | null>(null);
   const [selectedFleetIds, setSelectedFleetIds] = useState<Set<string>>(
     new Set(),
   );
 
+  const batches = useMemo(() => data?.batches ?? [], [data?.batches]);
+  const selectedBatch = useMemo(
+    () => batches.find((batch) => batch.id === selectedBatchId) ?? batches[0] ?? null,
+    [batches, selectedBatchId],
+  );
   const paidRecipients = useMemo(
     () => data?.paidRecipients ?? [],
     [data?.paidRecipients],
   );
+  const unsentPaidRecipients = useMemo(
+    () =>
+      paidRecipients.filter(
+        (recipient) => recipient.eventRecipientStatus !== "sent",
+      ),
+    [paidRecipients],
+  );
   const selectedPaidRecipients = useMemo(
     () =>
-      paidRecipients.filter((recipient) =>
+      unsentPaidRecipients.filter((recipient) =>
         selectedFleetIds.has(recipient.fleetId),
       ),
-    [paidRecipients, selectedFleetIds],
+    [unsentPaidRecipients, selectedFleetIds],
   );
   const allPaidRecipientsSelected =
-    paidRecipients.length > 0 && selectedPaidRecipients.length === paidRecipients.length;
+    unsentPaidRecipients.length > 0 &&
+    selectedPaidRecipients.length === unsentPaidRecipients.length;
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/admin/personal-files-mail", {
+      const url = selectedBatchId
+        ? `/api/admin/personal-files-mail?batchId=${encodeURIComponent(selectedBatchId)}`
+        : "/api/admin/personal-files-mail";
+      const response = await fetch(url, {
         cache: "no-store",
       });
       const json = (await response.json().catch(() => null)) as
@@ -79,15 +97,21 @@ export default function AdminPersonalFilesMailPage() {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [selectedBatchId]);
 
   useEffect(() => {
     void fetchData();
   }, [fetchData]);
 
-  async function sendUpload(event: React.FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (!selectedBatchId && data?.batches[0]) {
+      setSelectedBatchId(data.batches[0].id);
+    }
+  }, [data?.batches, selectedBatchId]);
+
+  async function createEvent(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setIsSending(true);
+    setIsCreating(true);
     setError(null);
     setSuccess(null);
 
@@ -104,19 +128,64 @@ export default function AdminPersonalFilesMailPage() {
         | null;
 
       if (!response.ok) {
-        throw new Error(json?.error ?? "Failed to send personal file mail.");
+        throw new Error(json?.error ?? "Failed to create sending event.");
       }
 
       if (json?.overview) {
         setData(json.overview);
         const latestBatch = json.overview.batches[0];
+        if (latestBatch) setSelectedBatchId(latestBatch.id);
+        setSuccess("Sending event created.");
+      }
+      form.reset();
+      setSelectedFleetIds(new Set());
+    } catch (createError) {
+      setError(
+        createError instanceof Error
+          ? createError.message
+          : "Failed to create sending event.",
+      );
+    } finally {
+      setIsCreating(false);
+    }
+  }
+
+  async function sendEvent(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!selectedBatch) return;
+
+    setIsSending(true);
+    setError(null);
+    setSuccess(null);
+
+    const formData = new FormData(event.currentTarget);
+    formData.set("action", "send-event");
+    formData.set("batchId", selectedBatch.id);
+
+    try {
+      const response = await fetch("/api/admin/personal-files-mail", {
+        method: "POST",
+        body: formData,
+      });
+      const json = (await response.json().catch(() => null)) as
+        | { overview?: PersonalFileMailOverview; error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(json?.error ?? "Failed to send personal file mail.");
+      }
+
+      if (json?.overview) {
+        setData(json.overview);
+        const refreshedBatch = json.overview.batches.find(
+          (batch) => batch.id === selectedBatch.id,
+        );
         setSuccess(
-          latestBatch
-            ? `Sent ${latestBatch.sentCount} of ${latestBatch.recipientCount} emails.`
+          refreshedBatch
+            ? `Event sent to ${selectedPaidRecipients.length} selected users.`
             : "Personal file mail sent.",
         );
       }
-      form.reset();
       setSelectedFleetIds(new Set());
     } catch (sendError) {
       setError(
@@ -142,7 +211,9 @@ export default function AdminPersonalFilesMailPage() {
   }
 
   function selectAllRecipients() {
-    setSelectedFleetIds(new Set(paidRecipients.map((recipient) => recipient.fleetId)));
+    setSelectedFleetIds(
+      new Set(unsentPaidRecipients.map((recipient) => recipient.fleetId)),
+    );
   }
 
   function clearSelectedRecipients() {
@@ -160,7 +231,8 @@ export default function AdminPersonalFilesMailPage() {
             <div>
               <h1 className="text-3xl font-bold">Personal File Delivery</h1>
               <p className="mt-2 max-w-2xl text-sm text-zinc-600 dark:text-zinc-300">
-                Upload one file and choose which active paid subscribers should receive it.
+                Create a sending event with files and a draft message, then send
+                that event to selected active paid subscribers.
               </p>
             </div>
             <div className="rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm shadow-sm dark:border-white/10 dark:bg-white/5">
@@ -183,7 +255,11 @@ export default function AdminPersonalFilesMailPage() {
         ) : null}
 
         <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
-          <form onSubmit={(event) => void sendUpload(event)} className="grid gap-4">
+          <div className="mb-4">
+            <h2 className="text-lg font-bold">Create Sending Event</h2>
+          </div>
+          <form onSubmit={(event) => void createEvent(event)} className="grid gap-4">
+            <input type="hidden" name="action" value="create-event" />
             <div className="grid gap-4 lg:grid-cols-2">
               <label className="grid gap-2 text-sm font-bold">
                 Subject
@@ -195,13 +271,17 @@ export default function AdminPersonalFilesMailPage() {
                 />
               </label>
               <label className="grid gap-2 text-sm font-bold">
-                File
+                Files
                 <input
-                  name="file"
+                  name="files"
                   type="file"
                   required
+                  multiple
                   className="rounded-lg border border-zinc-200 bg-white px-3 py-2 font-normal file:mr-3 file:rounded-md file:border-0 file:bg-violet-100 file:px-3 file:py-1.5 file:text-sm file:font-bold file:text-violet-800 dark:border-white/10 dark:bg-zinc-950 dark:file:bg-violet-500/20 dark:file:text-violet-100"
                 />
+                <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                  Upload 1-5 files. Each file can be up to 20 MB.
+                </span>
               </label>
             </div>
             <label className="grid gap-2 text-sm font-bold">
@@ -214,20 +294,76 @@ export default function AdminPersonalFilesMailPage() {
                 className="rounded-lg border border-zinc-200 bg-white px-3 py-2 font-normal outline-none transition focus:border-violet-400 dark:border-white/10 dark:bg-zinc-950"
               />
             </label>
+            <div className="flex justify-end">
+              <button
+                type="submit"
+                disabled={isCreating}
+                className="rounded-lg bg-zinc-950 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-brand-gold dark:text-zinc-950 dark:hover:bg-amber-300"
+              >
+                {isCreating ? "Creating..." : "Create Event"}
+              </button>
+            </div>
+          </form>
+        </section>
+
+        <section className="rounded-lg border border-zinc-200 bg-white p-5 shadow-sm dark:border-white/10 dark:bg-white/5">
+          <div className="mb-4 grid gap-3 lg:grid-cols-[1fr_auto] lg:items-end">
+            <div>
+              <h2 className="text-lg font-bold">Send Selected Event</h2>
+              <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
+                Users who have not received the selected event are shown first.
+              </p>
+            </div>
+            <label className="grid gap-2 text-sm font-bold">
+              Event
+              <select
+                value={selectedBatch?.id ?? ""}
+                onChange={(event) => {
+                  setSelectedBatchId(event.target.value || null);
+                  setSelectedFleetIds(new Set());
+                }}
+                className="min-w-72 rounded-lg border border-zinc-200 bg-white px-3 py-2 font-normal outline-none transition focus:border-violet-400 dark:border-white/10 dark:bg-zinc-950"
+              >
+                {batches.length === 0 ? (
+                  <option value="">No events yet</option>
+                ) : null}
+                {batches.map((batch) => (
+                  <option key={batch.id} value={batch.id}>
+                    {batch.subject} - {formatDate(batch.createdAt)}
+                  </option>
+                ))}
+              </select>
+            </label>
+          </div>
+
+          {selectedBatch ? (
+            <div className="mb-4 rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm dark:border-white/10 dark:bg-white/5">
+              <p className="font-bold">{selectedBatch.subject}</p>
+              <p className="mt-1 text-zinc-500 dark:text-zinc-400">
+                {selectedBatch.files.map((file) => file.fileName).join(", ")}
+              </p>
+            </div>
+          ) : null}
+
+          <form onSubmit={(event) => void sendEvent(event)} className="grid gap-4">
             <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-white/10">
               <div className="flex flex-col gap-3 border-b border-zinc-100 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
                   <p className="text-sm font-bold">Active paid recipients</p>
                   <p className="text-xs text-zinc-500 dark:text-zinc-400">
                     {selectedPaidRecipients.length} selected from{" "}
-                    {paidRecipients.length} active paid users
+                    {unsentPaidRecipients.length} available active paid users
                   </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <button
                     type="button"
                     onClick={selectAllRecipients}
-                    disabled={paidRecipients.length === 0 || allPaidRecipientsSelected}
+                    disabled={
+                      !selectedBatch ||
+                      unsentPaidRecipients.length === 0 ||
+                      allPaidRecipientsSelected
+                    }
                     className="rounded-lg border border-zinc-200 bg-white px-3 py-1.5 text-xs font-bold text-zinc-700 transition hover:border-violet-300 hover:text-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:bg-zinc-950 dark:text-zinc-200"
                   >
                     Select All
@@ -247,10 +383,15 @@ export default function AdminPersonalFilesMailPage() {
                 <p className="px-4 py-5 text-sm text-zinc-500 dark:text-zinc-400">
                   No active paid users are available.
                 </p>
+              ) : !selectedBatch ? (
+                <p className="px-4 py-5 text-sm text-zinc-500 dark:text-zinc-400">
+                  Create or select an event before choosing recipients.
+                </p>
               ) : (
                 <div className="max-h-80 overflow-y-auto">
                   {paidRecipients.map((recipient) => {
                     const isSelected = selectedFleetIds.has(recipient.fleetId);
+                    const alreadySent = recipient.eventRecipientStatus === "sent";
 
                     return (
                       <label
@@ -258,12 +399,15 @@ export default function AdminPersonalFilesMailPage() {
                         className={`flex cursor-pointer items-center gap-3 border-t border-zinc-100 px-4 py-3 text-sm transition first:border-t-0 dark:border-white/10 ${
                           isSelected
                             ? "bg-violet-50 dark:bg-violet-500/10"
+                            : alreadySent
+                              ? "bg-zinc-50 text-zinc-500 dark:bg-white/5 dark:text-zinc-400"
                             : "hover:bg-zinc-50 dark:hover:bg-white/5"
                         }`}
                       >
                         <input
                           type="checkbox"
                           checked={isSelected}
+                          disabled={alreadySent}
                           onChange={() => toggleRecipient(recipient.fleetId)}
                           className="h-4 w-4 rounded border-zinc-300 text-violet-700"
                         />
@@ -283,6 +427,15 @@ export default function AdminPersonalFilesMailPage() {
                             {recipient.packageTitle ?? recipient.packageKey}
                           </span>
                         </span>
+                        <span
+                          className={`rounded-full px-2.5 py-1 text-xs font-bold ${
+                            recipient.eventRecipientStatus
+                              ? statusClass(recipient.eventRecipientStatus)
+                              : "bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-200"
+                          }`}
+                        >
+                          {recipient.eventRecipientStatus ?? "not sent"}
+                        </span>
                       </label>
                     );
                   })}
@@ -292,12 +445,14 @@ export default function AdminPersonalFilesMailPage() {
             <div className="flex justify-end">
               <button
                 type="submit"
-                disabled={isSending || selectedPaidRecipients.length === 0}
+                disabled={
+                  !selectedBatch || isSending || selectedPaidRecipients.length === 0
+                }
                 className="rounded-lg bg-zinc-950 px-5 py-2.5 text-sm font-bold text-white transition hover:bg-violet-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-brand-gold dark:text-zinc-950 dark:hover:bg-amber-300"
               >
                 {isSending
                   ? "Sending..."
-                  : `Upload and Send (${selectedPaidRecipients.length})`}
+                  : `Send Event (${selectedPaidRecipients.length})`}
               </button>
             </div>
           </form>
@@ -324,8 +479,12 @@ export default function AdminPersonalFilesMailPage() {
                     <div>
                       <p className="font-bold">{batch.subject}</p>
                       <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-                        {batch.fileName} · {formatBytes(batch.fileSizeBytes)} ·{" "}
-                        {formatDate(batch.createdAt)}
+                        {batch.files.length}{" "}
+                        {batch.files.length === 1 ? "file" : "files"} ·{" "}
+                        {formatBytes(batch.fileSizeBytes)} · {formatDate(batch.createdAt)}
+                      </p>
+                      <p className="mt-1 text-xs text-zinc-500 dark:text-zinc-400">
+                        {batch.files.map((file) => file.fileName).join(", ")}
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2 text-xs font-bold">
