@@ -158,6 +158,7 @@ export interface AdminBillingFleet {
   email: string;
   name: string;
   imageUrl: string | null;
+  isActivePaid: boolean;
   subscriptionStatus: string;
   provider: string | null;
   currentPeriodEnd: string | null;
@@ -4889,33 +4890,50 @@ export async function getAdminBillingOverview() {
           u.image_url,
           u.created_at,
           u.updated_at,
+          (
+            s.status IN ('active', 'trialing')
+            AND (s.current_period_end IS NULL OR s.current_period_end > NOW())
+            AND COALESCE(s.plan_key, latest_slip.plan_key, '__paid_without_package') <> 'free'
+          ) AS is_active_paid,
           COALESCE(s.status, 'not_started') AS subscription_status,
           s.provider,
           s.current_period_end,
-          CASE
-            WHEN s.id IS NOT NULL THEN s.plan_key
-            ELSE latest_slip.plan_key
-          END AS latest_package_key,
+          COALESCE(s.plan_key, latest_slip.plan_key) AS latest_package_key,
           pkg.title AS latest_package_title,
           CASE
-            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN pkg.price_cents
+            WHEN s.id IS NOT NULL
+             AND s.provider_subscription_id IS NULL
+             AND s.plan_key IS NOT NULL
+            THEN pkg.price_cents
             ELSE latest_slip.amount_cents
           END AS latest_package_amount_cents,
           CASE
-            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN NULL
+            WHEN s.id IS NOT NULL
+             AND s.provider_subscription_id IS NULL
+             AND s.plan_key IS NOT NULL
+            THEN NULL
             ELSE latest_slip.promotion_code
           END AS latest_promotion_code,
           CASE
-            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN NULL
+            WHEN s.id IS NOT NULL
+             AND s.provider_subscription_id IS NULL
+             AND s.plan_key IS NOT NULL
+            THEN NULL
             ELSE latest_slip.personal_files_sent_at
           END AS latest_personal_files_sent_at,
           pkg.duration_months AS latest_package_duration_months,
           CASE
-            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN NULL
+            WHEN s.id IS NOT NULL
+             AND s.provider_subscription_id IS NULL
+             AND s.plan_key IS NOT NULL
+            THEN NULL
             ELSE latest_slip.id
           END AS latest_slip_id,
           CASE
-            WHEN s.id IS NOT NULL AND s.provider_subscription_id IS NULL THEN NULL
+            WHEN s.id IS NOT NULL
+             AND s.provider_subscription_id IS NULL
+             AND s.plan_key IS NOT NULL
+            THEN NULL
             ELSE latest_slip.slip2go_trans_ref
           END AS latest_slip2go_trans_ref,
           COUNT(DISTINCT p.id)::int AS profile_count,
@@ -4937,10 +4955,7 @@ export async function getAdminBillingOverview() {
           LIMIT 1
         ) latest_slip ON TRUE
         LEFT JOIN account_subscription_packages pkg
-          ON pkg.key = CASE
-            WHEN s.id IS NOT NULL THEN s.plan_key
-            ELSE latest_slip.plan_key
-          END
+          ON pkg.key = COALESCE(s.plan_key, latest_slip.plan_key)
         LEFT JOIN account_profiles p
           ON p.user_id = u.id
         LEFT JOIN account_sessions sess
@@ -4977,6 +4992,7 @@ export async function getAdminBillingOverview() {
     email: String(row.email),
     name: String(row.name),
     imageUrl: row.image_url ? String(row.image_url) : null,
+    isActivePaid: Boolean(row.is_active_paid),
     subscriptionStatus: String(row.subscription_status),
     provider: row.provider ? String(row.provider) : null,
     currentPeriodEnd: row.current_period_end

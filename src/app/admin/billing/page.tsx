@@ -40,20 +40,8 @@ function formatDateOnly(value: string | null) {
   });
 }
 
-function isPaidSubscription(
-  status: string,
-  currentPeriodEnd: string | null | undefined,
-) {
-  if (status !== "active" && status !== "trialing") return false;
-  if (!currentPeriodEnd) return true;
-  return new Date(currentPeriodEnd).getTime() > Date.now();
-}
-
 function isPaidFleet(fleet: AdminBillingFleet) {
-  return (
-    isPaidSubscription(fleet.subscriptionStatus, fleet.currentPeriodEnd) &&
-    fleet.latestPackageKey !== "free"
-  );
+  return fleet.isActivePaid;
 }
 
 function getFleetPackageFilterKey(fleet: AdminBillingFleet) {
