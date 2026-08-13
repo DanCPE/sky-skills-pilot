@@ -136,6 +136,8 @@ export async function POST(request: Request) {
     const action = String(formData.get("action") ?? "create-event");
     const subject = String(formData.get("subject") ?? "").trim();
     const message = String(formData.get("message") ?? "").trim();
+    const smtpPasswordOverride =
+      String(formData.get("smtpPasswordOverride") ?? "").trim() || null;
     const recipientFleetIds = formData
       .getAll("recipientFleetIds")
       .map((value) => String(value).trim())
@@ -147,6 +149,7 @@ export async function POST(request: Request) {
       subjectLength: subject.length,
       messageLength: message.length,
       recipientFleetIdCount: recipientFleetIds.length,
+      hasSmtpPasswordOverride: Boolean(smtpPasswordOverride),
     });
 
     if (action === "create-event") {
@@ -278,6 +281,7 @@ export async function POST(request: Request) {
           name: recipient.name,
           subject: batch.subject,
           message: batch.message,
+          smtpPasswordOverride,
           attachments: batchFiles.map((batchFile) => ({
             fileName: batchFile.fileName,
             contentType: batchFile.contentType,

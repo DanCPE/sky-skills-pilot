@@ -269,6 +269,7 @@ export default function AdminPersonalFilesMailPage() {
       selectedFleetIds: selectedPaidRecipients.map((recipient) => recipient.fleetId),
       fileCount: selectedBatch.files.length,
       totalFileSizeBytes: selectedBatch.fileSizeBytes,
+      hasSmtpPasswordOverride: Boolean(formData.get("smtpPasswordOverride")),
     });
 
     try {
@@ -482,6 +483,19 @@ export default function AdminPersonalFilesMailPage() {
           ) : null}
 
           <form onSubmit={(event) => void sendEvent(event)} className="grid gap-4">
+            <label className="grid gap-2 text-sm font-bold">
+              Temporary SMTP password override
+              <input
+                name="smtpPasswordOverride"
+                type="password"
+                autoComplete="off"
+                placeholder="Optional Gmail app password for this send only"
+                className="rounded-lg border border-zinc-200 bg-white px-3 py-2 font-normal outline-none transition focus:border-violet-400 dark:border-white/10 dark:bg-zinc-950"
+              />
+              <span className="text-xs font-normal text-zinc-500 dark:text-zinc-400">
+                Optional. Used only for this send request and not saved in the database.
+              </span>
+            </label>
             <div className="overflow-hidden rounded-lg border border-zinc-200 dark:border-white/10">
               <div className="flex flex-col gap-3 border-b border-zinc-100 bg-zinc-50 px-4 py-3 dark:border-white/10 dark:bg-white/5 sm:flex-row sm:items-center sm:justify-between">
                 <div>
