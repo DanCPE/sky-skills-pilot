@@ -129,6 +129,8 @@ function generateExplanation(
     case "mixed_operation": {
       const ops =
         operationLabels ??
+        // Fallback only: mixed-operation explanations should use generator labels
+        // so multiplication/subtraction are not misread from adjacent values.
         sequence.slice(1).map((value, index) => {
           const previous = sequence[index];
           const diff = value - previous;
