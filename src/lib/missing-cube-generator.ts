@@ -132,12 +132,12 @@ function isSurfaceCell(cell: CubeCell, size: number) {
 
 function getDifficultySettings(difficulty: Exclude<MissingCubeDifficulty, "mixed">) {
   if (difficulty === "easy") {
-    return { size: 3 as const, missingBlocks: [4, 5, 6], partCount: 1 };
+    return { size: 3 as const, missingBlocks: [4, 5, 6], partCounts: [2, 3] };
   }
   if (difficulty === "medium") {
-    return { size: 4 as const, missingBlocks: [7, 8, 9, 10], partCount: 2 };
+    return { size: 4 as const, missingBlocks: [7, 8, 9, 10], partCounts: [2, 3] };
   }
-  return { size: 5 as const, missingBlocks: [11, 12, 13, 14, 15], partCount: 3 };
+  return { size: 5 as const, missingBlocks: [11, 12, 13, 14, 15], partCounts: [3] };
 }
 
 function generateMissingPiece(size: number, blockCount: number) {
@@ -313,6 +313,7 @@ function createQuestion(difficulty: MissingCubeDifficulty): MissingCubeQuestion 
     difficulty === "mixed" ? randomItem(["easy", "medium", "hard"] as const) : difficulty;
   const settings = getDifficultySettings(activeDifficulty);
   const blockCount = randomItem(settings.missingBlocks);
+  const partCount = randomItem(settings.partCounts);
   const missingCells = generateMissingPiece(settings.size, blockCount);
   const missingKeys = new Set(missingCells.map(key));
   const visibleCells = fullCubeCells(settings.size).filter((cell) => !missingKeys.has(key(cell)));
@@ -349,7 +350,7 @@ function createQuestion(difficulty: MissingCubeDifficulty): MissingCubeQuestion 
     difficulty: activeDifficulty,
     visibleParts: splitVisibleParts(
       visibleCells,
-      settings.partCount,
+      partCount,
       activeDifficulty === "hard",
     ),
     missingPiece: correctPiece,
@@ -360,9 +361,7 @@ function createQuestion(difficulty: MissingCubeDifficulty): MissingCubeQuestion 
       pitch: 45,
     },
     explanation:
-      settings.partCount === 1
-        ? "The correct piece fills every open cube position without adding blocks outside the cube."
-        : `The question shape is separated into ${settings.partCount} visible parts. Mentally bring those parts together, then choose the only missing piece that completes the cube.`,
+      `The question shape is separated into ${partCount} visible parts. Mentally bring those parts together, then choose the only missing piece that completes the cube.`,
   };
 }
 
