@@ -78,7 +78,8 @@ const MISSING_NUMBER_PROMPT = "What number is missing in the series?";
 function generateExplanation(
   patternType: NumberSeriesPatternType,
   sequence: number[],
-  correctAnswer: number
+  correctAnswer: number,
+  operationLabels?: string[]
 ): string {
   switch (patternType) {
     case "arithmetic": {
@@ -126,17 +127,19 @@ function generateExplanation(
       )} (increasing by ${oddDiff}), Even positions: ${even.join(", ")} (increasing by ${evenDiff}). The missing number follows the ${activePositionLabel}: ${activeSequence[activeSequence.length - 1]} + ${activeDiff} = ${correctAnswer}.`;
     }
     case "mixed_operation": {
-      // Detect pattern: +2, ×3, +2, ×3 style
-      const ops: string[] = [];
-      for (let i = 1; i < sequence.length; i++) {
-        const diff = sequence[i] - sequence[i - 1];
-        if (sequence[i] % sequence[i - 1] === 0 && diff > sequence[i - 1]) {
-          ops.push(`×${sequence[i] / sequence[i - 1]}`);
-        } else {
-          ops.push(diff >= 0 ? `+${diff}` : `${diff}`);
-        }
-      }
-      return `This sequence follows a mixed operation pattern: ${ops.join(", ")}. ${sequence[0]} ${ops[0]} = ${sequence[1]}, ${sequence[1]} ${ops[1]} = ${sequence[2]}, etc. Continuing: ${sequence[sequence.length - 1]} ${ops[sequence.length % ops.length]} = ${correctAnswer}.`;
+      const ops =
+        operationLabels ??
+        sequence.slice(1).map((value, index) => {
+          const previous = sequence[index];
+          const diff = value - previous;
+          return diff >= 0 ? `+${diff}` : `${diff}`;
+        });
+      const visibleSteps = sequence
+        .slice(1)
+        .map((value, index) => `${sequence[index]} ${ops[index % ops.length]} = ${value}`)
+        .join(", ");
+      const nextOp = ops[(sequence.length - 1) % ops.length];
+      return `This sequence follows a repeating mixed operation pattern: ${ops.join(", ")}. ${visibleSteps}. Continuing: ${sequence[sequence.length - 1]} ${nextOp} = ${correctAnswer}.`;
     }
     default:
       return `Find the pattern in the sequence: ${sequence.join(", ")}. The next number is ${correctAnswer}.`;
@@ -513,29 +516,29 @@ function generateMixedOperation(
   difficulty: "easy" | "medium" | "hard"
 ): NumberSeriesQuestion {
   // Pattern like: +2, ×3, +2, ×3, ...
-  const operations: Array<(n: number) => number> = [];
+  const operations: Array<{ label: string; apply: (n: number) => number }> = [];
 
   if (difficulty === "easy") {
     const addValue = randomInRange(2, 5);
     const multValue = randomInRange(2, 3);
-    operations.push((n) => n + addValue);
-    operations.push((n) => n * multValue);
+    operations.push({ label: `+${addValue}`, apply: (n) => n + addValue });
+    operations.push({ label: `×${multValue}`, apply: (n) => n * multValue });
   } else if (difficulty === "medium") {
     const addValue = randomInRange(2, 8);
     const multValue = randomInRange(2, 4);
     const subtractValue = randomInRange(1, 3);
-    operations.push((n) => n + addValue);
-    operations.push((n) => n * multValue);
-    operations.push((n) => n - subtractValue);
+    operations.push({ label: `+${addValue}`, apply: (n) => n + addValue });
+    operations.push({ label: `×${multValue}`, apply: (n) => n * multValue });
+    operations.push({ label: `-${subtractValue}`, apply: (n) => n - subtractValue });
   } else {
     const addValue = randomInRange(3, 12);
     const multValue = randomInRange(2, 5);
     const subtractValue = randomInRange(2, 5);
     const finalAddValue = randomInRange(5, 10);
-    operations.push((n) => n + addValue);
-    operations.push((n) => n * multValue);
-    operations.push((n) => n - subtractValue);
-    operations.push((n) => n + finalAddValue);
+    operations.push({ label: `+${addValue}`, apply: (n) => n + addValue });
+    operations.push({ label: `×${multValue}`, apply: (n) => n * multValue });
+    operations.push({ label: `-${subtractValue}`, apply: (n) => n - subtractValue });
+    operations.push({ label: `+${finalAddValue}`, apply: (n) => n + finalAddValue });
   }
 
   const length = difficulty === "easy" ? 4 : difficulty === "medium" ? 5 : 6;
@@ -544,14 +547,16 @@ function generateMixedOperation(
 
   for (let i = 1; i < length; i++) {
     const opIndex = (i - 1) % operations.length;
-    sequence.push(operations[opIndex](sequence[i - 1]));
+    sequence.push(operations[opIndex].apply(sequence[i - 1]));
   }
 
   const nextOpIndex = (length - 1) % operations.length;
-  const correctAnswer = operations[nextOpIndex](sequence[length - 1]);
-  const nextNumberAfterAnswer = operations[length % operations.length](correctAnswer);
+  const correctAnswer = operations[nextOpIndex].apply(sequence[length - 1]);
+  const nextNumberAfterAnswer =
+    operations[length % operations.length].apply(correctAnswer);
   const distractors = generateDistractors(correctAnswer, "mixed_operation");
   const options = shuffleArray([String(correctAnswer), ...distractors]);
+  const operationLabels = operations.map((operation) => operation.label);
 
   return {
     id: generateId(),
@@ -562,7 +567,12 @@ function generateMixedOperation(
     correctAnswer,
     nextNumberAfterAnswer,
     difficulty,
-    explanation: generateExplanation("mixed_operation", sequence, correctAnswer),
+    explanation: generateExplanation(
+      "mixed_operation",
+      sequence,
+      correctAnswer,
+      operationLabels
+    ),
   };
 }
 
