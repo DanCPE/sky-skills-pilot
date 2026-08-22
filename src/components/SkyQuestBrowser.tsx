@@ -11,6 +11,7 @@ type AccessTopic = Topic & {
 
 const categories: { value: TopicCategory | "all"; label: string }[] = [
   { value: "all", label: "All Categories" },
+  { value: "tournament", label: "Tournament" },
   { value: "scanning", label: "Scanning" },
   { value: "logical", label: "Logical" },
   { value: "spatial", label: "Spatial Orientation" },

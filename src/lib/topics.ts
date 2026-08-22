@@ -2,6 +2,18 @@ import type { Topic } from "@/types";
 
 export const topics: Topic[] = [
   {
+    slug: "real-tournament",
+    icon: "🏆",
+    title: "Real Tournament",
+    description:
+      "Compete on a fixed mixed-difficulty tournament assembled from core Sky Quests.",
+    category: "tournament",
+    isLocked: false,
+    isNew: true,
+    coverImage: "/images/icons/SkyQuests/Takeoff.png",
+    coverImageDark: "/images/icons/SkyQuests/Takeoff.png",
+  },
+  {
     slug: "box-folding",
     icon: "📦",
     title: "Box Folding",

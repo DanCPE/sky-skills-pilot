@@ -24,6 +24,7 @@ model AccountUser {
   updatedAt     DateTime              @default(now()) @map("updated_at") @db.Timestamptz(6)
   sessions      AccountSession[]
   scores        AccountScoreHistory[]
+  tournamentScores RealTournamentScore[]
   subscriptions AccountSubscription[]
   payments      AccountPaymentIntent[]
 
@@ -63,6 +64,25 @@ model AccountScoreHistory {
   @@index([userId, completedAt])
   @@index([skillDomain])
   @@map("account_score_history")
+}
+
+model RealTournamentScore {
+  id               String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId           String      @map("user_id") @db.Uuid
+  profileId        String?     @map("profile_id") @db.Uuid
+  score            Decimal     @db.Decimal(8, 2)
+  maxScore         Decimal     @map("max_score") @db.Decimal(8, 2)
+  percentage       Decimal     @db.Decimal(5, 2)
+  correctCount     Int         @map("correct_count")
+  questionCount    Int         @map("question_count")
+  timeTakenSeconds Int?        @map("time_taken_seconds")
+  metadata         Json        @default("{}")
+  completedAt      DateTime    @default(now()) @map("completed_at") @db.Timestamptz(6)
+  user             AccountUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([percentage, timeTakenSeconds, completedAt])
+  @@index([profileId, completedAt])
+  @@map("real_tournament_scores")
 }
 
 model AccountSubscription {

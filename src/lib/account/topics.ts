@@ -49,6 +49,7 @@ export const accountSkillDomains: AccountSkillDomain[] = [
 ];
 
 const categoryDomainMap: Record<TopicCategory, AccountSkillDomainSlug> = {
+  tournament: "logical-reasoning",
   logical: "logical-reasoning",
   spatial: "spatial-orientation",
   scanning: "visual-scanning",

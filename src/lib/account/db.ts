@@ -78,6 +78,19 @@ export interface ScoreHistoryEntry {
   completedAt: string;
 }
 
+export interface RealTournamentRankingEntry {
+  rank: number;
+  profileName: string;
+  imageUrl: string | null;
+  percentage: number;
+  score: number;
+  maxScore: number;
+  correctCount: number;
+  questionCount: number;
+  timeTakenSeconds: number | null;
+  completedAt: string;
+}
+
 export interface RadarPoint {
   slug: string;
   label: string;
@@ -658,6 +671,31 @@ async function ensurePersonalFileMailSchema() {
   );
 }
 
+async function ensureRealTournamentSchema() {
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS real_tournament_scores (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+      profile_id UUID REFERENCES account_profiles(id) ON DELETE SET NULL,
+      score NUMERIC(8,2) NOT NULL,
+      max_score NUMERIC(8,2) NOT NULL,
+      percentage NUMERIC(5,2) NOT NULL,
+      correct_count INT NOT NULL,
+      question_count INT NOT NULL,
+      time_taken_seconds INT,
+      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+      completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  await getPool().query(
+    "CREATE INDEX IF NOT EXISTS real_tournament_scores_rank_idx ON real_tournament_scores(percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC);",
+  );
+  await getPool().query(
+    "CREATE INDEX IF NOT EXISTS real_tournament_scores_profile_idx ON real_tournament_scores(profile_id, completed_at DESC);",
+  );
+}
+
 export function rankScore(percentage: number) {
   if (percentage >= 90) return "Captain";
   if (percentage >= 75) return "First Officer";
@@ -683,6 +721,7 @@ export async function ensureAccountSchema() {
     await ensureSubscriptionPlanKeyColumn();
     await ensureAccountSessionMetadataColumns();
     await ensurePersonalFileMailSchema();
+    await ensureRealTournamentSchema();
     return;
   }
   if (schemaPromise) return schemaPromise;
@@ -693,6 +732,10 @@ export async function ensureAccountSchema() {
 
     try {
       if (await canUseExistingAccountSchema(pool)) {
+        await ensureSubscriptionPlanKeyColumn();
+        await ensureAccountSessionMetadataColumns();
+        await ensurePersonalFileMailSchema();
+        await ensureRealTournamentSchema();
         schemaReady = true;
         accountDebug("schema ready from existing tables", {
           durationMs: Date.now() - startedAt,
@@ -1224,6 +1267,8 @@ export async function ensureAccountSchema() {
         "CREATE UNIQUE INDEX IF NOT EXISTS account_manual_payment_slips_trans_ref_unique_idx ON account_manual_payment_slips(slip2go_trans_ref) WHERE slip2go_trans_ref IS NOT NULL;",
       );
 
+      await ensureRealTournamentSchema();
+
       schemaReady = true;
       accountDebug("schema ready", { durationMs: Date.now() - startedAt });
     } catch (error) {
@@ -1295,6 +1340,24 @@ function mapScore(row: Record<string, unknown>): ScoreHistoryEntry {
     mode: row.mode ? String(row.mode) : null,
     difficulty: row.difficulty ? String(row.difficulty) : null,
     questionCount: row.question_count === null ? null : Number(row.question_count),
+    timeTakenSeconds:
+      row.time_taken_seconds === null ? null : Number(row.time_taken_seconds),
+    completedAt: new Date(String(row.completed_at)).toISOString(),
+  };
+}
+
+function mapRealTournamentRanking(
+  row: Record<string, unknown>,
+): RealTournamentRankingEntry {
+  return {
+    rank: Number(row.rank),
+    profileName: String(row.profile_name ?? "Pilot"),
+    imageUrl: row.image_url ? String(row.image_url) : null,
+    percentage: Number(row.percentage),
+    score: Number(row.score),
+    maxScore: Number(row.max_score),
+    correctCount: Number(row.correct_count),
+    questionCount: Number(row.question_count),
     timeTakenSeconds:
       row.time_taken_seconds === null ? null : Number(row.time_taken_seconds),
     completedAt: new Date(String(row.completed_at)).toISOString(),
@@ -2951,6 +3014,115 @@ export async function recordScore(input: {
   );
 
   return mapScore(result.rows[0]);
+}
+
+export async function recordRealTournamentScore(input: {
+  profileId: string;
+  score: number;
+  maxScore: number;
+  correctCount: number;
+  questionCount: number;
+  timeTakenSeconds?: number;
+  metadata?: Record<string, unknown>;
+}) {
+  await ensureAccountSchema();
+  const pool = getPool();
+
+  if (input.maxScore <= 0) {
+    throw new Error("maxScore must be greater than zero.");
+  }
+
+  const profileResult = await pool.query(
+    "SELECT user_id FROM account_profiles WHERE id = $1 LIMIT 1;",
+    [input.profileId],
+  );
+
+  if (profileResult.rowCount === 0) {
+    throw new Error("Account profile not found.");
+  }
+
+  const fleetId = String(profileResult.rows[0].user_id);
+  const percentage = Math.max(
+    0,
+    Math.min(100, (input.score / input.maxScore) * 100),
+  );
+
+  const result = await pool.query<{ rank: string }>(
+    `
+      WITH inserted AS (
+        INSERT INTO real_tournament_scores (
+          user_id,
+          profile_id,
+          score,
+          max_score,
+          percentage,
+          correct_count,
+          question_count,
+          time_taken_seconds,
+          metadata
+        )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        RETURNING id
+      ),
+      ranked AS (
+        SELECT
+          id,
+          RANK() OVER (
+            ORDER BY percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC, id ASC
+          ) AS rank
+        FROM real_tournament_scores
+      )
+      SELECT rank::text
+      FROM ranked
+      WHERE id = (SELECT id FROM inserted);
+    `,
+    [
+      fleetId,
+      input.profileId,
+      input.score,
+      input.maxScore,
+      percentage,
+      input.correctCount,
+      input.questionCount,
+      input.timeTakenSeconds ?? null,
+      JSON.stringify(input.metadata ?? {}),
+    ],
+  );
+
+  return Number(result.rows[0]?.rank ?? 0) || null;
+}
+
+export async function getRealTournamentRanking(
+  limit = 20,
+): Promise<RealTournamentRankingEntry[]> {
+  if (!hasAccountDatabase()) return [];
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      SELECT
+        RANK() OVER (
+          ORDER BY s.percentage DESC, s.time_taken_seconds ASC NULLS LAST, s.completed_at ASC, s.id ASC
+        )::int AS rank,
+        COALESCE(p.call_sign, u.name, 'Pilot') AS profile_name,
+        COALESCE(p.image_url, u.image_url) AS image_url,
+        s.percentage,
+        s.score,
+        s.max_score,
+        s.correct_count,
+        s.question_count,
+        s.time_taken_seconds,
+        s.completed_at
+      FROM real_tournament_scores s
+      JOIN account_users u ON u.id = s.user_id
+      LEFT JOIN account_profiles p ON p.id = s.profile_id
+      ORDER BY s.percentage DESC, s.time_taken_seconds ASC NULLS LAST, s.completed_at ASC, s.id ASC
+      LIMIT $1;
+    `,
+    [Math.max(1, Math.min(limit, 100))],
+  );
+
+  return result.rows.map(mapRealTournamentRanking);
 }
 
 export async function isFleetPaid(fleetId: string) {

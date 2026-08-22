@@ -12,6 +12,7 @@ export interface Topic {
 }
 
 export type TopicCategory =
+  | "tournament"
   | "scanning"
   | "logical"
   | "spatial"
