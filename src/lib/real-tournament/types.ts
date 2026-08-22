@@ -20,12 +20,25 @@ export interface TournamentQuestionDisplay {
   difficulty: TournamentDifficulty;
   options: string[];
   detail?: {
-    expression?: string;
-    sequence?: number[];
+      expression?: string;
+      sequence?: number[];
+      nextNumberAfterAnswer?: number;
       stringA?: string;
       stringB?: string;
       category?: string;
       passage?: string;
+      aircraftRotation?: {
+        initialHeading: number;
+        sequence: Array<{
+          angle: number;
+          dir: "L" | "R";
+        }>;
+        targetHeading: number;
+        options: Array<{
+          angle: number;
+          dir: "L" | "R" | null;
+        }>;
+      };
   };
 }
 

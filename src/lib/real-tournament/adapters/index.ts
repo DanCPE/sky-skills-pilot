@@ -28,6 +28,7 @@ function toNumberSeries(
     explanation: question.explanation,
     detail: {
       sequence: question.sequence,
+      nextNumberAfterAnswer: question.nextNumberAfterAnswer,
     },
   }));
 }
@@ -156,13 +157,12 @@ function toAircraftRotation(
         correctAnswer,
         explanation: `The shortest turn is ${correctAnswer}.`,
         detail: {
-          expression: [
-            `Start ${question.initialHeading}°`,
-            ...question.sequence.map(
-              (instruction) => `${instruction.angle}° ${instruction.dir}`,
-            ),
-            `Target ${question.targetHeading}°`,
-          ].join(" → "),
+          aircraftRotation: {
+            initialHeading: question.initialHeading,
+            sequence: question.sequence,
+            targetHeading: question.targetHeading,
+            options: question.options,
+          },
         },
       };
     },
