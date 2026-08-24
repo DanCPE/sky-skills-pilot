@@ -10,7 +10,6 @@ const DEFAULT_FLEET_MEMBER_LIMIT = 1;
 const PACKAGE_FLEET_MEMBER_LIMITS: Record<string, number> = {
   "first-officer": 2,
   captain: 3,
-  "captain-pro-max": 3,
 };
 
 let accountPool: Pool | null = null;
@@ -27,8 +26,6 @@ const subscriptionPackagesCache = new Map<
 let promotionCodesCache:
   | { expiresAt: number; promotions: PromotionCode[] }
   | null = null;
-
-const CAPTAIN_PRO_MAX_PACKAGE_KEY = "captain-pro-max";
 
 const CONFIG_CACHE_MS = 60 * 1000;
 // Subscription packages and quiz access rules are admin-managed and change
@@ -600,6 +597,36 @@ async function ensureBillingAssetMetadataColumn() {
   );
 }
 
+async function ensureRemovedSubscriptionPackagesDeleted() {
+  if (!hasAccountDatabase()) return;
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS account_schema_migrations (
+      id TEXT PRIMARY KEY,
+      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    );
+  `);
+
+  const migration = await getPool().query(
+    "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
+    ["remove_captain_pro_max_package_v1"],
+  );
+
+  if (migration.rowCount !== 0) return;
+
+  await getPool().query(
+    "DELETE FROM account_subscription_packages WHERE key = $1;",
+    ["captain-pro-max"],
+  );
+  await getPool().query(
+    "INSERT INTO account_schema_migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING;",
+    ["remove_captain_pro_max_package_v1"],
+  );
+
+  subscriptionPackagesCache.clear();
+  promotionCodesCache = null;
+}
+
 async function ensureSubscriptionPlanKeyColumn() {
   if (!hasAccountDatabase() || subscriptionPlanKeyColumnReady) return;
 
@@ -753,6 +780,7 @@ export async function ensureAccountSchema() {
     await ensureAccountSessionMetadataColumns();
     await ensurePersonalFileMailSchema();
     await ensureRealTournamentSchema();
+    await ensureRemovedSubscriptionPackagesDeleted();
     return;
   }
   if (schemaPromise) return schemaPromise;
@@ -767,6 +795,7 @@ export async function ensureAccountSchema() {
         await ensureAccountSessionMetadataColumns();
         await ensurePersonalFileMailSchema();
         await ensureRealTournamentSchema();
+        await ensureRemovedSubscriptionPackagesDeleted();
         schemaReady = true;
         accountDebug("schema ready from existing tables", {
           durationMs: Date.now() - startedAt,
@@ -1127,20 +1156,6 @@ export async function ensureAccountSchema() {
             durationMonths: 12,
             sortOrder: 30,
           },
-          {
-            key: CAPTAIN_PRO_MAX_PACKAGE_KEY,
-            title: "Captain Pro Max",
-            description: "Captain access plus personal file support from the SkySkills team.",
-            details: [
-              "All paid quizzes",
-              "Score history",
-              "Skill dashboard",
-              "Personal file delivery",
-            ],
-            priceCents: 202600,
-            durationMonths: 12,
-            sortOrder: 40,
-          },
         ];
 
         for (const item of defaultPackages) {
@@ -1177,40 +1192,7 @@ export async function ensureAccountSchema() {
         );
       }
 
-      await pool.query(
-        `
-          INSERT INTO account_subscription_packages (
-            key,
-            title,
-            description,
-            details,
-            price_cents,
-            currency,
-            duration_months,
-            sort_order
-          )
-          VALUES (
-            $1,
-            'Captain Pro Max',
-            'Captain access plus personal file support from the SkySkills team.',
-            $2,
-            202600,
-            'THB',
-            12,
-            40
-          )
-          ON CONFLICT (key) DO NOTHING;
-        `,
-        [
-          CAPTAIN_PRO_MAX_PACKAGE_KEY,
-          JSON.stringify([
-            "All paid quizzes",
-            "Score history",
-            "Skill dashboard",
-            "Personal file delivery",
-          ]),
-        ],
-      );
+      await ensureRemovedSubscriptionPackagesDeleted();
 
       await pool.query(`
       CREATE TABLE IF NOT EXISTS account_quiz_access (
