@@ -5,6 +5,8 @@ export const REAL_TOURNAMENT_TOPIC = {
   title: "Real Tournament",
 };
 
+export const REAL_TOURNAMENT_MAX_ATTEMPTS_PER_WEEK = 3;
+
 export const REAL_TOURNAMENT_TIMING = {
   roundIntroAutoStartSeconds: 2 * 60,
   passageReadingSeconds: 2 * 60,
@@ -57,3 +59,18 @@ export const ROUND_QUESTION_COUNT = MIXED_ROUND_DIFFICULTY_PLAN.reduce(
   (total, entry) => total + entry.count,
   0,
 );
+
+export function getRealTournamentWeekTiming(now = Date.now()) {
+  const weekIndex = Math.floor(
+    now / REAL_TOURNAMENT_TIMING.weekDurationMs,
+  );
+  const weekStartMs = weekIndex * REAL_TOURNAMENT_TIMING.weekDurationMs;
+  const weekEndMs = weekStartMs + REAL_TOURNAMENT_TIMING.weekDurationMs;
+
+  return {
+    weekIndex,
+    weekId: `week-${weekIndex}`,
+    weekStartMs,
+    weekEndMs,
+  };
+}

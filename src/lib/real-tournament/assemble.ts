@@ -7,6 +7,7 @@ import {
   timingSafeEqual,
 } from "node:crypto";
 import {
+  getRealTournamentWeekTiming,
   MIXED_ROUND_DIFFICULTY_PLAN,
   REAL_TOURNAMENT_TIMING,
   ROUND_QUESTION_COUNT,
@@ -66,13 +67,8 @@ function toDisplayQuestion(
   };
 }
 
-function getTournamentWeekId() {
-  const weekIndex = Math.floor(Date.now() / REAL_TOURNAMENT_TIMING.weekDurationMs);
-  return `week-${weekIndex}`;
-}
-
 function getWeeklyTopic(categoryIndex: number, candidates: string[]) {
-  const weekIndex = Math.floor(Date.now() / REAL_TOURNAMENT_TIMING.weekDurationMs);
+  const { weekIndex } = getRealTournamentWeekTiming();
   return candidates[(weekIndex + categoryIndex) % candidates.length];
 }
 
@@ -112,7 +108,11 @@ function getRoundTimeLimitSeconds(
   throw new Error(`${adapter.title} is missing tournament timing config.`);
 }
 
-export async function assembleRealTournamentQuestions() {
+export async function assembleRealTournamentQuestions(input: {
+  accountId: string;
+  attemptId: string;
+}) {
+  const weekTiming = getRealTournamentWeekTiming();
   const selectedRounds = TOURNAMENT_CATEGORIES.map((category, categoryIndex) => {
     const selectedTopic = getWeeklyTopic(categoryIndex, category.candidates);
     const adapter = tournamentAdapters.find((item) => item.topic === selectedTopic);
@@ -151,6 +151,9 @@ export async function assembleRealTournamentQuestions() {
   }
 
   const answerKey: TournamentAnswerKey = {
+    accountId: input.accountId,
+    attemptId: input.attemptId,
+    weekId: weekTiming.weekId,
     generatedAt: new Date().toISOString(),
     expiresAt: new Date(
       Date.now() + REAL_TOURNAMENT_TIMING.tokenTtlSeconds * 1000,
@@ -173,7 +176,7 @@ export async function assembleRealTournamentQuestions() {
   }));
 
   return {
-    tournamentWeekId: getTournamentWeekId(),
+    tournamentWeekId: weekTiming.weekId,
     rounds: displayRounds,
     answerToken: createAnswerToken(answerKey),
   };

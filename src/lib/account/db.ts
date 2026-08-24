@@ -91,6 +91,13 @@ export interface RealTournamentRankingEntry {
   completedAt: string;
 }
 
+export interface RealTournamentAttemptStatus {
+  maxAttempts: number;
+  usedAttempts: number;
+  remainingAttempts: number;
+  weekId: string;
+}
+
 export interface RadarPoint {
   slug: string;
   label: string;
@@ -683,16 +690,40 @@ async function ensureRealTournamentSchema() {
       correct_count INT NOT NULL,
       question_count INT NOT NULL,
       time_taken_seconds INT,
+      week_id TEXT NOT NULL DEFAULT 'legacy',
       metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
       completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
     );
   `);
+
+  await getPool().query(`
+    CREATE TABLE IF NOT EXISTS real_tournament_attempts (
+      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+      profile_id UUID REFERENCES account_profiles(id) ON DELETE SET NULL,
+      week_id TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'started',
+      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+      completed_at TIMESTAMPTZ,
+      CHECK (status IN ('started', 'completed'))
+    );
+  `);
+
+  await getPool().query(
+    "ALTER TABLE real_tournament_scores ADD COLUMN IF NOT EXISTS week_id TEXT NOT NULL DEFAULT 'legacy';",
+  );
 
   await getPool().query(
     "CREATE INDEX IF NOT EXISTS real_tournament_scores_rank_idx ON real_tournament_scores(percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC);",
   );
   await getPool().query(
     "CREATE INDEX IF NOT EXISTS real_tournament_scores_profile_idx ON real_tournament_scores(profile_id, completed_at DESC);",
+  );
+  await getPool().query(
+    "CREATE INDEX IF NOT EXISTS real_tournament_scores_week_rank_idx ON real_tournament_scores(week_id, percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC);",
+  );
+  await getPool().query(
+    "CREATE INDEX IF NOT EXISTS real_tournament_attempts_user_week_idx ON real_tournament_attempts(user_id, week_id, started_at DESC);",
   );
 }
 
@@ -3018,6 +3049,7 @@ export async function recordScore(input: {
 
 export async function recordRealTournamentScore(input: {
   profileId: string;
+  weekId: string;
   score: number;
   maxScore: number;
   correctCount: number;
@@ -3056,25 +3088,38 @@ export async function recordRealTournamentScore(input: {
           score,
           max_score,
           percentage,
-          correct_count,
-          question_count,
-          time_taken_seconds,
-          metadata
-        )
-        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        correct_count,
+        question_count,
+        time_taken_seconds,
+        week_id,
+        metadata
+      )
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
         RETURNING id
+      ),
+      best_scores AS (
+        SELECT DISTINCT ON (user_id)
+          *
+        FROM real_tournament_scores
+        WHERE week_id = $9
+        ORDER BY
+          user_id,
+          percentage DESC,
+          time_taken_seconds ASC NULLS LAST,
+          completed_at ASC,
+          id ASC
       ),
       ranked AS (
         SELECT
-          id,
+          user_id,
           RANK() OVER (
             ORDER BY percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC, id ASC
           ) AS rank
-        FROM real_tournament_scores
+        FROM best_scores
       )
       SELECT rank::text
       FROM ranked
-      WHERE id = (SELECT id FROM inserted);
+      WHERE user_id = $1;
     `,
     [
       fleetId,
@@ -3085,6 +3130,7 @@ export async function recordRealTournamentScore(input: {
       input.correctCount,
       input.questionCount,
       input.timeTakenSeconds ?? null,
+      input.weekId,
       JSON.stringify(input.metadata ?? {}),
     ],
   );
@@ -3092,14 +3138,148 @@ export async function recordRealTournamentScore(input: {
   return Number(result.rows[0]?.rank ?? 0) || null;
 }
 
+export async function getRealTournamentAttemptStatus(input: {
+  userId: string;
+  weekId: string;
+  maxAttempts: number;
+}): Promise<RealTournamentAttemptStatus> {
+  if (!hasAccountDatabase()) {
+    return {
+      maxAttempts: input.maxAttempts,
+      usedAttempts: 0,
+      remainingAttempts: input.maxAttempts,
+      weekId: input.weekId,
+    };
+  }
+
+  await ensureAccountSchema();
+  const result = await getPool().query<{ count: string }>(
+    `
+      SELECT COUNT(*)::text AS count
+      FROM real_tournament_attempts
+      WHERE user_id = $1
+        AND week_id = $2;
+    `,
+    [input.userId, input.weekId],
+  );
+  const usedAttempts = Number(result.rows[0]?.count ?? 0);
+
+  return {
+    maxAttempts: input.maxAttempts,
+    usedAttempts,
+    remainingAttempts: Math.max(0, input.maxAttempts - usedAttempts),
+    weekId: input.weekId,
+  };
+}
+
+export async function createRealTournamentAttempt(input: {
+  profileId: string;
+  weekId: string;
+  maxAttempts: number;
+}) {
+  await ensureAccountSchema();
+  const pool = getPool();
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+    const profileResult = await client.query(
+      "SELECT user_id FROM account_profiles WHERE id = $1 LIMIT 1;",
+      [input.profileId],
+    );
+
+    if (profileResult.rowCount === 0) {
+      throw new Error("Account profile not found.");
+    }
+
+    const fleetId = String(profileResult.rows[0].user_id);
+    await client.query("SELECT pg_advisory_xact_lock(hashtext($1));", [
+      `${fleetId}:${input.weekId}:real-tournament`,
+    ]);
+
+    const countResult = await client.query<{ count: string }>(
+      `
+        SELECT COUNT(*)::text AS count
+        FROM real_tournament_attempts
+        WHERE user_id = $1
+          AND week_id = $2;
+      `,
+      [fleetId, input.weekId],
+    );
+    const usedAttempts = Number(countResult.rows[0]?.count ?? 0);
+
+    if (usedAttempts >= input.maxAttempts) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const attemptResult = await client.query<{ id: string }>(
+      `
+        INSERT INTO real_tournament_attempts (user_id, profile_id, week_id)
+        VALUES ($1, $2, $3)
+        RETURNING id;
+      `,
+      [fleetId, input.profileId, input.weekId],
+    );
+
+    await client.query("COMMIT");
+    return {
+      attemptId: String(attemptResult.rows[0].id),
+      accountId: fleetId,
+      remainingAttempts: Math.max(0, input.maxAttempts - usedAttempts - 1),
+    };
+  } catch (error) {
+    await client.query("ROLLBACK").catch(() => undefined);
+    throw error;
+  } finally {
+    client.release();
+  }
+}
+
+export async function completeRealTournamentAttempt(input: {
+  attemptId: string;
+  userId: string;
+  weekId: string;
+}) {
+  await ensureAccountSchema();
+  const result = await getPool().query(
+    `
+      UPDATE real_tournament_attempts
+      SET status = 'completed',
+          completed_at = COALESCE(completed_at, NOW())
+      WHERE id = $1
+        AND user_id = $2
+        AND week_id = $3
+        AND status = 'started'
+      RETURNING id;
+    `,
+    [input.attemptId, input.userId, input.weekId],
+  );
+
+  return (result.rowCount ?? 0) > 0;
+}
+
 export async function getRealTournamentRanking(
-  limit = 20,
+  input: { weekId: string; limit?: number },
 ): Promise<RealTournamentRankingEntry[]> {
   if (!hasAccountDatabase()) return [];
   await ensureAccountSchema();
+  const limit = input.limit ?? 20;
 
   const result = await getPool().query(
     `
+      WITH best_scores AS (
+        SELECT DISTINCT ON (s.user_id)
+          s.*
+        FROM real_tournament_scores s
+        WHERE s.week_id = $2
+        ORDER BY
+          s.user_id,
+          s.percentage DESC,
+          s.time_taken_seconds ASC NULLS LAST,
+          s.completed_at ASC,
+          s.id ASC
+      )
       SELECT
         RANK() OVER (
           ORDER BY s.percentage DESC, s.time_taken_seconds ASC NULLS LAST, s.completed_at ASC, s.id ASC
@@ -3113,13 +3293,13 @@ export async function getRealTournamentRanking(
         s.question_count,
         s.time_taken_seconds,
         s.completed_at
-      FROM real_tournament_scores s
+      FROM best_scores s
       JOIN account_users u ON u.id = s.user_id
       LEFT JOIN account_profiles p ON p.id = s.profile_id
       ORDER BY s.percentage DESC, s.time_taken_seconds ASC NULLS LAST, s.completed_at ASC, s.id ASC
       LIMIT $1;
     `,
-    [Math.max(1, Math.min(limit, 100))],
+    [Math.max(1, Math.min(limit, 100)), input.weekId],
   );
 
   return result.rows.map(mapRealTournamentRanking);

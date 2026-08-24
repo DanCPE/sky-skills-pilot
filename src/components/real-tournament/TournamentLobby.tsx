@@ -9,8 +9,17 @@ import type {
   TournamentRankingEntry,
 } from "@/lib/real-tournament/types";
 
+interface AttemptStatus {
+  maxAttempts: number;
+  usedAttempts: number;
+  remainingAttempts: number;
+  weekId: string;
+}
+
 export default function TournamentLobby() {
   const [ranking, setRanking] = useState<TournamentRankingEntry[]>([]);
+  const [attemptStatus, setAttemptStatus] = useState<AttemptStatus | null>(null);
+  const [signInRequired, setSignInRequired] = useState(false);
   const [rankingLoading, setRankingLoading] = useState(true);
   const [quizData, setQuizData] = useState<TournamentQuizResponse | null>(null);
   const [starting, setStarting] = useState(false);
@@ -22,8 +31,12 @@ export default function TournamentLobby() {
       const response = await fetch("/api/real-tournament/ranking");
       const data = (await response.json()) as {
         ranking?: TournamentRankingEntry[];
+        attemptStatus?: AttemptStatus | null;
+        signInRequired?: boolean;
       };
       setRanking(data.ranking ?? []);
+      setAttemptStatus(data.attemptStatus ?? null);
+      setSignInRequired(Boolean(data.signInRequired));
     } finally {
       setRankingLoading(false);
     }
@@ -37,10 +50,27 @@ export default function TournamentLobby() {
     try {
       const response = await fetch("/api/real-tournament/questions");
       if (!response.ok) {
-        throw new Error("Tournament is unavailable right now.");
+        const data = (await response.json().catch(() => null)) as {
+          error?: string;
+        } | null;
+        throw new Error(data?.error ?? "Tournament is unavailable right now.");
       }
 
-      setQuizData((await response.json()) as TournamentQuizResponse);
+      const data = (await response.json()) as TournamentQuizResponse & {
+        remainingAttempts?: number;
+      };
+      setAttemptStatus((current) =>
+        current
+          ? {
+              ...current,
+              usedAttempts:
+                current.maxAttempts - (data.remainingAttempts ?? current.remainingAttempts),
+              remainingAttempts:
+                data.remainingAttempts ?? current.remainingAttempts,
+            }
+          : current,
+      );
+      setQuizData(data);
     } catch (caughtError) {
       setError(
         caughtError instanceof Error
@@ -85,12 +115,29 @@ export default function TournamentLobby() {
         <div className="mt-6 flex justify-center">
           <button
             onClick={startTournament}
-            disabled={starting}
+            disabled={
+              starting ||
+              signInRequired ||
+              attemptStatus?.remainingAttempts === 0
+            }
             className="rounded-lg bg-[#4F12A6] px-6 py-3 text-sm font-bold text-white shadow-lg shadow-[#4F12A6]/20 transition hover:bg-violet-700 disabled:cursor-wait disabled:opacity-60"
           >
-            {starting ? "Preparing Tournament..." : "Start Tournament"}
+            {starting
+              ? "Preparing Tournament..."
+              : signInRequired
+                ? "Sign in to Start"
+                : attemptStatus?.remainingAttempts === 0
+                  ? "No Tokens Left"
+                  : "Start Tournament"}
           </button>
         </div>
+        <p className="mt-3 text-xs font-bold uppercase text-zinc-400">
+          {signInRequired
+            ? "Tournament entry requires sign in"
+            : attemptStatus
+              ? `${attemptStatus.remainingAttempts}/${attemptStatus.maxAttempts} weekly tokens remaining`
+              : "Loading weekly tokens..."}
+        </p>
         {error ? (
           <p className="mt-3 text-sm font-semibold text-red-600 dark:text-red-300">
             {error}

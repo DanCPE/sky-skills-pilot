@@ -3,6 +3,7 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
+import TournamentCountdownBoard from "@/components/real-tournament/TournamentCountdownBoard";
 import type { Topic, TopicCategory } from "@/types";
 
 type AccessTopic = Topic & {
@@ -40,6 +41,7 @@ export default function SkyQuestBrowser({
 
   return (
     <div className="min-h-screen bg-[#fafafa] pb-20 text-zinc-900 dark:bg-transparent dark:text-zinc-100">
+      <TournamentCountdownBoard />
       <main className="mx-auto max-w-7xl px-6 pt-12">
         <div className="mb-10 flex flex-col items-center text-center">
           <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-yellow-100/80 px-3 py-1 text-[10px] font-bold uppercase text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400">

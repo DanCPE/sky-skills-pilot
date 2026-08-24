@@ -43,6 +43,9 @@ export interface TournamentQuestionInternal extends TournamentQuestionDisplay {
 }
 
 export interface TournamentAnswerKey {
+  accountId: string;
+  attemptId: string;
+  weekId: string;
   generatedAt: string;
   expiresAt: string;
   questions: Array<{

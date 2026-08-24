@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getCurrentAccountUser } from "@/lib/account/auth";
 import {
+  completeRealTournamentAttempt,
   hasAccountDatabase,
   recordRealTournamentScore,
 } from "@/lib/account/db";
@@ -15,6 +16,18 @@ function normalizeAnswer(answer: string | undefined) {
 }
 
 export async function POST(request: NextRequest) {
+  if (!hasAccountDatabase()) {
+    return NextResponse.json(
+      { error: "Account database is not configured." },
+      { status: 503 },
+    );
+  }
+
+  const user = await getCurrentAccountUser();
+  if (!user) {
+    return NextResponse.json({ error: "Sign in required." }, { status: 401 });
+  }
+
   const body = (await request.json()) as TournamentSubmitPayload;
 
   if (!body.answerToken || !body.answers) {
@@ -29,6 +42,26 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(
       { error: "Tournament session is invalid or expired." },
       { status: 400 },
+    );
+  }
+
+  if (answerKey.accountId !== user.fleetId) {
+    return NextResponse.json(
+      { error: "Tournament session does not belong to this account." },
+      { status: 403 },
+    );
+  }
+
+  const completedAttempt = await completeRealTournamentAttempt({
+    attemptId: answerKey.attemptId,
+    userId: user.fleetId,
+    weekId: answerKey.weekId,
+  });
+
+  if (!completedAttempt) {
+    return NextResponse.json(
+      { error: "Tournament attempt was already submitted or is invalid." },
+      { status: 409 },
     );
   }
 
@@ -57,25 +90,22 @@ export async function POST(request: NextRequest) {
   let saved = false;
   let rankingPosition: number | null = null;
 
-  if (hasAccountDatabase()) {
-    const user = await getCurrentAccountUser();
-    if (user) {
-      rankingPosition = await recordRealTournamentScore({
-        profileId: user.profileId,
-        score,
-        maxScore,
-        correctCount,
-        questionCount,
-        timeTakenSeconds: body.timeTakenSeconds,
-        metadata: {
-          generatedAt: answerKey.generatedAt,
-          expiresAt: answerKey.expiresAt,
-          roundTimes: body.roundTimes ?? {},
-        },
-      });
-      saved = true;
-    }
-  }
+  rankingPosition = await recordRealTournamentScore({
+    profileId: user.profileId,
+    weekId: answerKey.weekId,
+    score,
+    maxScore,
+    correctCount,
+    questionCount,
+    timeTakenSeconds: body.timeTakenSeconds,
+    metadata: {
+      generatedAt: answerKey.generatedAt,
+      expiresAt: answerKey.expiresAt,
+      attemptId: answerKey.attemptId,
+      roundTimes: body.roundTimes ?? {},
+    },
+  });
+  saved = true;
 
   const response: TournamentSubmitResult = {
     score,

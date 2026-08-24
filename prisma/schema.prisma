@@ -24,7 +24,8 @@ model AccountUser {
   updatedAt     DateTime              @default(now()) @map("updated_at") @db.Timestamptz(6)
   sessions      AccountSession[]
   scores        AccountScoreHistory[]
-  tournamentScores RealTournamentScore[]
+  tournamentScores   RealTournamentScore[]
+  tournamentAttempts RealTournamentAttempt[]
   subscriptions AccountSubscription[]
   payments      AccountPaymentIntent[]
 
@@ -76,13 +77,29 @@ model RealTournamentScore {
   correctCount     Int         @map("correct_count")
   questionCount    Int         @map("question_count")
   timeTakenSeconds Int?        @map("time_taken_seconds")
+  weekId           String      @default("legacy") @map("week_id")
   metadata         Json        @default("{}")
   completedAt      DateTime    @default(now()) @map("completed_at") @db.Timestamptz(6)
   user             AccountUser @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([percentage, timeTakenSeconds, completedAt])
   @@index([profileId, completedAt])
+  @@index([weekId, percentage, timeTakenSeconds, completedAt])
   @@map("real_tournament_scores")
+}
+
+model RealTournamentAttempt {
+  id          String      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId      String      @map("user_id") @db.Uuid
+  profileId   String?     @map("profile_id") @db.Uuid
+  weekId      String      @map("week_id")
+  status      String      @default("started")
+  startedAt   DateTime    @default(now()) @map("started_at") @db.Timestamptz(6)
+  completedAt DateTime?   @map("completed_at") @db.Timestamptz(6)
+  user        AccountUser @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, weekId, startedAt])
+  @@map("real_tournament_attempts")
 }
 
 model AccountSubscription {
