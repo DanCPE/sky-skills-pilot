@@ -1,6 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import {
+  playTournamentSound,
+  unlockTournamentAudio,
+} from "@/lib/real-tournament/client-audio";
 import type {
   TournamentQuestionDisplay,
   TournamentQuizResponse,
@@ -448,8 +452,13 @@ function RoundIntro({
           {round.title}
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-zinc-500 dark:text-zinc-400">
-          10 questions. This round has its own clock. Finish it to unlock the
-          next tournament topic.
+          {round.questions.length} questions. This round has its own clock. Finish
+          it to unlock the next tournament topic.
+        </p>
+        <p className="mt-2 text-xs font-semibold text-zinc-400 dark:text-zinc-500">
+          {round.secondsPerQuestion
+            ? `${round.secondsPerQuestion} seconds per question`
+            : `${formatTime(round.timeLimitSeconds)} fixed round timer`}
         </p>
 
         <div className="mt-7 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -480,11 +489,13 @@ export default function QuizInterface({
   const [questionIndex, setQuestionIndex] = useState(0);
   const [answers, setAnswers] = useState<Record<string, string>>({});
   const [introSecondsLeft, setIntroSecondsLeft] = useState(
-    quizData.rounds[0]?.introAutoStartSeconds ?? 120,
+    quizData.rounds[0]?.introAutoStartSeconds ?? 0,
   );
-  const [readingSecondsLeft, setReadingSecondsLeft] = useState(120);
+  const [readingSecondsLeft, setReadingSecondsLeft] = useState(
+    quizData.rounds[0]?.readingDurationSeconds ?? 0,
+  );
   const [roundSecondsLeft, setRoundSecondsLeft] = useState(
-    quizData.rounds[0]?.timeLimitSeconds ?? 300,
+    quizData.rounds[0]?.timeLimitSeconds ?? 0,
   );
   const [roundTimes, setRoundTimes] = useState<Record<string, number>>({});
   const [submitting, setSubmitting] = useState(false);
@@ -492,6 +503,9 @@ export default function QuizInterface({
   const tournamentStartedAtRef = useRef(Date.now());
   const roundStartedAtRef = useRef(Date.now());
   const submittedRef = useRef(false);
+  const phaseRef = useRef<Phase>("intro");
+  const finishingRoundRef = useRef(false);
+  const warningKeysRef = useRef(new Set<string>());
 
   const currentRound = quizData.rounds[roundIndex];
   const currentQuestion = currentRound?.questions[questionIndex];
@@ -505,25 +519,35 @@ export default function QuizInterface({
     [result],
   );
 
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
   function startRound() {
-    if (!currentRound) return;
+    if (!currentRound || phaseRef.current !== "intro") return;
+    void unlockTournamentAudio();
+    playTournamentSound("start");
     setQuestionIndex(0);
     setRoundSecondsLeft(currentRound.timeLimitSeconds);
 
     if (currentRound.briefingText) {
-      setReadingSecondsLeft(120);
+      setReadingSecondsLeft(currentRound.readingDurationSeconds ?? 0);
       setPhase("reading");
       return;
     }
 
     roundStartedAtRef.current = Date.now();
+    finishingRoundRef.current = false;
     setPhase("quiz");
   }
 
   function startRoundQuestions() {
-    if (!currentRound) return;
+    if (!currentRound || phaseRef.current !== "reading") return;
+    void unlockTournamentAudio();
+    playTournamentSound("start");
     roundStartedAtRef.current = Date.now();
     setRoundSecondsLeft(currentRound.timeLimitSeconds);
+    finishingRoundRef.current = false;
     setPhase("quiz");
   }
 
@@ -557,13 +581,18 @@ export default function QuizInterface({
       setPhase("results");
     } catch {
       submittedRef.current = false;
+      finishingRoundRef.current = false;
     } finally {
       setSubmitting(false);
     }
   }
 
   function finishRound() {
-    if (!currentRound) return;
+    if (!currentRound || phaseRef.current !== "quiz" || finishingRoundRef.current) {
+      return;
+    }
+
+    finishingRoundRef.current = true;
 
     const elapsedSeconds = Math.max(
       0,
@@ -576,6 +605,7 @@ export default function QuizInterface({
     setRoundTimes(nextRoundTimes);
 
     if (roundIndex >= quizData.rounds.length - 1) {
+      playTournamentSound("complete");
       void submitTournament(nextRoundTimes);
       return;
     }
@@ -584,6 +614,7 @@ export default function QuizInterface({
     setRoundIndex((value) => value + 1);
     setQuestionIndex(0);
     setIntroSecondsLeft(nextRound.introAutoStartSeconds);
+    setReadingSecondsLeft(nextRound.readingDurationSeconds ?? 0);
     setRoundSecondsLeft(nextRound.timeLimitSeconds);
     setPhase("intro");
   }
@@ -625,6 +656,24 @@ export default function QuizInterface({
   }, [phase, roundIndex]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
+    if (phase !== "reading") return;
+
+    const key = `reading:${roundIndex}:${readingSecondsLeft}`;
+    if (warningKeysRef.current.has(key)) return;
+
+    if ([60, 30, 10].includes(readingSecondsLeft)) {
+      warningKeysRef.current.add(key);
+      playTournamentSound("warning");
+      return;
+    }
+
+    if (readingSecondsLeft > 0 && readingSecondsLeft <= 5) {
+      warningKeysRef.current.add(key);
+      playTournamentSound("tick");
+    }
+  }, [phase, readingSecondsLeft, roundIndex]);
+
+  useEffect(() => {
     if (phase !== "quiz" || result) return;
 
     const timer = window.setInterval(() => {
@@ -641,6 +690,24 @@ export default function QuizInterface({
 
     return () => window.clearInterval(timer);
   }, [phase, result, roundIndex]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    if (phase !== "quiz" || result) return;
+
+    const key = `round:${roundIndex}:${roundSecondsLeft}`;
+    if (warningKeysRef.current.has(key)) return;
+
+    if ([60, 30, 10].includes(roundSecondsLeft)) {
+      warningKeysRef.current.add(key);
+      playTournamentSound("warning");
+      return;
+    }
+
+    if (roundSecondsLeft > 0 && roundSecondsLeft <= 5) {
+      warningKeysRef.current.add(key);
+      playTournamentSound("tick");
+    }
+  }, [phase, result, roundIndex, roundSecondsLeft]);
 
   if (!currentRound) {
     return null;

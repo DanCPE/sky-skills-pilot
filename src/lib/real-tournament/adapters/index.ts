@@ -161,7 +161,6 @@ function toAircraftRotation(
             initialHeading: question.initialHeading,
             sequence: question.sequence,
             targetHeading: question.targetHeading,
-            options: question.options,
           },
         },
       };
@@ -169,15 +168,22 @@ function toAircraftRotation(
   );
 }
 
-function toPassageRecallRound(count: number) {
+function toPassageRecallRound({
+  questionCount,
+  passageReadingSeconds,
+}: {
+  questionCount: number;
+  passageReadingSeconds: number;
+}) {
   const quiz = generatePassageRecallQuiz({
     mode: "real",
-    readingDurationSeconds: 120,
+    readingDurationSeconds: passageReadingSeconds,
   });
 
   return {
     briefingText: quiz.passage,
-    questions: quiz.questions.slice(0, count).map((question) => ({
+    readingDurationSeconds: quiz.readingDurationSeconds,
+    questions: quiz.questions.slice(0, questionCount).map((question) => ({
       id: `rt_${question.id}`,
       sourceTopic: "passage-recall",
       sourceTitle: "Passage Recall",
@@ -195,57 +201,49 @@ export const tournamentAdapters: TournamentQuestionAdapter[] = [
   {
     topic: "number-series",
     title: "Number Series",
-    category: "logical",
-    timeLimitSeconds: 5 * 60,
+    secondsPerQuestion: 8,
     generate: toNumberSeries,
   },
   {
     topic: "calculate",
     title: "Calculate",
-    category: "approximation",
-    timeLimitSeconds: 5 * 60,
+    secondsPerQuestion: 8,
     generate: toCalculation,
   },
   {
     topic: "approximation",
     title: "Approximation",
-    category: "approximation",
-    timeLimitSeconds: 5 * 60,
+    secondsPerQuestion: 8,
     generate: toApproximation,
   },
   {
     topic: "missing-operator",
     title: "Missing Operator",
-    category: "approximation",
-    timeLimitSeconds: 5 * 60,
+    secondsPerQuestion: 8,
     generate: toMissingOperator,
   },
   {
     topic: "string-comparison",
     title: "String Comparison",
-    category: "scanning",
-    timeLimitSeconds: 4 * 60,
+    secondsPerQuestion: 8,
     generate: toStringComparison,
   },
   {
     topic: "string-sprint",
     title: "String Sprint",
-    category: "scanning",
-    timeLimitSeconds: 3 * 60,
+    secondsPerQuestion: 5,
     generate: toStringSprint,
   },
   {
     topic: "aircraft-rotation",
     title: "Aircraft Rotation",
-    category: "spatial",
-    timeLimitSeconds: 5 * 60,
+    secondsPerQuestion: 10,
     generate: toAircraftRotation,
   },
   {
     topic: "passage-recall",
     title: "Passage Recall",
-    category: "short-term-memory",
-    timeLimitSeconds: 5 * 60,
+    timeLimitSeconds: 2 * 60,
     generate: () => [],
     generateRound: toPassageRecallRound,
   },

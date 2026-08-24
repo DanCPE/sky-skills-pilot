@@ -5,8 +5,12 @@ export const REAL_TOURNAMENT_TOPIC = {
   title: "Real Tournament",
 };
 
-export const ROUND_QUESTION_COUNT = 10;
-export const ROUND_INTRO_AUTO_START_SECONDS = 2 * 60;
+export const REAL_TOURNAMENT_TIMING = {
+  roundIntroAutoStartSeconds: 2 * 60,
+  passageReadingSeconds: 2 * 60,
+  tokenTtlSeconds: 2 * 60 * 60,
+  weekDurationMs: 7 * 24 * 60 * 60 * 1000,
+};
 
 export const TOURNAMENT_CATEGORIES: Array<{
   category: TournamentCategory;
@@ -44,7 +48,12 @@ export const MIXED_ROUND_DIFFICULTY_PLAN: Array<{
   difficulty: TournamentDifficulty;
   count: number;
 }> = [
-  { difficulty: "easy", count: 3 },
-  { difficulty: "medium", count: 4 },
-  { difficulty: "hard", count: 3 },
+  { difficulty: "easy", count: 0 },
+  { difficulty: "medium", count: 10 },
+  { difficulty: "hard", count: 10 },
 ];
+
+export const ROUND_QUESTION_COUNT = MIXED_ROUND_DIFFICULTY_PLAN.reduce(
+  (total, entry) => total + entry.count,
+  0,
+);

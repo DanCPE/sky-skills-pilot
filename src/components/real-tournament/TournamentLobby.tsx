@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import RankingBoard from "./RankingBoard";
 import QuizInterface from "./QuizInterface";
+import { unlockTournamentAudio } from "@/lib/real-tournament/client-audio";
 import type {
   TournamentQuizResponse,
   TournamentRankingEntry,
@@ -31,6 +32,7 @@ export default function TournamentLobby() {
   async function startTournament() {
     setStarting(true);
     setError(null);
+    void unlockTournamentAudio();
 
     try {
       const response = await fetch("/api/real-tournament/questions");
@@ -77,8 +79,8 @@ export default function TournamentLobby() {
         </h2>
         <p className="mt-3 text-sm leading-6 text-zinc-500 dark:text-zinc-400">
           Each week chooses one quest from each core category. Every round has
-          10 questions, its own timer, and a 2-minute intro countdown before it
-          auto-starts.
+          a fixed question set, its own timer, and a 2-minute intro countdown
+          before it auto-starts.
         </p>
         <div className="mt-6 flex justify-center">
           <button

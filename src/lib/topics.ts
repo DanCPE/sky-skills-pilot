@@ -10,8 +10,8 @@ export const topics: Topic[] = [
     category: "tournament",
     isLocked: false,
     isNew: true,
-    coverImage: "/images/icons/SkyQuests/Takeoff.png",
-    coverImageDark: "/images/icons/SkyQuests/Takeoff.png",
+    coverImage: "/images/icons/SkyQuests/Tournament.png",
+    coverImageDark: "/images/icons/SkyQuests/Tournament dark.png",
   },
   {
     slug: "box-folding",

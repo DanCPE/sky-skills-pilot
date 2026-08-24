@@ -8,7 +8,7 @@ import {
 } from "node:crypto";
 import {
   MIXED_ROUND_DIFFICULTY_PLAN,
-  ROUND_INTRO_AUTO_START_SECONDS,
+  REAL_TOURNAMENT_TIMING,
   ROUND_QUESTION_COUNT,
   TOURNAMENT_CATEGORIES,
 } from "./config";
@@ -21,8 +21,6 @@ import type {
 } from "./types";
 
 const TOKEN_VERSION = "v1";
-const TOKEN_TTL_MS = 2 * 60 * 60 * 1000;
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 function shuffle<T>(items: T[]) {
   const shuffled = [...items];
@@ -69,12 +67,12 @@ function toDisplayQuestion(
 }
 
 function getTournamentWeekId() {
-  const weekIndex = Math.floor(Date.now() / WEEK_MS);
+  const weekIndex = Math.floor(Date.now() / REAL_TOURNAMENT_TIMING.weekDurationMs);
   return `week-${weekIndex}`;
 }
 
 function getWeeklyTopic(categoryIndex: number, candidates: string[]) {
-  const weekIndex = Math.floor(Date.now() / WEEK_MS);
+  const weekIndex = Math.floor(Date.now() / REAL_TOURNAMENT_TIMING.weekDurationMs);
   return candidates[(weekIndex + categoryIndex) % candidates.length];
 }
 
@@ -83,16 +81,35 @@ function buildAdapterRound(
 ): {
   questions: TournamentQuestionInternal[];
   briefingText?: string | null;
+  readingDurationSeconds?: number;
 } {
   if (adapter.generateRound) {
-    return adapter.generateRound(ROUND_QUESTION_COUNT);
+    return adapter.generateRound({
+      questionCount: ROUND_QUESTION_COUNT,
+      passageReadingSeconds: REAL_TOURNAMENT_TIMING.passageReadingSeconds,
+    });
   }
 
   return {
     questions: MIXED_ROUND_DIFFICULTY_PLAN.flatMap((entry) =>
       adapter.generate(entry.difficulty, entry.count),
-    ).slice(0, ROUND_QUESTION_COUNT),
+    ),
   };
+}
+
+function getRoundTimeLimitSeconds(
+  adapter: (typeof tournamentAdapters)[number],
+  questionCount: number,
+) {
+  if (adapter.timeLimitSeconds !== undefined) {
+    return adapter.timeLimitSeconds;
+  }
+
+  if (adapter.secondsPerQuestion !== undefined) {
+    return questionCount * adapter.secondsPerQuestion;
+  }
+
+  throw new Error(`${adapter.title} is missing tournament timing config.`);
 }
 
 export async function assembleRealTournamentQuestions() {
@@ -108,7 +125,9 @@ export async function assembleRealTournamentQuestions() {
     const questions = shuffle(round.questions).slice(0, ROUND_QUESTION_COUNT);
 
     if (questions.length !== ROUND_QUESTION_COUNT) {
-      throw new Error(`${adapter.title} did not generate 10 questions.`);
+      throw new Error(
+        `${adapter.title} did not generate ${ROUND_QUESTION_COUNT} questions.`,
+      );
     }
 
     const id = `${category.category}-${adapter.topic}`;
@@ -118,9 +137,10 @@ export async function assembleRealTournamentQuestions() {
       categoryLabel: category.label,
       topic: adapter.topic,
       title: adapter.title,
-      questionCount: ROUND_QUESTION_COUNT,
-      timeLimitSeconds: adapter.timeLimitSeconds,
-      introAutoStartSeconds: ROUND_INTRO_AUTO_START_SECONDS,
+      timeLimitSeconds: getRoundTimeLimitSeconds(adapter, questions.length),
+      secondsPerQuestion: adapter.secondsPerQuestion,
+      introAutoStartSeconds: REAL_TOURNAMENT_TIMING.roundIntroAutoStartSeconds,
+      readingDurationSeconds: round.readingDurationSeconds,
       briefingText: round.briefingText ?? null,
       questions,
     };
@@ -132,7 +152,9 @@ export async function assembleRealTournamentQuestions() {
 
   const answerKey: TournamentAnswerKey = {
     generatedAt: new Date().toISOString(),
-    expiresAt: new Date(Date.now() + TOKEN_TTL_MS).toISOString(),
+    expiresAt: new Date(
+      Date.now() + REAL_TOURNAMENT_TIMING.tokenTtlSeconds * 1000,
+    ).toISOString(),
     questions: selectedRounds.flatMap((round) =>
       round.questions.map((question) => ({
         id: question.id,

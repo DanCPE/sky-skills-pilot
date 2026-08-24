@@ -26,7 +26,6 @@ export interface TournamentQuestionDisplay {
       stringA?: string;
       stringB?: string;
       category?: string;
-      passage?: string;
       aircraftRotation?: {
         initialHeading: number;
         sequence: Array<{
@@ -34,10 +33,6 @@ export interface TournamentQuestionDisplay {
           dir: "L" | "R";
         }>;
         targetHeading: number;
-        options: Array<{
-          angle: number;
-          dir: "L" | "R" | null;
-        }>;
       };
   };
 }
@@ -63,15 +58,19 @@ export interface TournamentAnswerKey {
 export interface TournamentQuestionAdapter {
   topic: string;
   title: string;
-  category: TournamentCategory;
-  timeLimitSeconds: number;
+  secondsPerQuestion?: number;
+  timeLimitSeconds?: number;
   generate: (
     difficulty: TournamentDifficulty,
     count: number,
   ) => TournamentQuestionInternal[];
-  generateRound?: (count: number) => {
+  generateRound?: (input: {
+    questionCount: number;
+    passageReadingSeconds: number;
+  }) => {
     questions: TournamentQuestionInternal[];
     briefingText?: string | null;
+    readingDurationSeconds?: number;
   };
 }
 
@@ -81,9 +80,10 @@ export interface TournamentRoundDisplay {
   categoryLabel: string;
   topic: string;
   title: string;
-  questionCount: number;
   timeLimitSeconds: number;
+  secondsPerQuestion?: number;
   introAutoStartSeconds: number;
+  readingDurationSeconds?: number;
   briefingText?: string | null;
   questions: TournamentQuestionDisplay[];
 }
