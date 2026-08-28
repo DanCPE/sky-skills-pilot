@@ -99,17 +99,21 @@ export default function SkyQuestBrowser({
                   >
                     {topic.coverImage ? (
                       <>
-                        <Image
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                           src={topic.coverImage}
                           alt={topic.title}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-105 dark:hidden"
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 dark:hidden"
                         />
-                        <Image
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
                           src={topic.coverImageDark ?? topic.coverImage}
                           alt={topic.title}
-                          fill
-                          className="hidden object-cover transition-transform duration-500 group-hover:scale-105 dark:block"
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 hidden h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 dark:block"
                         />
                       </>
                     ) : (
