@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import TournamentCountdownBoard from "@/components/real-tournament/TournamentCountdownBoard";
@@ -28,16 +28,44 @@ export default function SkyQuestBrowser({
   topics: AccessTopic[];
   isPaid: boolean;
 }) {
+  const [accessTopics, setAccessTopics] = useState(topics);
+  const [hasLoadedAccess, setHasLoadedAccess] = useState(false);
+  const [paidAccess, setPaidAccess] = useState(isPaid);
   const [selectedCategory, setSelectedCategory] = useState<
     TopicCategory | "all"
   >("all");
 
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/topics", { cache: "no-store", signal: controller.signal })
+      .then((response) => (response.ok ? response.json() : null))
+      .then((data: { topics?: AccessTopic[]; isPaid?: boolean } | null) => {
+        if (data?.topics) {
+          setAccessTopics(data.topics);
+          setPaidAccess(Boolean(data.isPaid));
+        }
+      })
+      .catch((error: unknown) => {
+        if (error instanceof DOMException && error.name === "AbortError") {
+          return;
+        }
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          setHasLoadedAccess(true);
+        }
+      });
+
+    return () => controller.abort();
+  }, []);
+
   const filteredTopics =
     selectedCategory === "all"
-      ? [...topics].sort((a, b) =>
+      ? [...accessTopics].sort((a, b) =>
           a.isLocked === b.isLocked ? 0 : a.isLocked ? 1 : -1,
         )
-      : topics.filter((topic) => topic.category === selectedCategory);
+      : accessTopics.filter((topic) => topic.category === selectedCategory);
 
   return (
     <div className="min-h-screen bg-[#fafafa] pb-20 text-zinc-900 dark:bg-transparent dark:text-zinc-100">
@@ -45,8 +73,8 @@ export default function SkyQuestBrowser({
       <main className="mx-auto max-w-7xl px-6 pt-12">
         <div className="mb-10 flex flex-col items-center text-center">
           <div className="mb-4 inline-flex items-center gap-1.5 rounded-full bg-yellow-100/80 px-3 py-1 text-[10px] font-bold uppercase text-yellow-600 dark:bg-yellow-900/30 dark:text-yellow-400">
-            <span>{isPaid ? "★" : "⚡"}</span>
-            {isPaid ? "Full Access" : "Basic Access"}
+            <span>{paidAccess ? "★" : "⚡"}</span>
+            {paidAccess ? "Full Access" : "Basic Access"}
           </div>
           <h1 className="text-4xl font-bold tracking-tight text-zinc-900 dark:text-zinc-100 md:text-5xl">
             Sky Quests
@@ -98,20 +126,21 @@ export default function SkyQuestBrowser({
                     }`}
                   >
                     {topic.coverImage ? (
-                      <>
-                        <Image
+                      <picture>
+                        {topic.coverImageDark ? (
+                          <source
+                            srcSet={topic.coverImageDark}
+                            media="(prefers-color-scheme: dark)"
+                          />
+                        ) : null}
+                        <img
                           src={topic.coverImage}
                           alt={topic.title}
-                          fill
-                          className="object-cover transition-transform duration-500 group-hover:scale-105 dark:hidden"
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
-                        <Image
-                          src={topic.coverImageDark ?? topic.coverImage}
-                          alt={topic.title}
-                          fill
-                          className="hidden object-cover transition-transform duration-500 group-hover:scale-105 dark:block"
-                        />
-                      </>
+                      </picture>
                     ) : (
                       <span className="text-6xl opacity-60 mix-blend-multiply grayscale transition-all group-hover:opacity-100 group-hover:grayscale-0 dark:opacity-70 dark:mix-blend-normal">
                         {topic.icon}
@@ -137,7 +166,15 @@ export default function SkyQuestBrowser({
                       {topic.description}
                     </p>
 
-                    {topic.isLocked ? (
+                    {!hasLoadedAccess ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="flex w-full cursor-wait items-center justify-center gap-2 rounded-lg bg-zinc-100 px-4 py-2.5 text-xs font-bold text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
+                      >
+                        Checking access...
+                      </button>
+                    ) : topic.isLocked ? (
                       <Link
                         href="/subscription"
                         className="flex w-full items-center justify-center gap-2 rounded-lg bg-zinc-100 px-4 py-2.5 text-xs font-bold text-zinc-500 transition-colors hover:bg-zinc-200 hover:text-zinc-700 dark:bg-zinc-800 dark:text-zinc-400 dark:hover:bg-zinc-700 dark:hover:text-zinc-300"

@@ -106,8 +106,10 @@ export default function Navbar() {
   }
 
   const loadAccount = useCallback((signal?: AbortSignal) => {
+    const canUseAccountSummary =
+      pathname === "/dashboard" || pathname?.startsWith("/sky-quest");
     const accountUrl =
-      pathname === "/dashboard" ? "/api/account/me?summary=1" : "/api/account/me";
+      canUseAccountSummary ? "/api/account/me?summary=1" : "/api/account/me";
 
     return fetch(accountUrl, { cache: "no-store", signal })
       .then((response) => (response.ok ? response.json() : null))

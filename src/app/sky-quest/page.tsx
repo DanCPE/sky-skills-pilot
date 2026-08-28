@@ -1,10 +1,6 @@
 import SkyQuestBrowser from "@/components/SkyQuestBrowser";
-import { getCurrentTopicsWithAccess } from "@/lib/account/auth";
+import { topics } from "@/lib/topics";
 
-export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
-
-export default async function SkyQuestPage() {
-  const { topics, isPaid } = await getCurrentTopicsWithAccess();
-  return <SkyQuestBrowser topics={topics} isPaid={isPaid} />;
+export default function SkyQuestPage() {
+  return <SkyQuestBrowser topics={topics} isPaid={false} />;
 }
