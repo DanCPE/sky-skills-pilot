@@ -126,21 +126,24 @@ export default function SkyQuestBrowser({
                     }`}
                   >
                     {topic.coverImage ? (
-                      <picture>
-                        {topic.coverImageDark ? (
-                          <source
-                            srcSet={topic.coverImageDark}
-                            media="(prefers-color-scheme: dark)"
-                          />
-                        ) : null}
+                      <>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img
                           src={topic.coverImage}
                           alt={topic.title}
                           loading="lazy"
                           decoding="async"
-                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          className="absolute inset-0 h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 dark:hidden"
                         />
-                      </picture>
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img
+                          src={topic.coverImageDark ?? topic.coverImage}
+                          alt={topic.title}
+                          loading="lazy"
+                          decoding="async"
+                          className="absolute inset-0 hidden h-full w-full object-cover transition-transform duration-500 group-hover:scale-105 dark:block"
+                        />
+                      </>
                     ) : (
                       <span className="text-6xl opacity-60 mix-blend-multiply grayscale transition-all group-hover:opacity-100 group-hover:grayscale-0 dark:opacity-70 dark:mix-blend-normal">
                         {topic.icon}
