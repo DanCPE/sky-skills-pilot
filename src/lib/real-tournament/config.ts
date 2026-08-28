@@ -14,6 +14,10 @@ export const REAL_TOURNAMENT_TIMING = {
   weekDurationMs: 7 * 24 * 60 * 60 * 1000,
 };
 
+// 2026-08-29 00:00 in Asia/Bangkok. Stored as UTC so server/client
+// environments calculate the same tournament window.
+const REAL_TOURNAMENT_EPOCH_MS = Date.UTC(2026, 7, 28, 17, 0, 0);
+
 export const TOURNAMENT_CATEGORIES: Array<{
   category: TournamentCategory;
   label: string;
@@ -61,10 +65,13 @@ export const ROUND_QUESTION_COUNT = MIXED_ROUND_DIFFICULTY_PLAN.reduce(
 );
 
 export function getRealTournamentWeekTiming(now = Date.now()) {
+  const elapsedMs = Math.max(0, now - REAL_TOURNAMENT_EPOCH_MS);
   const weekIndex = Math.floor(
-    now / REAL_TOURNAMENT_TIMING.weekDurationMs,
+    elapsedMs / REAL_TOURNAMENT_TIMING.weekDurationMs,
   );
-  const weekStartMs = weekIndex * REAL_TOURNAMENT_TIMING.weekDurationMs;
+  const weekStartMs =
+    REAL_TOURNAMENT_EPOCH_MS +
+    weekIndex * REAL_TOURNAMENT_TIMING.weekDurationMs;
   const weekEndMs = weekStartMs + REAL_TOURNAMENT_TIMING.weekDurationMs;
 
   return {
