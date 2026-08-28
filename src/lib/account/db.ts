@@ -16,6 +16,13 @@ let accountPool: Pool | null = null;
 let schemaReady = false;
 let schemaPromise: Promise<void> | null = null;
 let subscriptionPlanKeyColumnReady = false;
+let accountSessionMetadataColumnsReady = false;
+let personalFileMailSchemaReady = false;
+let personalFileMailSchemaPromise: Promise<void> | null = null;
+let realTournamentSchemaReady = false;
+let realTournamentSchemaPromise: Promise<void> | null = null;
+let removedSubscriptionPackagesDeletedReady = false;
+let removedSubscriptionPackagesDeletedPromise: Promise<void> | null = null;
 let quizAccessRulesCache:
   | { expiresAt: number; rules: QuizAccessRule[] }
   | null = null;
@@ -525,6 +532,11 @@ async function canUseExistingAccountSchema(pool: Pool) {
         to_regclass('public.account_personal_file_mail_batches') IS NOT NULL AS has_personal_file_mail_batches,
         to_regclass('public.account_personal_file_mail_recipients') IS NOT NULL AS has_personal_file_mail_recipients,
         to_regclass('public.account_personal_file_mail_batch_files') IS NOT NULL AS has_personal_file_mail_batch_files,
+        to_regclass('public.real_tournament_scores') IS NOT NULL AS has_real_tournament_scores,
+        to_regclass('public.real_tournament_attempts') IS NOT NULL AS has_real_tournament_attempts,
+        to_regclass('public.real_tournament_scores_week_rank_idx') IS NOT NULL AS has_real_tournament_week_rank_index,
+        to_regclass('public.real_tournament_scores_week_user_best_idx') IS NOT NULL AS has_real_tournament_week_user_best_index,
+        to_regclass('public.real_tournament_attempts_user_week_idx') IS NOT NULL AS has_real_tournament_attempts_user_week_index,
         EXISTS (
           SELECT 1
           FROM information_schema.columns
@@ -564,6 +576,13 @@ async function canUseExistingAccountSchema(pool: Pool) {
           SELECT 1
           FROM information_schema.columns
           WHERE table_schema = 'public'
+            AND table_name = 'real_tournament_scores'
+            AND column_name = 'week_id'
+        ) AS has_real_tournament_week_id,
+        EXISTS (
+          SELECT 1
+          FROM information_schema.columns
+          WHERE table_schema = 'public'
             AND table_name = 'account_users'
             AND column_name = 'is_mock'
         ) AS has_mock_users,
@@ -578,7 +597,16 @@ async function canUseExistingAccountSchema(pool: Pool) {
     `,
   );
   const row = result.rows[0] ?? {};
-  return Object.values(row).every(Boolean);
+  const schemaComplete = Object.values(row).every(Boolean);
+
+  if (schemaComplete) {
+    subscriptionPlanKeyColumnReady = true;
+    accountSessionMetadataColumnsReady = true;
+    personalFileMailSchemaReady = true;
+    realTournamentSchemaReady = true;
+  }
+
+  return schemaComplete;
 }
 
 async function ensureBillingAssetMetadataColumn() {
@@ -598,33 +626,48 @@ async function ensureBillingAssetMetadataColumn() {
 }
 
 async function ensureRemovedSubscriptionPackagesDeleted() {
-  if (!hasAccountDatabase()) return;
+  if (!hasAccountDatabase() || removedSubscriptionPackagesDeletedReady) return;
+  if (removedSubscriptionPackagesDeletedPromise) {
+    return removedSubscriptionPackagesDeletedPromise;
+  }
 
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS account_schema_migrations (
-      id TEXT PRIMARY KEY,
-      applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  removedSubscriptionPackagesDeletedPromise = (async () => {
+    await getPool().query(`
+      CREATE TABLE IF NOT EXISTS account_schema_migrations (
+        id TEXT PRIMARY KEY,
+        applied_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    const migration = await getPool().query(
+      "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
+      ["remove_captain_pro_max_package_v1"],
     );
-  `);
 
-  const migration = await getPool().query(
-    "SELECT 1 FROM account_schema_migrations WHERE id = $1 LIMIT 1;",
-    ["remove_captain_pro_max_package_v1"],
-  );
+    if (migration.rowCount !== 0) {
+      removedSubscriptionPackagesDeletedReady = true;
+      return;
+    }
 
-  if (migration.rowCount !== 0) return;
+    await getPool().query(
+      "DELETE FROM account_subscription_packages WHERE key = $1;",
+      ["captain-pro-max"],
+    );
+    await getPool().query(
+      "INSERT INTO account_schema_migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING;",
+      ["remove_captain_pro_max_package_v1"],
+    );
 
-  await getPool().query(
-    "DELETE FROM account_subscription_packages WHERE key = $1;",
-    ["captain-pro-max"],
-  );
-  await getPool().query(
-    "INSERT INTO account_schema_migrations (id) VALUES ($1) ON CONFLICT (id) DO NOTHING;",
-    ["remove_captain_pro_max_package_v1"],
-  );
+    subscriptionPackagesCache.clear();
+    promotionCodesCache = null;
+    removedSubscriptionPackagesDeletedReady = true;
+  })();
 
-  subscriptionPackagesCache.clear();
-  promotionCodesCache = null;
+  try {
+    await removedSubscriptionPackagesDeletedPromise;
+  } finally {
+    removedSubscriptionPackagesDeletedPromise = null;
+  }
 }
 
 async function ensureSubscriptionPlanKeyColumn() {
@@ -637,121 +680,147 @@ async function ensureSubscriptionPlanKeyColumn() {
 }
 
 async function ensureAccountSessionMetadataColumns() {
-  if (!hasAccountDatabase()) return;
+  if (!hasAccountDatabase() || accountSessionMetadataColumnsReady) return;
 
   await getPool().query(
     "ALTER TABLE account_sessions ADD COLUMN IF NOT EXISTS user_agent TEXT;",
   );
+  accountSessionMetadataColumnsReady = true;
 }
 
 async function ensurePersonalFileMailSchema() {
-  if (!hasAccountDatabase()) return;
+  if (!hasAccountDatabase() || personalFileMailSchemaReady) return;
+  if (personalFileMailSchemaPromise) return personalFileMailSchemaPromise;
 
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS account_personal_file_mail_batches (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      subject TEXT NOT NULL,
-      message TEXT NOT NULL,
-      file_name TEXT NOT NULL,
-      content_type TEXT NOT NULL,
-      file_bytes BYTEA NOT NULL,
-      file_size_bytes INT NOT NULL,
-      created_by TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  personalFileMailSchemaPromise = (async () => {
+    await getPool().query(`
+      CREATE TABLE IF NOT EXISTS account_personal_file_mail_batches (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        subject TEXT NOT NULL,
+        message TEXT NOT NULL,
+        file_name TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        file_bytes BYTEA NOT NULL,
+        file_size_bytes INT NOT NULL,
+        created_by TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await getPool().query(`
+      CREATE TABLE IF NOT EXISTS account_personal_file_mail_recipients (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        batch_id UUID NOT NULL REFERENCES account_personal_file_mail_batches(id) ON DELETE CASCADE,
+        user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+        email TEXT NOT NULL,
+        name TEXT NOT NULL,
+        package_key TEXT NOT NULL,
+        package_title TEXT,
+        status TEXT NOT NULL DEFAULT 'pending',
+        sent_at TIMESTAMPTZ,
+        error TEXT,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        UNIQUE (batch_id, user_id),
+        CHECK (status IN ('pending', 'sent', 'failed'))
+      );
+    `);
+
+    await getPool().query(`
+      CREATE TABLE IF NOT EXISTS account_personal_file_mail_batch_files (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        batch_id UUID NOT NULL REFERENCES account_personal_file_mail_batches(id) ON DELETE CASCADE,
+        file_name TEXT NOT NULL,
+        content_type TEXT NOT NULL,
+        file_bytes BYTEA NOT NULL,
+        file_size_bytes INT NOT NULL,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await getPool().query(
+      "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batches_created_idx ON account_personal_file_mail_batches(created_at DESC);",
     );
-  `);
-
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS account_personal_file_mail_recipients (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      batch_id UUID NOT NULL REFERENCES account_personal_file_mail_batches(id) ON DELETE CASCADE,
-      user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
-      email TEXT NOT NULL,
-      name TEXT NOT NULL,
-      package_key TEXT NOT NULL,
-      package_title TEXT,
-      status TEXT NOT NULL DEFAULT 'pending',
-      sent_at TIMESTAMPTZ,
-      error TEXT,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      UNIQUE (batch_id, user_id),
-      CHECK (status IN ('pending', 'sent', 'failed'))
+    await getPool().query(
+      "CREATE INDEX IF NOT EXISTS account_personal_file_mail_recipients_batch_idx ON account_personal_file_mail_recipients(batch_id, status);",
     );
-  `);
-
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS account_personal_file_mail_batch_files (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      batch_id UUID NOT NULL REFERENCES account_personal_file_mail_batches(id) ON DELETE CASCADE,
-      file_name TEXT NOT NULL,
-      content_type TEXT NOT NULL,
-      file_bytes BYTEA NOT NULL,
-      file_size_bytes INT NOT NULL,
-      sort_order INT NOT NULL DEFAULT 0,
-      created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+    await getPool().query(
+      "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batch_files_batch_idx ON account_personal_file_mail_batch_files(batch_id, sort_order);",
     );
-  `);
+    personalFileMailSchemaReady = true;
+  })();
 
-  await getPool().query(
-    "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batches_created_idx ON account_personal_file_mail_batches(created_at DESC);",
-  );
-  await getPool().query(
-    "CREATE INDEX IF NOT EXISTS account_personal_file_mail_recipients_batch_idx ON account_personal_file_mail_recipients(batch_id, status);",
-  );
-  await getPool().query(
-    "CREATE INDEX IF NOT EXISTS account_personal_file_mail_batch_files_batch_idx ON account_personal_file_mail_batch_files(batch_id, sort_order);",
-  );
+  try {
+    await personalFileMailSchemaPromise;
+  } finally {
+    personalFileMailSchemaPromise = null;
+  }
 }
 
 async function ensureRealTournamentSchema() {
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS real_tournament_scores (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
-      profile_id UUID REFERENCES account_profiles(id) ON DELETE SET NULL,
-      score NUMERIC(8,2) NOT NULL,
-      max_score NUMERIC(8,2) NOT NULL,
-      percentage NUMERIC(5,2) NOT NULL,
-      correct_count INT NOT NULL,
-      question_count INT NOT NULL,
-      time_taken_seconds INT,
-      week_id TEXT NOT NULL DEFAULT 'legacy',
-      metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
-      completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  if (!hasAccountDatabase() || realTournamentSchemaReady) return;
+  if (realTournamentSchemaPromise) return realTournamentSchemaPromise;
+
+  realTournamentSchemaPromise = (async () => {
+    await getPool().query(`
+      CREATE TABLE IF NOT EXISTS real_tournament_scores (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+        profile_id UUID REFERENCES account_profiles(id) ON DELETE SET NULL,
+        score NUMERIC(8,2) NOT NULL,
+        max_score NUMERIC(8,2) NOT NULL,
+        percentage NUMERIC(5,2) NOT NULL,
+        correct_count INT NOT NULL,
+        question_count INT NOT NULL,
+        time_taken_seconds INT,
+        week_id TEXT NOT NULL DEFAULT 'legacy',
+        metadata JSONB NOT NULL DEFAULT '{}'::jsonb,
+        completed_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+    `);
+
+    await getPool().query(`
+      CREATE TABLE IF NOT EXISTS real_tournament_attempts (
+        id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+        user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
+        profile_id UUID REFERENCES account_profiles(id) ON DELETE SET NULL,
+        week_id TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'started',
+        started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+        completed_at TIMESTAMPTZ,
+        CHECK (status IN ('started', 'completed'))
+      );
+    `);
+
+    await getPool().query(
+      "ALTER TABLE real_tournament_scores ADD COLUMN IF NOT EXISTS week_id TEXT NOT NULL DEFAULT 'legacy';",
     );
-  `);
 
-  await getPool().query(`
-    CREATE TABLE IF NOT EXISTS real_tournament_attempts (
-      id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-      user_id UUID NOT NULL REFERENCES account_users(id) ON DELETE CASCADE,
-      profile_id UUID REFERENCES account_profiles(id) ON DELETE SET NULL,
-      week_id TEXT NOT NULL,
-      status TEXT NOT NULL DEFAULT 'started',
-      started_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-      completed_at TIMESTAMPTZ,
-      CHECK (status IN ('started', 'completed'))
+    await getPool().query(
+      "CREATE INDEX IF NOT EXISTS real_tournament_scores_rank_idx ON real_tournament_scores(percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC);",
     );
-  `);
+    await getPool().query(
+      "CREATE INDEX IF NOT EXISTS real_tournament_scores_profile_idx ON real_tournament_scores(profile_id, completed_at DESC);",
+    );
+    await getPool().query(
+      "CREATE INDEX IF NOT EXISTS real_tournament_scores_week_rank_idx ON real_tournament_scores(week_id, percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC);",
+    );
+    await getPool().query(
+      "CREATE INDEX IF NOT EXISTS real_tournament_scores_week_user_best_idx ON real_tournament_scores(week_id, user_id, percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC, id ASC);",
+    );
+    await getPool().query(
+      "CREATE INDEX IF NOT EXISTS real_tournament_attempts_user_week_idx ON real_tournament_attempts(user_id, week_id, started_at DESC);",
+    );
+    realTournamentSchemaReady = true;
+  })();
 
-  await getPool().query(
-    "ALTER TABLE real_tournament_scores ADD COLUMN IF NOT EXISTS week_id TEXT NOT NULL DEFAULT 'legacy';",
-  );
-
-  await getPool().query(
-    "CREATE INDEX IF NOT EXISTS real_tournament_scores_rank_idx ON real_tournament_scores(percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC);",
-  );
-  await getPool().query(
-    "CREATE INDEX IF NOT EXISTS real_tournament_scores_profile_idx ON real_tournament_scores(profile_id, completed_at DESC);",
-  );
-  await getPool().query(
-    "CREATE INDEX IF NOT EXISTS real_tournament_scores_week_rank_idx ON real_tournament_scores(week_id, percentage DESC, time_taken_seconds ASC NULLS LAST, completed_at ASC);",
-  );
-  await getPool().query(
-    "CREATE INDEX IF NOT EXISTS real_tournament_attempts_user_week_idx ON real_tournament_attempts(user_id, week_id, started_at DESC);",
-  );
+  try {
+    await realTournamentSchemaPromise;
+  } finally {
+    realTournamentSchemaPromise = null;
+  }
 }
 
 export function rankScore(percentage: number) {
