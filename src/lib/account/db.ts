@@ -33,11 +33,15 @@ const subscriptionPackagesCache = new Map<
 let promotionCodesCache:
   | { expiresAt: number; promotions: PromotionCode[] }
   | null = null;
+let dashboardMetricsCache:
+  | { expiresAt: number; promise: Promise<DashboardMetricsSnapshot> }
+  | null = null;
 
 const CONFIG_CACHE_MS = 60 * 1000;
 // Subscription packages and quiz access rules are admin-managed and change
 // rarely; admin writes clear the cache explicitly, so a longer TTL is safe.
 const PACKAGES_CACHE_MS = 5 * 60 * 1000;
+const DASHBOARD_METRICS_CACHE_MS = 30 * 1000;
 const SCORE_BASELINE_PERCENT = 60;
 const SCORE_BASELINE_QUESTIONS = 50;
 const LEGACY_SCORE_QUESTION_WEIGHT = 10;
@@ -131,6 +135,30 @@ export interface AccountOverview {
     provider: string | null;
     currentPeriodEnd: string | null;
   } | null;
+}
+
+interface DashboardDomainMetric {
+  profileId: string;
+  skillDomain: string;
+  value: number;
+  attempts: number;
+  domainRank: number;
+  rankedProfiles: number;
+}
+
+interface DashboardProfileMetric {
+  profileId: string;
+  dashboardAverage: number;
+  totalAttempts: number;
+  totalQuestionVolume: number;
+  actualPlatformRank: number;
+  rankedProfiles: number;
+}
+
+interface DashboardMetricsSnapshot {
+  domainMetricsByProfile: Map<string, DashboardDomainMetric[]>;
+  profileMetrics: DashboardProfileMetric[];
+  profileMetricsByProfile: Map<string, DashboardProfileMetric>;
 }
 
 export interface AccountSettingsOverview {
@@ -2587,11 +2615,161 @@ export async function getAccountSettingsOverview(
   };
 }
 
+async function loadDashboardMetricsSnapshot(): Promise<DashboardMetricsSnapshot> {
+  const result = await getPool().query<{
+    domain_rows: unknown;
+    profile_rows: unknown;
+  }>(
+    `
+      WITH normalized_scores AS (
+        SELECT
+          profile_id,
+          CASE
+            WHEN topic_slug = 'multitasking-assessment' THEN 'multitasking'
+            WHEN skill_domain = 'multitasking' THEN NULL
+            WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
+            ELSE skill_domain
+          END AS skill_domain,
+          percentage::float AS percentage,
+          GREATEST(
+            COALESCE(question_count, max_score, $3)::float,
+            1
+          ) AS question_weight
+        FROM account_score_history
+        WHERE profile_id IS NOT NULL
+      ),
+      domain_avgs AS (
+        SELECT
+          profile_id,
+          skill_domain,
+          (
+            (
+              SUM(percentage * question_weight) / NULLIF(SUM(question_weight), 0)
+            ) * SUM(question_weight)
+            + ($1::float * $2::float)
+          ) / (SUM(question_weight) + $2::float) AS value,
+          COUNT(*)::int AS attempts,
+          SUM(question_weight)::float AS question_volume
+        FROM normalized_scores
+        WHERE skill_domain IS NOT NULL
+        GROUP BY profile_id, skill_domain
+      ),
+      ranked_domains AS (
+        SELECT
+          profile_id,
+          skill_domain,
+          ROUND(value)::int AS value,
+          attempts,
+          RANK() OVER (
+            PARTITION BY skill_domain
+            ORDER BY value DESC, question_volume DESC, profile_id ASC
+          )::int AS domain_rank,
+          COUNT(*) OVER (PARTITION BY skill_domain)::int AS ranked_profiles
+        FROM domain_avgs
+      ),
+      profile_avgs AS (
+        SELECT
+          profile_id,
+          ROUND(
+            AVG(value)
+            * (
+              $4::float
+              + ((1 - $4::float) * LEAST(COUNT(*)::float / $5::float, 1))
+            )
+          )::int AS dashboard_average,
+          SUM(attempts)::int AS total_attempts,
+          SUM(question_volume)::float AS total_question_volume
+        FROM domain_avgs
+        GROUP BY profile_id
+      ),
+      ranked_profiles AS (
+        SELECT
+          profile_id,
+          dashboard_average,
+          total_attempts,
+          total_question_volume,
+          RANK() OVER (
+            ORDER BY dashboard_average DESC, total_question_volume DESC, profile_id ASC
+          )::int AS actual_platform_rank,
+          COUNT(*) OVER ()::int AS ranked_profiles
+        FROM profile_avgs
+      )
+      SELECT
+        COALESCE((SELECT jsonb_agg(to_jsonb(rd)) FROM ranked_domains rd), '[]'::jsonb) AS domain_rows,
+        COALESCE((SELECT jsonb_agg(to_jsonb(rp)) FROM ranked_profiles rp), '[]'::jsonb) AS profile_rows;
+    `,
+    [
+      SCORE_BASELINE_PERCENT,
+      SCORE_BASELINE_QUESTIONS,
+      LEGACY_SCORE_QUESTION_WEIGHT,
+      COVERAGE_SCORE_FLOOR,
+      accountSkillDomains.length,
+    ],
+  );
+
+  const row = result.rows[0] ?? {};
+  const domainMetricsByProfile = new Map<string, DashboardDomainMetric[]>();
+  const profileMetricsByProfile = new Map<string, DashboardProfileMetric>();
+  const profileMetrics = asRows(row.profile_rows).map((profileRow) => {
+    const metric: DashboardProfileMetric = {
+      profileId: String(profileRow.profile_id),
+      dashboardAverage: Number(profileRow.dashboard_average),
+      totalAttempts: Number(profileRow.total_attempts ?? 0),
+      totalQuestionVolume: Number(profileRow.total_question_volume ?? 0),
+      actualPlatformRank: Number(profileRow.actual_platform_rank),
+      rankedProfiles: Number(profileRow.ranked_profiles ?? 0),
+    };
+    profileMetricsByProfile.set(metric.profileId, metric);
+    return metric;
+  });
+
+  for (const domainRow of asRows(row.domain_rows)) {
+    const profileId = String(domainRow.profile_id);
+    const rows = domainMetricsByProfile.get(profileId) ?? [];
+    rows.push({
+      profileId,
+      skillDomain: String(domainRow.skill_domain),
+      value: Math.round(Number(domainRow.value ?? 0)),
+      attempts: Number(domainRow.attempts ?? 0),
+      domainRank: Number(domainRow.domain_rank ?? 0),
+      rankedProfiles: Number(domainRow.ranked_profiles ?? 0),
+    });
+    domainMetricsByProfile.set(profileId, rows);
+  }
+
+  return {
+    domainMetricsByProfile,
+    profileMetrics,
+    profileMetricsByProfile,
+  };
+}
+
+async function getDashboardMetricsSnapshot() {
+  await ensureAccountSchema();
+  const now = Date.now();
+  if (dashboardMetricsCache && dashboardMetricsCache.expiresAt > now) {
+    return dashboardMetricsCache.promise;
+  }
+
+  const promise = loadDashboardMetricsSnapshot().catch((error) => {
+    if (dashboardMetricsCache?.promise === promise) {
+      dashboardMetricsCache = null;
+    }
+    throw error;
+  });
+  dashboardMetricsCache = {
+    expiresAt: now + DASHBOARD_METRICS_CACHE_MS,
+    promise,
+  };
+  return promise;
+}
+
 export async function getAccountOverview(profileId: string): Promise<AccountOverview> {
   await ensureAccountSchema();
+  const metricsPromise = getDashboardMetricsSnapshot();
   const pool = getPool();
   const startedAt = Date.now();
-  const result = await pool.query(
+  const resultPromise = pool.query(
     `
       WITH active_profile AS (
         SELECT
@@ -2625,91 +2803,6 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
           ORDER BY completed_at DESC
           LIMIT 25
         ) h
-      ),
-      normalized_scores AS (
-        SELECT
-          profile_id,
-          CASE
-            WHEN topic_slug = 'multitasking-assessment' THEN 'multitasking'
-            WHEN skill_domain = 'multitasking' THEN NULL
-            WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
-            ELSE skill_domain
-          END AS skill_domain,
-          percentage::float AS percentage,
-          GREATEST(
-            COALESCE(question_count, max_score, $4)::float,
-            1
-          ) AS question_weight
-        FROM account_score_history
-        WHERE profile_id IS NOT NULL
-      ),
-      domain_avgs AS (
-        SELECT
-          profile_id,
-          skill_domain,
-          (
-            (
-              SUM(percentage * question_weight) / NULLIF(SUM(question_weight), 0)
-            ) * SUM(question_weight)
-            + ($2::float * $3::float)
-          ) / (SUM(question_weight) + $3::float) AS value,
-          COUNT(*)::int AS attempts,
-          SUM(question_weight)::float AS question_volume
-        FROM normalized_scores
-        WHERE skill_domain IS NOT NULL
-        GROUP BY profile_id, skill_domain
-      ),
-      ranked_domains AS (
-        SELECT
-          profile_id,
-          skill_domain,
-          ROUND(value)::int AS value,
-          attempts,
-          RANK() OVER (
-            PARTITION BY skill_domain
-            ORDER BY value DESC, question_volume DESC, profile_id ASC
-          )::int AS domain_rank,
-          COUNT(*) OVER (PARTITION BY skill_domain)::int AS ranked_profiles
-        FROM domain_avgs
-      ),
-      active_radar AS (
-        SELECT COALESCE(
-          jsonb_agg(to_jsonb(rd) ORDER BY rd.skill_domain),
-          '[]'::jsonb
-        ) AS rows
-        FROM ranked_domains rd
-        WHERE rd.profile_id = $1
-      ),
-      profile_avgs AS (
-        SELECT
-          profile_id,
-          ROUND(
-            AVG(value)
-            * (
-              $5::float
-              + ((1 - $5::float) * LEAST(COUNT(*)::float / $6::float, 1))
-            )
-          )::int AS dashboard_average,
-          SUM(attempts)::int AS total_attempts,
-          SUM(question_volume)::float AS total_question_volume
-        FROM domain_avgs
-        GROUP BY profile_id
-      ),
-      ranked_profiles AS (
-        SELECT
-          profile_id,
-          dashboard_average,
-          total_attempts,
-          RANK() OVER (
-            ORDER BY dashboard_average DESC, total_question_volume DESC, profile_id ASC
-          )::int AS actual_platform_rank,
-          COUNT(*) OVER ()::int AS ranked_profiles
-        FROM profile_avgs
-      ),
-      active_rank AS (
-        SELECT *
-        FROM ranked_profiles
-        WHERE profile_id = $1
       ),
       latest_subscription AS (
         SELECT s.*, to_jsonb(s) AS row
@@ -2749,30 +2842,17 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
         ap.*,
         fp.rows AS profiles,
         rs.rows AS score_history,
-        ar.rows AS radar_rows,
-        active_rank.actual_platform_rank,
-        active_rank.ranked_profiles,
-        active_rank.dashboard_average,
-        active_rank.total_attempts,
         latest_subscription.row AS subscription,
         active_package.plan_key AS active_package_key
       FROM active_profile ap
       CROSS JOIN fleet_profiles fp
       CROSS JOIN recent_scores rs
-      CROSS JOIN active_radar ar
-      LEFT JOIN active_rank ON active_rank.profile_id = ap.id
       LEFT JOIN latest_subscription ON TRUE
       LEFT JOIN active_package ON TRUE;
     `,
-    [
-      profileId,
-      SCORE_BASELINE_PERCENT,
-      SCORE_BASELINE_QUESTIONS,
-      LEGACY_SCORE_QUESTION_WEIGHT,
-      COVERAGE_SCORE_FLOOR,
-      accountSkillDomains.length,
-    ],
+    [profileId],
   );
+  const [metrics, result] = await Promise.all([metricsPromise, resultPromise]);
 
   if (result.rowCount === 0) {
     throw new Error("Account profile not found.");
@@ -2781,15 +2861,15 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
   const activeProfile = result.rows[0];
   const profiles = asRows(activeProfile.profiles);
   const scoreHistory = asRows(activeProfile.score_history);
-  const radarRows = asRows(activeProfile.radar_rows);
+  const radarRows = metrics.domainMetricsByProfile.get(profileId) ?? [];
   const radarByDomain = new Map(
     radarRows.map((row) => [
-      String(row.skill_domain),
+      row.skillDomain,
       {
-        value: Math.round(Number(row.value)),
-        attempts: Number(row.attempts),
-        rank: Number(row.domain_rank),
-        rankedProfiles: Number(row.ranked_profiles),
+        value: row.value,
+        attempts: row.attempts,
+        rank: row.domainRank,
+        rankedProfiles: row.rankedProfiles,
       },
     ]),
   );
@@ -2809,12 +2889,9 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
   const subscriptionRow = activeProfile.subscription as
     | Record<string, unknown>
     | null;
-  const actualPlatformRank = activeProfile.actual_platform_rank
-    ? Number(activeProfile.actual_platform_rank)
-    : null;
-  const rankedProfiles = activeProfile.ranked_profiles
-    ? Number(activeProfile.ranked_profiles)
-    : 0;
+  const profileMetric = metrics.profileMetricsByProfile.get(profileId);
+  const actualPlatformRank = profileMetric?.actualPlatformRank ?? null;
+  const rankedProfiles = profileMetric?.rankedProfiles ?? 0;
 
   accountDebug("account overview loaded", {
     profileId,
@@ -2842,12 +2919,8 @@ export async function getAccountOverview(profileId: string): Promise<AccountOver
       actualPlatformRank,
       rankedProfiles,
       profilesAhead: actualPlatformRank ? actualPlatformRank - 1 : 0,
-      dashboardAverage: activeProfile.dashboard_average
-        ? Number(activeProfile.dashboard_average)
-        : null,
-      totalAttempts: activeProfile.total_attempts
-        ? Number(activeProfile.total_attempts)
-        : 0,
+      dashboardAverage: profileMetric?.dashboardAverage ?? null,
+      totalAttempts: profileMetric?.totalAttempts ?? 0,
     },
     subscription: mapSubscription(subscriptionRow),
   };
@@ -3095,6 +3168,7 @@ export async function recordScore(input: {
     ],
   );
 
+  dashboardMetricsCache = null;
   return mapScore(result.rows[0]);
 }
 
@@ -5503,130 +5577,64 @@ export async function getLeaderboardContext(
   profileId: string,
 ): Promise<LeaderboardContextEntry[]> {
   await ensureAccountSchema();
-  const pool = getPool();
-  const result = await pool.query<{
-    profile_id: string;
-    call_sign: string;
-    actual_platform_rank: number;
-    dashboard_average: number;
-    radar_rows: unknown;
-    is_current_user: boolean;
-  }>(
-    `
-      WITH normalized_scores AS (
-        SELECT
-          profile_id,
-          CASE
-            WHEN topic_slug = 'multitasking-assessment' THEN 'multitasking'
-            WHEN skill_domain = 'multitasking' THEN NULL
-            WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
-            ELSE skill_domain
-          END AS skill_domain,
-          percentage::float AS percentage,
-          GREATEST(
-            COALESCE(question_count, max_score, $4)::float,
-            1
-          ) AS question_weight
-        FROM account_score_history
-        WHERE profile_id IS NOT NULL
-      ),
-      domain_avgs AS (
-        SELECT
-          profile_id,
-          skill_domain,
-          (
-            (
-              SUM(percentage * question_weight) / NULLIF(SUM(question_weight), 0)
-            ) * SUM(question_weight)
-            + ($2::float * $3::float)
-          ) / (SUM(question_weight) + $3::float) AS value,
-          COUNT(*)::int AS attempts,
-          SUM(question_weight)::float AS question_volume
-        FROM normalized_scores
-        WHERE skill_domain IS NOT NULL
-        GROUP BY profile_id, skill_domain
-      ),
-      profile_avgs AS (
-        SELECT
-          profile_id,
-          ROUND(
-            AVG(value)
-            * (
-              $5::float
-              + ((1 - $5::float) * LEAST(COUNT(*)::float / $6::float, 1))
-            )
-          )::int AS dashboard_average,
-          SUM(attempts)::int AS total_attempts,
-          SUM(question_volume)::float AS total_question_volume
-        FROM domain_avgs
-        GROUP BY profile_id
-      ),
-      ranked_profiles AS (
-        SELECT
-          profile_id,
-          dashboard_average,
-          RANK() OVER (
-            ORDER BY dashboard_average DESC, total_question_volume DESC, profile_id ASC
-          )::int AS actual_platform_rank
-        FROM profile_avgs
-      ),
-      user_rank AS (
-        SELECT actual_platform_rank AS r
-        FROM ranked_profiles
-        WHERE profile_id = $1
-      )
-      SELECT
-        rp.profile_id,
-        ap.call_sign,
-        rp.actual_platform_rank,
-        rp.dashboard_average,
-        COALESCE(radar.rows, '[]'::jsonb) AS radar_rows,
-        (rp.profile_id = $1) AS is_current_user
-      FROM ranked_profiles rp
-      JOIN account_profiles ap ON ap.id = rp.profile_id
-      LEFT JOIN LATERAL (
-        SELECT jsonb_agg(
-          jsonb_build_object(
-            'skill_domain', da.skill_domain,
-            'value', ROUND(da.value)::int,
-            'attempts', da.attempts
-          )
-          ORDER BY da.skill_domain
-        ) AS rows
-        FROM domain_avgs da
-        WHERE da.profile_id = rp.profile_id
-      ) radar ON TRUE
-      WHERE
-        rp.actual_platform_rank <= 3
-        OR rp.actual_platform_rank BETWEEN
-          GREATEST(1, (SELECT r FROM user_rank) - 2)
-          AND (SELECT r FROM user_rank) + 2
-      ORDER BY rp.actual_platform_rank
-    `,
-    [
-      profileId,
-      SCORE_BASELINE_PERCENT,
-      SCORE_BASELINE_QUESTIONS,
-      LEGACY_SCORE_QUESTION_WEIGHT,
-      COVERAGE_SCORE_FLOOR,
-      accountSkillDomains.length,
-    ],
+  const metrics = await getDashboardMetricsSnapshot();
+  const currentUserMetric = metrics.profileMetricsByProfile.get(profileId);
+
+  if (!currentUserMetric && metrics.profileMetrics.length === 0) {
+    return [];
+  }
+
+  const lowerRank = currentUserMetric
+    ? Math.max(1, currentUserMetric.actualPlatformRank - 2)
+    : null;
+  const upperRank = currentUserMetric
+    ? currentUserMetric.actualPlatformRank + 2
+    : null;
+  const selectedMetrics = metrics.profileMetrics.filter(
+    (metric) =>
+      metric.actualPlatformRank <= 3 ||
+      (lowerRank !== null &&
+        upperRank !== null &&
+        metric.actualPlatformRank >= lowerRank &&
+        metric.actualPlatformRank <= upperRank),
   );
 
-  return result.rows.map((row) => {
-    const displayName = row.call_sign?.trim() || "Pilot";
-    const radarRows = asRows(row.radar_rows);
+  if (selectedMetrics.length === 0) {
+    return [];
+  }
+
+  const pool = getPool();
+  const result = await pool.query<{
+    id: string;
+    call_sign: string;
+  }>(
+    `
+      SELECT id, call_sign
+      FROM account_profiles
+      WHERE id = ANY($1::uuid[])
+    `,
+    [selectedMetrics.map((metric) => metric.profileId)],
+  );
+
+  const profilesById = new Map(result.rows.map((row) => [row.id, row]));
+
+  return selectedMetrics
+    .sort((a, b) => a.actualPlatformRank - b.actualPlatformRank)
+    .map((metric) => {
+    const profile = profilesById.get(metric.profileId);
+    const displayName = profile?.call_sign?.trim() || "Pilot";
+    const radarRows = metrics.domainMetricsByProfile.get(metric.profileId) ?? [];
     const radarByDomain = new Map(
       radarRows.map((radarRow) => [
-        String(radarRow.skill_domain),
+        radarRow.skillDomain,
         {
-          slug: String(radarRow.skill_domain),
+          slug: radarRow.skillDomain,
           label:
             accountSkillDomains.find(
-              (domain) => domain.slug === String(radarRow.skill_domain),
-            )?.label ?? String(radarRow.skill_domain),
-          value: Math.round(Number(radarRow.value ?? 0)),
-          attempts: Number(radarRow.attempts ?? 0),
+              (domain) => domain.slug === radarRow.skillDomain,
+            )?.label ?? radarRow.skillDomain,
+          value: radarRow.value,
+          attempts: radarRow.attempts,
           rank: null,
           rankedProfiles: 0,
         },
@@ -5647,88 +5655,19 @@ export async function getLeaderboardContext(
     });
 
     return {
-      profileId: row.profile_id,
+      profileId: metric.profileId,
       displayName,
       imageUrl: null,
-      rank: Number(row.actual_platform_rank),
-      dashboardAverage: Math.round(Number(row.dashboard_average)),
+      rank: metric.actualPlatformRank,
+      dashboardAverage: metric.dashboardAverage,
       radar,
-      isCurrentUser: Boolean(row.is_current_user),
+      isCurrentUser: metric.profileId === profileId,
     };
   });
 }
 
 export async function getProfileRank(profileId: string): Promise<number | null> {
   await ensureAccountSchema();
-  const pool = getPool();
-  const result = await pool.query<{ actual_platform_rank: number | null }>(
-    `
-      WITH normalized_scores AS (
-        SELECT
-          profile_id,
-          CASE
-            WHEN topic_slug = 'multitasking-assessment' THEN 'multitasking'
-            WHEN skill_domain = 'multitasking' THEN NULL
-            WHEN skill_domain = 'aviation-recall' THEN 'short-term-memory'
-            ELSE skill_domain
-          END AS skill_domain,
-          percentage::float AS percentage,
-          GREATEST(
-            COALESCE(question_count, max_score, $4)::float,
-            1
-          ) AS question_weight
-        FROM account_score_history
-        WHERE profile_id IS NOT NULL
-      ),
-      domain_avgs AS (
-        SELECT
-          profile_id,
-          skill_domain,
-          (
-            (
-              SUM(percentage * question_weight) / NULLIF(SUM(question_weight), 0)
-            ) * SUM(question_weight)
-            + ($2::float * $3::float)
-          ) / (SUM(question_weight) + $3::float) AS value,
-          COUNT(*)::int AS attempts,
-          SUM(question_weight)::float AS question_volume
-        FROM normalized_scores
-        WHERE skill_domain IS NOT NULL
-        GROUP BY profile_id, skill_domain
-      ),
-      profile_avgs AS (
-        SELECT
-          profile_id,
-          ROUND(
-            AVG(value)
-            * (
-              $5::float
-              + ((1 - $5::float) * LEAST(COUNT(*)::float / $6::float, 1))
-            )
-          )::int AS dashboard_average,
-          SUM(attempts)::int AS total_attempts,
-          SUM(question_volume)::float AS total_question_volume
-        FROM domain_avgs
-        GROUP BY profile_id
-      ),
-      ranked_profiles AS (
-        SELECT
-          profile_id,
-          RANK() OVER (
-            ORDER BY dashboard_average DESC, total_question_volume DESC, profile_id ASC
-          )::int AS actual_platform_rank
-        FROM profile_avgs
-      )
-      SELECT actual_platform_rank FROM ranked_profiles WHERE profile_id = $1 LIMIT 1
-    `,
-    [
-      profileId,
-      SCORE_BASELINE_PERCENT,
-      SCORE_BASELINE_QUESTIONS,
-      LEGACY_SCORE_QUESTION_WEIGHT,
-      COVERAGE_SCORE_FLOOR,
-      accountSkillDomains.length,
-    ],
-  );
-  return result.rows[0]?.actual_platform_rank ?? null;
+  const metrics = await getDashboardMetricsSnapshot();
+  return metrics.profileMetricsByProfile.get(profileId)?.actualPlatformRank ?? null;
 }

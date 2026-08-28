@@ -1,4 +1,4 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getCurrentAccountUser } from "@/lib/account/auth";
 import { hasAccountDatabase, getProfileRank, getActivePackageForFleet } from "@/lib/account/db";
 
@@ -18,8 +18,9 @@ function routeError(
   });
 }
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   const startedAt = Date.now();
+  const summaryOnly = request.nextUrl.searchParams.get("summary") === "1";
 
   try {
     if (!hasAccountDatabase()) {
@@ -39,6 +40,15 @@ export async function GET() {
 
     if (!user) {
       return NextResponse.json({ user: null, configured: true }, { status: 200 });
+    }
+
+    if (summaryOnly) {
+      return NextResponse.json({
+        user,
+        configured: true,
+        rank: null,
+        planTitle: null,
+      });
     }
 
     const [rank, activePackage] = await Promise.all([

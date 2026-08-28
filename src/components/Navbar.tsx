@@ -106,7 +106,10 @@ export default function Navbar() {
   }
 
   const loadAccount = useCallback((signal?: AbortSignal) => {
-    return fetch("/api/account/me", { cache: "no-store", signal })
+    const accountUrl =
+      pathname === "/dashboard" ? "/api/account/me?summary=1" : "/api/account/me";
+
+    return fetch(accountUrl, { cache: "no-store", signal })
       .then((response) => (response.ok ? response.json() : null))
       .then((data) => {
         if (data?.user?.name) {
@@ -131,7 +134,7 @@ export default function Navbar() {
         setAccount(null);
         setAccountStatus("signed-out");
       });
-  }, []);
+  }, [pathname]);
 
   useEffect(() => {
     const controller = new AbortController();
