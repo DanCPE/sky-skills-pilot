@@ -3,6 +3,10 @@
 import Image from "next/image";
 import type { TournamentRankingEntry } from "@/lib/real-tournament/types";
 
+function getProfileInitial(name: string) {
+  return name.trim().slice(0, 1).toUpperCase() || "?";
+}
+
 export default function RankingBoard({
   ranking,
   loading,
@@ -58,7 +62,11 @@ export default function RankingBoard({
                         fill
                         className="object-cover"
                       />
-                    ) : null}
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center bg-[#4F12A6] text-xs font-black text-white dark:bg-brand-gold dark:text-zinc-950">
+                        {getProfileInitial(entry.profileName)}
+                      </span>
+                    )}
                   </span>
                   <span className="truncate font-semibold text-zinc-900 dark:text-zinc-100">
                     {entry.profileName}
