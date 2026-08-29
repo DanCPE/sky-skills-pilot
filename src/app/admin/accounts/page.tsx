@@ -67,6 +67,7 @@ export default function AdminAccountsPage() {
     () => new Set(),
   );
   const [query, setQuery] = useState("");
+  const [profileActionId, setProfileActionId] = useState<string | null>(null);
 
   const fetchData = useCallback(async () => {
     setIsLoading(true);
@@ -134,6 +135,79 @@ export default function AdminAccountsPage() {
       }
       return next;
     });
+  }
+
+  async function uploadMockProfileAvatar(profileId: string, file: File | null) {
+    if (!file) return;
+
+    setProfileActionId(profileId);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.set("action", "upload");
+      formData.set("image", file);
+
+      const response = await fetch(
+        `/api/admin/accounts/mock-profiles/${encodeURIComponent(profileId)}/avatar`,
+        {
+          method: "PATCH",
+          body: formData,
+        },
+      );
+      const json = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(json?.error || "Failed to upload mock profile picture.");
+      }
+
+      await fetchData();
+    } catch (uploadError) {
+      setError(
+        uploadError instanceof Error
+          ? uploadError.message
+          : "Failed to upload mock profile picture.",
+      );
+    } finally {
+      setProfileActionId(null);
+    }
+  }
+
+  async function clearMockProfileAvatar(profileId: string) {
+    setProfileActionId(profileId);
+    setError(null);
+
+    try {
+      const formData = new FormData();
+      formData.set("action", "clear");
+
+      const response = await fetch(
+        `/api/admin/accounts/mock-profiles/${encodeURIComponent(profileId)}/avatar`,
+        {
+          method: "PATCH",
+          body: formData,
+        },
+      );
+      const json = (await response.json().catch(() => null)) as
+        | { error?: string }
+        | null;
+
+      if (!response.ok) {
+        throw new Error(json?.error || "Failed to clear mock profile picture.");
+      }
+
+      await fetchData();
+    } catch (clearError) {
+      setError(
+        clearError instanceof Error
+          ? clearError.message
+          : "Failed to clear mock profile picture.",
+      );
+    } finally {
+      setProfileActionId(null);
+    }
   }
 
   return (
@@ -375,6 +449,9 @@ export default function AdminAccountsPage() {
                                         <th className="px-3 py-2 font-bold">
                                           Radar
                                         </th>
+                                        <th className="px-3 py-2 font-bold">
+                                          Mock Avatar
+                                        </th>
                                       </tr>
                                     </thead>
                                     <tbody>
@@ -425,6 +502,49 @@ export default function AdminAccountsPage() {
                                                 </span>
                                               ))}
                                             </div>
+                                          </td>
+                                          <td className="px-3 py-2">
+                                            {profile.isMock ? (
+                                              <div className="flex flex-wrap items-center gap-2">
+                                                <label className="inline-flex cursor-pointer rounded-lg bg-violet-700 px-3 py-2 text-[11px] font-bold text-white transition hover:bg-violet-600">
+                                                  Upload
+                                                  <input
+                                                    type="file"
+                                                    accept="image/jpeg,image/png,image/webp"
+                                                    className="sr-only"
+                                                    disabled={
+                                                      profileActionId === profile.id
+                                                    }
+                                                    onChange={(event) => {
+                                                      const file =
+                                                        event.currentTarget.files?.[0] ??
+                                                        null;
+                                                      void uploadMockProfileAvatar(
+                                                        profile.id,
+                                                        file,
+                                                      );
+                                                      event.currentTarget.value = "";
+                                                    }}
+                                                  />
+                                                </label>
+                                                <button
+                                                  type="button"
+                                                  disabled={profileActionId === profile.id}
+                                                  onClick={() =>
+                                                    void clearMockProfileAvatar(profile.id)
+                                                  }
+                                                  className="rounded-lg border border-zinc-200 px-3 py-2 text-[11px] font-bold text-zinc-600 transition hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-white/10 dark:text-zinc-300 dark:hover:bg-white/5"
+                                                >
+                                                  {profileActionId === profile.id
+                                                    ? "Saving..."
+                                                    : "No picture"}
+                                                </button>
+                                              </div>
+                                            ) : (
+                                              <span className="text-[11px] font-semibold text-zinc-400 dark:text-zinc-500">
+                                                Real profile
+                                              </span>
+                                            )}
                                           </td>
                                         </tr>
                                       ))}

@@ -397,6 +397,7 @@ export interface AdminAccountProfileSummary {
   callSign: string;
   imageUrl: string | null;
   isDefault: boolean;
+  isMock: boolean;
   scoreCount: number;
   totalAttempts: number;
   dashboardAverage: number | null;
@@ -1493,6 +1494,7 @@ function mapAdminProfile(row: Record<string, unknown>): AdminAccountProfileSumma
     callSign: String(row.call_sign),
     imageUrl: row.image_url ? String(row.image_url) : null,
     isDefault: Boolean(row.is_default),
+    isMock: Boolean(row.is_mock),
     scoreCount: Number(row.score_count ?? 0),
     totalAttempts: 0,
     dashboardAverage: null,
@@ -1505,6 +1507,31 @@ function mapAdminProfile(row: Record<string, unknown>): AdminAccountProfileSumma
     updatedAt: new Date(String(row.updated_at)).toISOString(),
     radar: [],
   };
+}
+
+export async function updateMockAccountProfileImage(input: {
+  profileId: string;
+  imageUrl: string | null;
+}) {
+  await ensureAccountSchema();
+
+  const result = await getPool().query(
+    `
+      UPDATE account_profiles
+      SET image_url = $2,
+          updated_at = NOW()
+      WHERE id = $1
+        AND is_mock = TRUE
+      RETURNING *;
+    `,
+    [input.profileId, input.imageUrl],
+  );
+
+  if (result.rowCount === 0) {
+    throw new Error("Mock profile not found.");
+  }
+
+  return mapProfile(result.rows[0]);
 }
 
 export async function upsertGoogleUser(profile: GoogleProfile) {
