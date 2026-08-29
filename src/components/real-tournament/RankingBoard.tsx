@@ -63,7 +63,7 @@ export default function RankingBoard({
                         className="object-cover"
                       />
                     ) : (
-                      <span className="flex h-full w-full items-center justify-center bg-[#4F12A6] text-xs font-black text-white dark:bg-brand-gold dark:text-zinc-950">
+                      <span className="flex h-full w-full items-center justify-center bg-violet-700 text-xs font-bold text-white">
                         {getProfileInitial(entry.profileName)}
                       </span>
                     )}
