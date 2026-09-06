@@ -13,8 +13,13 @@ import {
 export async function GET() {
   try {
     const weekTiming = getRealTournamentWeekTiming();
-    const [ranking, user] = await Promise.all([
+    const previousWeekId =
+      weekTiming.weekIndex > 0 ? `week-${weekTiming.weekIndex - 1}` : null;
+    const [ranking, previousRanking, user] = await Promise.all([
       getRealTournamentRanking({ weekId: weekTiming.weekId, limit: 30 }),
+      previousWeekId
+        ? getRealTournamentRanking({ weekId: previousWeekId, limit: 1 })
+        : Promise.resolve([]),
       getCurrentAccountUser(),
     ]);
     const attemptStatus =
@@ -28,6 +33,8 @@ export async function GET() {
 
     return NextResponse.json({
       ranking,
+      previousChampion: previousRanking[0] ?? null,
+      previousWeekId,
       weekId: weekTiming.weekId,
       weekEndMs: weekTiming.weekEndMs,
       attemptStatus,

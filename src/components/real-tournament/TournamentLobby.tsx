@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import PreviousChampionFlag from "./PreviousChampionFlag";
 import RankingBoard from "./RankingBoard";
 import QuizInterface from "./QuizInterface";
 import { unlockTournamentAudio } from "@/lib/real-tournament/client-audio";
@@ -18,6 +19,9 @@ interface AttemptStatus {
 
 export default function TournamentLobby() {
   const [ranking, setRanking] = useState<TournamentRankingEntry[]>([]);
+  const [previousChampion, setPreviousChampion] =
+    useState<TournamentRankingEntry | null>(null);
+  const [previousWeekId, setPreviousWeekId] = useState<string | null>(null);
   const [attemptStatus, setAttemptStatus] = useState<AttemptStatus | null>(null);
   const [signInRequired, setSignInRequired] = useState(false);
   const [rankingLoading, setRankingLoading] = useState(true);
@@ -31,10 +35,14 @@ export default function TournamentLobby() {
       const response = await fetch("/api/real-tournament/ranking");
       const data = (await response.json()) as {
         ranking?: TournamentRankingEntry[];
+        previousChampion?: TournamentRankingEntry | null;
+        previousWeekId?: string | null;
         attemptStatus?: AttemptStatus | null;
         signInRequired?: boolean;
       };
       setRanking(data.ranking ?? []);
+      setPreviousChampion(data.previousChampion ?? null);
+      setPreviousWeekId(data.previousWeekId ?? null);
       setAttemptStatus(data.attemptStatus ?? null);
       setSignInRequired(Boolean(data.signInRequired));
     } finally {
@@ -144,6 +152,11 @@ export default function TournamentLobby() {
           </p>
         ) : null}
       </section>
+
+      <PreviousChampionFlag
+        champion={previousChampion}
+        weekId={previousWeekId}
+      />
 
       <RankingBoard ranking={ranking} loading={rankingLoading} />
     </div>
