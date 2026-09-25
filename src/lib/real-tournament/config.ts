@@ -18,6 +18,10 @@ export const REAL_TOURNAMENT_TIMING = {
 // environments calculate the same tournament window.
 const REAL_TOURNAMENT_EPOCH_MS = Date.UTC(2026, 7, 28, 17, 0, 0);
 
+// 2026-09-26 00:00 in Asia/Bangkok. Keep the completed tournament visible,
+// but do not roll into a new weekly session after this time.
+export const REAL_TOURNAMENT_CLOSES_AT_MS = Date.UTC(2026, 8, 25, 17, 0, 0);
+
 export const TOURNAMENT_CATEGORIES: Array<{
   category: TournamentCategory;
   label: string;
@@ -65,7 +69,8 @@ export const ROUND_QUESTION_COUNT = MIXED_ROUND_DIFFICULTY_PLAN.reduce(
 );
 
 export function getRealTournamentWeekTiming(now = Date.now()) {
-  const elapsedMs = Math.max(0, now - REAL_TOURNAMENT_EPOCH_MS);
+  const tournamentNow = Math.min(now, REAL_TOURNAMENT_CLOSES_AT_MS - 1);
+  const elapsedMs = Math.max(0, tournamentNow - REAL_TOURNAMENT_EPOCH_MS);
   const weekIndex = Math.floor(
     elapsedMs / REAL_TOURNAMENT_TIMING.weekDurationMs,
   );
@@ -80,4 +85,10 @@ export function getRealTournamentWeekTiming(now = Date.now()) {
     weekStartMs,
     weekEndMs,
   };
+}
+
+export function isRealTournamentOpen(now = Date.now()) {
+  return (
+    now >= REAL_TOURNAMENT_EPOCH_MS && now < REAL_TOURNAMENT_CLOSES_AT_MS
+  );
 }

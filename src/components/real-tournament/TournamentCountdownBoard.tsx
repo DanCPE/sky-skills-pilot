@@ -2,7 +2,10 @@
 
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { getRealTournamentWeekTiming } from "@/lib/real-tournament/config";
+import {
+  getRealTournamentWeekTiming,
+  isRealTournamentOpen,
+} from "@/lib/real-tournament/config";
 
 function getRemainingParts(targetMs: number, now: number) {
   const totalSeconds = Math.max(0, Math.floor((targetMs - now) / 1000));
@@ -59,6 +62,8 @@ export default function TournamentCountdownBoard() {
   if (!weekTiming || !remaining || isHidden || isDismissedUntilNextTournament) {
     return null;
   }
+
+  if (now === null || !isRealTournamentOpen(now)) return null;
 
   return (
     <div className="pointer-events-none fixed bottom-5 right-4 z-30 hidden w-[min(360px,calc(100vw-2rem))] animate-[tournament-board-drift_9s_ease-in-out_infinite] md:block">

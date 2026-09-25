@@ -8,6 +8,8 @@ import {
 import { assembleRealTournamentQuestions } from "@/lib/real-tournament/assemble";
 import {
   getRealTournamentWeekTiming,
+  isRealTournamentOpen,
+  REAL_TOURNAMENT_CLOSES_AT_MS,
   REAL_TOURNAMENT_MAX_ATTEMPTS_PER_WEEK,
   REAL_TOURNAMENT_TOPIC,
 } from "@/lib/real-tournament/config";
@@ -29,15 +31,30 @@ export async function GET() {
     return NextResponse.json({ error: "Sign in required." }, { status: 401 });
   }
 
+  if (!isRealTournamentOpen()) {
+    return NextResponse.json(
+      { error: "The Real Tournament is closed." },
+      { status: 410 },
+    );
+  }
+
   try {
     const weekTiming = getRealTournamentWeekTiming();
     const attempt = await createRealTournamentAttempt({
       profileId: user.profileId,
       weekId: weekTiming.weekId,
       maxAttempts: REAL_TOURNAMENT_MAX_ATTEMPTS_PER_WEEK,
+      closesAt: new Date(REAL_TOURNAMENT_CLOSES_AT_MS),
     });
 
     if (!attempt) {
+      if (!isRealTournamentOpen()) {
+        return NextResponse.json(
+          { error: "The Real Tournament is closed." },
+          { status: 410 },
+        );
+      }
+
       return NextResponse.json(
         { error: "No tournament tokens remaining this week." },
         { status: 403 },

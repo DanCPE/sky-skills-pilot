@@ -7,6 +7,8 @@ import {
 } from "@/lib/account/db";
 import {
   getRealTournamentWeekTiming,
+  isRealTournamentOpen,
+  REAL_TOURNAMENT_CLOSES_AT_MS,
   REAL_TOURNAMENT_MAX_ATTEMPTS_PER_WEEK,
 } from "@/lib/real-tournament/config";
 
@@ -37,6 +39,8 @@ export async function GET() {
       previousWeekId,
       weekId: weekTiming.weekId,
       weekEndMs: weekTiming.weekEndMs,
+      closesAtMs: REAL_TOURNAMENT_CLOSES_AT_MS,
+      tournamentOpen: isRealTournamentOpen(),
       attemptStatus,
       signInRequired: !user,
     });

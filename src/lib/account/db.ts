@@ -3328,6 +3328,7 @@ export async function createRealTournamentAttempt(input: {
   profileId: string;
   weekId: string;
   maxAttempts: number;
+  closesAt?: Date;
 }) {
   await ensureAccountSchema();
   const pool = getPool();
@@ -3368,11 +3369,17 @@ export async function createRealTournamentAttempt(input: {
     const attemptResult = await client.query<{ id: string }>(
       `
         INSERT INTO real_tournament_attempts (user_id, profile_id, week_id)
-        VALUES ($1, $2, $3)
+        SELECT $1, $2, $3
+        WHERE $4::timestamptz IS NULL OR NOW() < $4::timestamptz
         RETURNING id;
       `,
-      [fleetId, input.profileId, input.weekId],
+      [fleetId, input.profileId, input.weekId, input.closesAt ?? null],
     );
+
+    if (attemptResult.rowCount === 0) {
+      await client.query("ROLLBACK");
+      return null;
+    }
 
     await client.query("COMMIT");
     return {

@@ -23,6 +23,8 @@ export default function TournamentLobby() {
     useState<TournamentRankingEntry | null>(null);
   const [previousWeekId, setPreviousWeekId] = useState<string | null>(null);
   const [attemptStatus, setAttemptStatus] = useState<AttemptStatus | null>(null);
+  const [tournamentOpen, setTournamentOpen] = useState<boolean | null>(null);
+  const [closesAtMs, setClosesAtMs] = useState<number | null>(null);
   const [signInRequired, setSignInRequired] = useState(false);
   const [rankingLoading, setRankingLoading] = useState(true);
   const [quizData, setQuizData] = useState<TournamentQuizResponse | null>(null);
@@ -39,12 +41,16 @@ export default function TournamentLobby() {
         previousWeekId?: string | null;
         attemptStatus?: AttemptStatus | null;
         signInRequired?: boolean;
+        tournamentOpen?: boolean;
+        closesAtMs?: number;
       };
       setRanking(data.ranking ?? []);
       setPreviousChampion(data.previousChampion ?? null);
       setPreviousWeekId(data.previousWeekId ?? null);
       setAttemptStatus(data.attemptStatus ?? null);
       setSignInRequired(Boolean(data.signInRequired));
+      setTournamentOpen(data.tournamentOpen ?? false);
+      setClosesAtMs(data.closesAtMs ?? null);
     } finally {
       setRankingLoading(false);
     }
@@ -61,6 +67,7 @@ export default function TournamentLobby() {
         const data = (await response.json().catch(() => null)) as {
           error?: string;
         } | null;
+        if (response.status === 410) setTournamentOpen(false);
         throw new Error(data?.error ?? "Tournament is unavailable right now.");
       }
 
@@ -94,6 +101,16 @@ export default function TournamentLobby() {
     void loadRanking();
   }, []);
 
+  useEffect(() => {
+    if (!tournamentOpen || closesAtMs === null) return;
+
+    const timeoutId = window.setTimeout(
+      () => setTournamentOpen(false),
+      Math.max(0, closesAtMs - Date.now() + 50),
+    );
+    return () => window.clearTimeout(timeoutId);
+  }, [closesAtMs, tournamentOpen]);
+
   if (quizData) {
     return (
       <QuizInterface
@@ -125,6 +142,7 @@ export default function TournamentLobby() {
             onClick={startTournament}
             disabled={
               starting ||
+              tournamentOpen !== true ||
               signInRequired ||
               attemptStatus?.remainingAttempts === 0
             }
@@ -132,6 +150,10 @@ export default function TournamentLobby() {
           >
             {starting
               ? "Preparing Tournament..."
+              : tournamentOpen === false
+                ? "Tournament Closed"
+                : tournamentOpen === null
+                  ? "Checking Tournament..."
               : signInRequired
                 ? "Sign in to Start"
                 : attemptStatus?.remainingAttempts === 0
@@ -140,7 +162,11 @@ export default function TournamentLobby() {
           </button>
         </div>
         <p className="mt-3 text-xs font-bold uppercase text-zinc-400">
-          {signInRequired
+          {tournamentOpen === false
+            ? "This tournament has ended. Final rankings remain available."
+            : tournamentOpen === null
+              ? "Checking tournament status..."
+            : signInRequired
             ? "Tournament entry requires sign in"
             : attemptStatus
               ? `${attemptStatus.remainingAttempts}/${attemptStatus.maxAttempts} weekly tokens remaining`

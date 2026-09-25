@@ -4,6 +4,10 @@ import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import TournamentCountdownBoard from "@/components/real-tournament/TournamentCountdownBoard";
+import {
+  isRealTournamentOpen,
+  REAL_TOURNAMENT_CLOSES_AT_MS,
+} from "@/lib/real-tournament/config";
 import type { Topic, TopicCategory } from "@/types";
 
 type AccessTopic = Topic & {
@@ -31,6 +35,7 @@ export default function SkyQuestBrowser({
   const [accessTopics, setAccessTopics] = useState(topics);
   const [hasLoadedAccess, setHasLoadedAccess] = useState(false);
   const [paidAccess, setPaidAccess] = useState(isPaid);
+  const [tournamentOpen, setTournamentOpen] = useState<boolean | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<
     TopicCategory | "all"
   >("all");
@@ -58,6 +63,22 @@ export default function SkyQuestBrowser({
       });
 
     return () => controller.abort();
+  }, []);
+
+  useEffect(() => {
+    const updateTournamentStatus = () => {
+      setTournamentOpen(isRealTournamentOpen(Date.now()));
+    };
+    const frameId = window.requestAnimationFrame(updateTournamentStatus);
+    const timeoutId = window.setTimeout(
+      updateTournamentStatus,
+      Math.max(0, REAL_TOURNAMENT_CLOSES_AT_MS - Date.now() + 50),
+    );
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+    };
   }, []);
 
   const filteredTopics =
@@ -169,13 +190,26 @@ export default function SkyQuestBrowser({
                       {topic.description}
                     </p>
 
-                    {!hasLoadedAccess ? (
+                    {!hasLoadedAccess ||
+                    (topic.slug === "real-tournament" &&
+                      tournamentOpen === null) ? (
                       <button
                         type="button"
                         disabled
                         className="flex w-full cursor-wait items-center justify-center gap-2 rounded-lg bg-zinc-100 px-4 py-2.5 text-xs font-bold text-zinc-400 dark:bg-zinc-800 dark:text-zinc-500"
                       >
-                        Checking access...
+                        {hasLoadedAccess
+                          ? "Checking tournament..."
+                          : "Checking access..."}
+                      </button>
+                    ) : topic.slug === "real-tournament" &&
+                      tournamentOpen === false ? (
+                      <button
+                        type="button"
+                        disabled
+                        className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-lg bg-zinc-100 px-4 py-2.5 text-xs font-bold text-zinc-500 dark:bg-zinc-800 dark:text-zinc-400"
+                      >
+                        Tournament Closed
                       </button>
                     ) : topic.isLocked ? (
                       <Link
