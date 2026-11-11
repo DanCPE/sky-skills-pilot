@@ -4023,7 +4023,8 @@ export async function getSubscriptionPackages(input?: { includeInactive?: boolea
 
   const result = await getPool().query(
     `
-      SELECT *
+      SELECT key, title, description, details, price_cents, currency,
+             duration_months, is_active, sort_order, created_at, updated_at
       FROM account_subscription_packages
       WHERE $1::boolean = TRUE OR is_active = TRUE
       ORDER BY sort_order ASC, price_cents ASC, key ASC;
@@ -4620,7 +4621,14 @@ export async function getAdminManualPaymentSlips() {
   const result = await getPool().query(
     `
       SELECT
-        s.*,
+        s.id, s.user_id, s.profile_id, s.plan_key, s.amount_cents,
+        s.original_amount_cents, s.discount_cents, s.promotion_code, s.currency,
+        s.bank_name, s.account_name, s.account_number, s.promptpay_id,
+        s.transfer_reference, s.mini_qr_payload, s.slip2go_status,
+        s.slip2go_trans_ref, s.slip2go_amount_cents, s.slip2go_payload,
+        s.verification_error, s.slip_file_name, s.slip_content_type, s.note,
+        s.status, s.reviewed_at, s.reviewed_by, s.rejection_reason,
+        s.personal_files_sent_at, s.created_at, s.updated_at,
         u.email,
         p.call_sign,
         pkg.title AS plan_title
